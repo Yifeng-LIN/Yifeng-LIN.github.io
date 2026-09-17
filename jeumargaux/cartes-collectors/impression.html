@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<title>Cartes Collectors — planches à imprimer</title>
+<style>
+  /* ------------------------------------------------------------------
+     Planches d'impression — 120 cartes au format standard 63 × 88 mm
+     (le format des cartes à collectionner du commerce).
+
+     A4 = 210 × 297 mm. Trois colonnes de 63 mm = 189 mm, il reste
+     10,5 mm de marge de chaque côté. Trois rangées de 88 mm = 264 mm,
+     il reste 16,5 mm en haut et en bas. Soit 9 cartes par page et
+     14 pages pour les 120 cartes (13 pleines + 1 de 3 cartes).
+
+     Les cartes sont jointives : un seul coup de massicot sépare deux
+     cartes voisines. Les repères de coupe aux bords de la feuille
+     prolongent les lignes de découpe jusqu'à la marge.
+     ------------------------------------------------------------------ */
+
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: #fff;
+    color: #111;
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Sans cela, les navigateurs suppriment photos et aplats à l'impression */
+  body, .carte, .vignette, .rarete, .jauge i, .bande {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .feuille {
+    position: relative;
+    width: 210mm;
+    height: 297mm;
+    padding: 16.5mm 10.5mm;
+    page-break-after: always;
+    break-after: page;
+  }
+  .feuille:last-child { page-break-after: auto; break-after: auto; }
+
+  .grille {
+    display: grid;
+    grid-template-columns: repeat(3, 63mm);
+    grid-template-rows: repeat(3, 88mm);
+  }
+
+  /* ---------- repères de coupe ---------- */
+  .repere {
+    position: absolute;
+    background: #000;
+  }
+  .repere.v { width: 0.2mm; height: 5mm; }
+  .repere.h { height: 0.2mm; width: 5mm; }
+
+  /* ---------- carte ---------- */
+  .carte {
+    width: 63mm;
+    height: 88mm;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    border: 0.2mm solid #b8c0c8;
+    background: #fff;
+  }
+
+  .carte[data-rarete="commune"]    { --accent: #5c7080; }
+  .carte[data-rarete="rare"]       { --accent: #1d6fb8; }
+  .carte[data-rarete="epique"]     { --accent: #7040b0; }
+  .carte[data-rarete="legendaire"] { --accent: #b3730c; }
+
+  .bande { height: 1.6mm; background: var(--accent); flex: none; }
+
+  .vignette {
+    position: relative;
+    height: 33mm;
+    flex: none;
+    overflow: hidden;
+    background: #eef1f4;
+  }
+  .vignette img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+  .numero, .rarete {
+    position: absolute;
+    top: 1.2mm;
+    font-size: 5pt;
+    font-weight: 700;
+    letter-spacing: .04em;
+    line-height: 1;
+    padding: 0.7mm 1.4mm;
+    border-radius: 4mm;
+  }
+  .numero { left: 1.2mm; background: rgba(255,255,255,.92); color: #222; }
+  .rarete { right: 1.2mm; background: var(--accent); color: #fff; text-transform: uppercase; }
+
+  .corps {
+    flex: 1;
+    min-height: 0;
+    padding: 1.8mm 2.2mm 1.6mm;
+    display: flex;
+    flex-direction: column;
+    gap: 1.3mm;
+  }
+
+  .nom { margin: 0; font-size: 8.5pt; line-height: 1.1; letter-spacing: -.01em; }
+  .latin { margin: 0.3mm 0 0; font-size: 5.5pt; font-style: italic; color: #667; }
+
+  .fiche { display: grid; grid-template-columns: 1fr 1fr; gap: 0.9mm 2mm; margin: 0; }
+  .fiche div { min-width: 0; }
+  .fiche dt { font-size: 4.6pt; text-transform: uppercase; letter-spacing: .05em; color: #7a8590; }
+  .fiche dd { margin: 0.2mm 0 0; font-size: 6.2pt; font-weight: 600; line-height: 1.15; }
+
+  .stats { display: grid; gap: 0.8mm; }
+  .stat { display: grid; grid-template-columns: 11mm 1fr 4.5mm; align-items: center; gap: 1.2mm; }
+  .stat span:first-child { font-size: 4.6pt; text-transform: uppercase; letter-spacing: .04em; color: #7a8590; }
+  .jauge { height: 1.1mm; border-radius: 1mm; background: #e2e7ec; overflow: hidden; }
+  .jauge i { display: block; height: 100%; border-radius: 1mm; background: var(--accent); }
+  .stat b { font-size: 5.4pt; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .fait {
+    margin: auto 0 0;
+    padding-top: 1.2mm;
+    border-top: 0.2mm solid #dfe4e9;
+    font-size: 5.4pt;
+    line-height: 1.35;
+    color: #445;
+  }
+  .credit { margin: 0.8mm 0 0; font-size: 4.2pt; color: #98a2ac; }
+
+  /* ---------- barre d'aperçu, masquée à l'impression ---------- */
+  .aide {
+    position: fixed;
+    top: 0; left: 0; right: 0;
+    padding: 10px 16px;
+    background: #101418;
+    color: #eef3f8;
+    font-size: 13px;
+    z-index: 10;
+  }
+  .aide b { color: #ffd479; }
+  @media print { .aide { display: none; } }
+  @media screen {
+    body { background: #59636d; padding-top: 44px; }
+    .feuille { margin: 16px auto; background: #fff; box-shadow: 0 4px 18px rgba(0,0,0,.35); }
+  }
+</style>
+</head>
+<body>
+
+<div class="aide">
+  Planches prêtes à imprimer — <b>9 cartes par page A4</b>, format 63 × 88 mm.
+  Imprimer à <b>100 % (pas d'ajustement à la page)</b>, marges « aucune ».
+</div>
+
+<div id="planches"></div>
+
+<script src="data/animaux.js?v=5"></script>
+<script>
+  const LIBELLE_RARETE = { commune: "Commune", rare: "Rare", epique: "Épique", legendaire: "Légendaire" };
+  const LIBELLES_DEFAUT = {
+    habitat: "Habitat", regime: "Régime", poids: "Poids",
+    vitesse: "Pointe", longevite: "Longévité", statut: "Statut"
+  };
+
+  const TOTAL = ANIMAUX.length;
+  const PAR_PAGE = 9;
+
+  function carteHTML(animal, index) {
+    const numero = String(index + 1).padStart(2, "0");
+    const lib = Object.assign({}, LIBELLES_DEFAUT, animal.libelles || {});
+    const stats = [
+      ["Force", animal.stats.force],
+      ["Vitesse", animal.stats.vitesse],
+      ["Endur.", animal.stats.endurance]
+    ];
+
+    return `
+      <article class="carte" data-rarete="${animal.rarete}">
+        <div class="bande"></div>
+        <div class="vignette">
+          <span class="numero">${numero}/${TOTAL}</span>
+          <span class="rarete">${LIBELLE_RARETE[animal.rarete]}</span>
+          <img src="${animal.image}" alt="${animal.nom}" loading="eager" decoding="sync">
+        </div>
+        <div class="corps">
+          <div>
+            <h2 class="nom">${animal.nom}</h2>
+            <p class="latin">${animal.latin}</p>
+          </div>
+
+          <dl class="fiche">
+            <div><dt>${lib.habitat}</dt><dd>${animal.habitat}</dd></div>
+            <div><dt>${lib.regime}</dt><dd>${animal.regime}</dd></div>
+            <div><dt>${lib.poids}</dt><dd>${animal.poids}</dd></div>
+            <div><dt>${lib.vitesse}</dt><dd>${animal.vitesse}</dd></div>
+            <div><dt>${lib.longevite}</dt><dd>${animal.longevite}</dd></div>
+            <div><dt>${lib.statut}</dt><dd>${animal.statut}</dd></div>
+          </dl>
+
+          <div class="stats">
+            ${stats.map(([nom, valeur]) => `
+              <div class="stat">
+                <span>${nom}</span>
+                <span class="jauge"><i style="width:${valeur}%"></i></span>
+                <b>${valeur}</b>
+              </div>`).join("")}
+          </div>
+
+          <p class="fait">${animal.fait}</p>
+          <p class="credit">Photo : ${animal.credit}</p>
+        </div>
+      </article>`;
+  }
+
+  // Repères de coupe : prolongent les lignes de découpe dans les marges
+  function reperesHTML() {
+    const colonnes = [10.5, 73.5, 136.5, 199.5];   // bords verticaux des cartes
+    const rangees  = [16.5, 104.5, 192.5, 280.5];  // bords horizontaux des cartes
+    let html = "";
+    for (const x of colonnes) {
+      html += `<i class="repere v" style="left:${x}mm;top:9.5mm"></i>`;
+      html += `<i class="repere v" style="left:${x}mm;top:282.5mm"></i>`;
+    }
+    for (const y of rangees) {
+      html += `<i class="repere h" style="top:${y}mm;left:4mm"></i>`;
+      html += `<i class="repere h" style="top:${y}mm;left:201mm"></i>`;
+    }
+    return html;
+  }
+
+  let html = "";
+  for (let i = 0; i < TOTAL; i += PAR_PAGE) {
+    const lot = ANIMAUX.slice(i, i + PAR_PAGE);
+    html += `<section class="feuille">${reperesHTML()}<div class="grille">` +
+            lot.map((a, j) => carteHTML(a, i + j)).join("") +
+            `</div></section>`;
+  }
+  document.getElementById("planches").innerHTML = html;
+</script>
+</body>
+</html>

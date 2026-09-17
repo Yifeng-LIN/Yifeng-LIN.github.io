@@ -1,0 +1,3910 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monde créatif</title>
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    overflow: hidden;
+    background: #6ab04c;
+    font-family: system-ui, sans-serif;
+  }
+  #jeu {
+    display: block;
+    width: 100vw;
+    height: 100vh;
+  }
+  #aide {
+    position: fixed;
+    left: 12px;
+    bottom: 12px;
+    color: rgba(255,255,255,0.92);
+    background: rgba(0,0,0,0.3);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    pointer-events: none;
+    user-select: none;
+  }
+  #aide b { color: #f9ca24; }
+  #hud {
+    position: fixed;
+    right: 12px;
+    top: 12px;
+    color: #fff;
+    background: rgba(0,0,0,0.3);
+    padding: 8px 14px;
+    border-radius: 8px;
+    font-size: 16px;
+    pointer-events: none;
+    user-select: none;
+    text-align: right;
+    line-height: 1.4;
+  }
+  #hud b { color: #f9ca24; }
+  #ligneFaim {
+    display: flex; align-items: center; gap: 6px;
+    justify-content: flex-end; margin-top: 8px;
+  }
+  #barreFaim {
+    width: 110px; height: 12px;
+    background: rgba(0,0,0,0.45);
+    border: 1px solid rgba(255,255,255,0.3);
+    border-radius: 6px; overflow: hidden;
+  }
+  #faimFill {
+    height: 100%; width: 100%;
+    background: linear-gradient(90deg, #e67e22, #f1c40f);
+    transition: width .2s linear, background .3s;
+  }
+
+  /* --- Mode construction --- */
+  #btnConstruire {
+    position: fixed;
+    right: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    width: 60px;
+    height: 60px;
+    border: none;
+    border-radius: 14px;
+    background: #f39c12;
+    color: #fff;
+    font-size: 28px;
+    cursor: pointer;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.35);
+    transition: background .15s, transform .1s;
+  }
+  #btnConstruire:hover { transform: translateY(-50%) scale(1.06); }
+  #btnConstruire.actif { background: #27ae60; }
+
+  #niveauCtrl {
+    position: fixed; right: 12px; top: calc(50% + 44px);
+    z-index: 10; display: flex; flex-direction: column; align-items: center; gap: 4px;
+    background: rgba(0,0,0,0.4); padding: 6px; border-radius: 12px;
+  }
+  #niveauCtrl.cache { display: none; }
+  #niveauCtrl button {
+    width: 44px; height: 32px; border: none; border-radius: 8px;
+    background: #f39c12; color: #fff; font-size: 16px; cursor: pointer;
+  }
+  #niveauCtrl button:hover { background: #f5b041; }
+  #niveauAff { color: #fff; font-size: 12px; font-weight: 600; }
+
+  #maisonOpts {
+    position: fixed; left: 12px; bottom: 60px; z-index: 10;
+    background: rgba(0,0,0,0.5); padding: 10px 12px; border-radius: 12px;
+  }
+  #maisonOpts.cache { display: none; }
+  .moTitre { color: #f9ca24; font-size: 11px; text-transform: uppercase; letter-spacing: .5px; margin: 4px 0; }
+  .moRangee { display: flex; gap: 6px; margin-bottom: 6px; }
+  .moRangee button {
+    border: 2px solid transparent; border-radius: 8px;
+    background: rgba(255,255,255,0.14); color: #fff;
+    font-size: 13px; padding: 7px 10px; cursor: pointer;
+  }
+  .moRangee button:hover { background: rgba(255,255,255,0.26); }
+  .moRangee button.sel { border-color: #f9ca24; background: rgba(249,202,36,0.25); }
+
+  #btnMode {
+    position: fixed;
+    left: 12px;
+    top: 12px;
+    z-index: 10;
+    border: none;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    font-size: 14px;
+    font-weight: 600;
+    padding: 8px 14px;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  #btnMode:hover { background: rgba(0,0,0,0.55); }
+
+  #vueCtrl {
+    position: fixed; left: 120px; top: 12px; z-index: 11;
+    display: flex; gap: 4px;
+  }
+  #vueCtrl.cache { display: none; }
+  #vueCtrl button {
+    border: 2px solid transparent; border-radius: 9px;
+    background: rgba(0,0,0,0.4); color: #fff;
+    font-size: 12px; font-weight: 600; padding: 8px 10px; cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  #vueCtrl button:hover { background: rgba(0,0,0,0.55); }
+  #vueCtrl button.sel { border-color: #f9ca24; background: rgba(249,202,36,0.28); }
+
+  #btnMenu {
+    position: fixed;
+    left: 50%;
+    top: 12px;
+    transform: translateX(-50%);
+    z-index: 11;
+    border: none;
+    border-radius: 10px;
+    background: rgba(0,0,0,0.4);
+    color: #fff;
+    font-size: 14px;
+    padding: 8px 14px;
+    cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  #btnMenu:hover { background: rgba(0,0,0,0.55); }
+
+  #btnPlein {
+    position: fixed; bottom: 12px; right: 12px; z-index: 11;
+    border: none; border-radius: 10px;
+    background: rgba(0,0,0,0.4); color: #fff;
+    font-size: 18px; line-height: 1; padding: 8px 12px; cursor: pointer;
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+  }
+  #btnPlein:hover { background: rgba(0,0,0,0.55); }
+
+  /* --- Écran de démarrage --- */
+  #menu {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: radial-gradient(circle at 50% 38%, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
+  }
+  #menu.cache { display: none; }
+  .carte {
+    background: rgba(18,38,24,0.92);
+    padding: 28px 32px;
+    border-radius: 18px;
+    text-align: center;
+    box-shadow: 0 12px 44px rgba(0,0,0,0.5);
+    width: min(90vw, 400px);
+  }
+  .carte h1 { color: #f9ca24; margin: 0 0 4px; font-size: 30px; }
+  .carte p  { color: #cfe8c2; margin: 0 0 12px; font-size: 14px; }
+  .bMenu {
+    display: block; width: 100%;
+    margin: 8px 0; padding: 12px 16px;
+    border: none; border-radius: 10px;
+    font-size: 16px; cursor: pointer;
+  }
+  .bNouvelle { background: #27ae60; color: #fff; font-weight: 700; }
+  .bNouvelle:hover { background: #2ecc71; }
+  .bPartie { background: rgba(255,255,255,0.14); color: #fff; display: flex; justify-content: space-between; align-items: center; }
+  .bPartie:hover { background: rgba(255,255,255,0.26); }
+  .bPartie small { opacity: .7; font-weight: 400; font-size: 13px; }
+  .bSuppr { background: none; border: none; color: #ff8a80; cursor: pointer; font-size: 15px; padding: 0 4px; }
+  .titreSection { color: #9fd18a; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; margin: 16px 2px 4px; text-align: left; }
+
+  /* --- Confirmation de suppression --- */
+  #confirmSuppr {
+    position: fixed; inset: 0; z-index: 70;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(0,0,0,0.55);
+  }
+  #confirmSuppr.cache { display: none; }
+  .carteConfirm {
+    background: rgba(20,40,25,0.96);
+    padding: 24px 28px; border-radius: 16px; text-align: center;
+    box-shadow: 0 12px 44px rgba(0,0,0,0.5);
+    width: min(90vw, 360px);
+  }
+  .carteConfirm p { color: #fff; font-size: 17px; margin: 0 0 20px; line-height: 1.4; }
+  .boutonsConfirm { display: flex; gap: 12px; justify-content: center; }
+  .bConfirm { border: none; border-radius: 10px; padding: 11px 30px; font-size: 16px; font-weight: 700; cursor: pointer; }
+  .bOui { background: #c0392b; color: #fff; }
+  .bOui:hover { background: #e74c3c; }
+  .bNon { background: rgba(255,255,255,0.16); color: #fff; }
+  .bNon:hover { background: rgba(255,255,255,0.28); }
+
+  /* --- Choix du monde --- */
+  #choixMonde {
+    position: fixed; inset: 0; z-index: 55;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 38%, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
+  }
+  #choixMonde.cache { display: none; }
+  #listeMondes { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 4px; }
+  .bMonde {
+    display: flex; flex-direction: column; align-items: center; gap: 4px;
+    border: 2px solid transparent; border-radius: 12px;
+    background: rgba(255,255,255,0.12); color: #fff;
+    padding: 12px 8px; cursor: pointer; font-size: 14px; font-weight: 600;
+  }
+  .bMonde:hover { background: rgba(255,255,255,0.24); border-color: #f9ca24; }
+  .bMonde .em { font-size: 30px; line-height: 1; }
+
+  #choixMode, #choixDifficulte {
+    position: fixed; inset: 0; z-index: 55;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 38%, rgba(0,0,0,0.2), rgba(0,0,0,0.6));
+  }
+  #choixMode.cache, #choixDifficulte.cache { display: none; }
+  #listeModes, #listeDifficultes { display: flex; flex-direction: column; gap: 10px; margin-top: 6px; }
+  .bMode {
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+    border: 2px solid transparent; border-radius: 12px;
+    background: rgba(255,255,255,0.12); color: #fff;
+    padding: 16px 20px; cursor: pointer; font-size: 17px; font-weight: 700;
+  }
+  .bMode:hover { background: rgba(255,255,255,0.24); border-color: #f9ca24; }
+  .bMode .em { font-size: 34px; line-height: 1; }
+  .bMode small { font-weight: 500; font-size: 12px; opacity: .8; }
+  #gameOver {
+    position: fixed; inset: 0; z-index: 58;
+    display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(circle at 50% 40%, rgba(60,0,0,0.4), rgba(0,0,0,0.7));
+  }
+  #gameOver.cache { display: none; }
+  #vies { position: fixed; top: 12px; left: 50%; transform: translateX(-50%); margin-top: 40px; z-index: 10; font-size: 22px; letter-spacing: 2px; text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
+  #vies.cache { display: none; }
+
+  /* --- GPS : nommer / téléport / carte --- */
+  #gps { position: fixed; left: 12px; top: 56px; z-index: 10; display: flex; flex-direction: column; gap: 6px; }
+  #gps button { width: 46px; height: 46px; border: none; border-radius: 10px; background: rgba(0,0,0,0.42); color: #fff; font-size: 22px; cursor: pointer; box-shadow: 0 3px 8px rgba(0,0,0,0.3); }
+  #gps button:hover { background: rgba(0,0,0,0.58); }
+  /* --- Personnalisation du personnage --- */
+  #persoModal { position: fixed; inset: 0; z-index: 60; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at 50% 38%, rgba(0,0,0,0.25), rgba(0,0,0,0.65)); }
+  #persoModal.cache { display: none; }
+  #persoApercu { display: flex; justify-content: center; margin: 6px 0 10px; }
+  #persoApercu canvas { background: rgba(255,255,255,0.08); border-radius: 12px; }
+  .persoRow { display: flex; align-items: center; gap: 10px; margin: 9px 0; }
+  .persoRow > span { width: 88px; text-align: right; color: #cfe8c2; font-size: 13px; flex: 0 0 auto; }
+  .swatchRow { display: flex; gap: 6px; flex-wrap: wrap; }
+  .swatch { width: 30px; height: 30px; border-radius: 8px; border: 3px solid transparent; cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,0.4); padding: 0; }
+  .swatch.sel { border-color: #f9ca24; transform: scale(1.08); }
+  .presetSw { border: 2px solid transparent; border-radius: 9px; background: rgba(0,0,0,0.34); color: #fff; cursor: pointer; font-size: 13px; padding: 7px 11px; }
+  .presetSw:hover { background: rgba(0,0,0,0.5); }
+  .presetSw.sel { border-color: #f9ca24; background: rgba(249,202,36,0.28); }
+  .optEmoji { border: 2px solid transparent; border-radius: 9px; background: rgba(0,0,0,0.34); cursor: pointer; font-size: 20px; width: 38px; height: 38px; padding: 0; line-height: 1; }
+  .optEmoji:hover { background: rgba(0,0,0,0.5); }
+  .optEmoji.aucun { font-size: 12px; color: #fff; }
+  .optEmoji.sel { border-color: #f9ca24; background: rgba(249,202,36,0.28); }
+  .dlgOverlay { position: fixed; inset: 0; z-index: 65; display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.5); }
+  .dlgOverlay.cache { display: none; }
+  #carteMenu { z-index: 68; } /* au-dessus de la carte */
+  .dlgCarte { background: rgba(18,38,24,0.96); padding: 22px 26px; border-radius: 16px; text-align: center; box-shadow: 0 12px 44px rgba(0,0,0,0.5); width: min(92vw, 400px); }
+  .dlgCarte h2 { color: #f9ca24; margin: 0 0 12px; font-size: 20px; }
+  #nommerInput { width: 100%; box-sizing: border-box; padding: 10px 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.3); background: rgba(255,255,255,0.1); color: #fff; font-size: 15px; }
+  #teleListe .bLieu, #teleListe .aucun { display: block; width: 100%; margin: 0; padding: 10px 14px; border: none; border-radius: 8px; background: rgba(255,255,255,0.14); color: #fff; font-size: 15px; cursor: pointer; text-align: left; }
+  #teleListe .bLieu:hover { background: rgba(255,255,255,0.26); }
+  #teleListe .aucun { opacity: .7; cursor: default; text-align: center; margin: 6px 0; }
+  .ligneLieu { display: flex; align-items: center; gap: 6px; margin: 6px 0; }
+  .ligneLieu .bLieu { flex: 1; }
+  .ligneLieu .miniB { border: none; border-radius: 8px; background: rgba(255,255,255,0.14); color: #fff; font-size: 15px; padding: 10px; cursor: pointer; line-height: 1; }
+  .ligneLieu .miniB:hover { background: rgba(255,255,255,0.28); }
+  .bLieu .dist { float: right; opacity: .65; font-size: 13px; }
+  #teleConfirmTxt { color: #fff; font-size: 16px; margin: 6px 0 16px; }
+  #carteCanvas { width: 100%; max-width: 360px; background: #223a20; border-radius: 10px; display: block; margin: 0 auto; }
+
+  #palette {
+    position: fixed;
+    right: 84px;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 10;
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    background: rgba(0,0,0,0.45);
+    padding: 10px;
+    border-radius: 12px;
+    max-height: 88vh;
+    overflow-y: auto;
+  }
+  #palette.ouvert { display: flex; }
+  .matBtn {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border: 2px solid transparent;
+    border-radius: 8px;
+    background: rgba(255,255,255,0.12);
+    color: #fff;
+    padding: 8px 12px;
+    font-size: 15px;
+    cursor: pointer;
+    white-space: nowrap;
+    text-align: left;
+  }
+  .matBtn:hover { background: rgba(255,255,255,0.22); }
+  .matBtn.sel { border-color: #f9ca24; background: rgba(249,202,36,0.25); }
+  .pastille {
+    width: 22px; height: 22px; border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.4); flex: 0 0 auto;
+  }
+  .emojiIcon { font-size: 24px; line-height: 1; flex: 0 0 auto; width: 26px; text-align: center; }
+  .catTitre {
+    color: #f9ca24;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin: 6px 2px 2px;
+    opacity: .9;
+  }
+  .catTitre:first-child { margin-top: 0; }
+</style>
+</head>
+<body>
+<canvas id="jeu"></canvas>
+<div id="vies" class="cache"></div>
+<div id="hud">🍎 <b><span id="score">0</span></b><br><span id="horloge" style="font-size:13px;opacity:.85"></span>
+  <div id="saisonMeteo" style="font-size:12px;opacity:.85;margin-top:2px"></div>
+  <div id="ligneFaim" title="Faim">🍖<div id="barreFaim"><div id="faimFill"></div></div></div>
+</div>
+<div id="aide"><span id="aide2D">Déplacez-vous avec <b>Z Q S D</b> / <b>flèches</b> · ramassez les fruits 🍎 · 🔨 pour construire</span></div>
+
+<button id="btnMenu" title="Menu / sauvegarder">☰ Menu</button>
+<button id="btnMode" title="Changer de vue">🎥 Vue 2D</button>
+<button id="btnPlein" title="Plein écran">⛶</button>
+<div id="vueCtrl" class="cache">
+  <button data-vue="haute" title="Vue haute (derrière et au-dessus)">⬆️ Haute</button>
+  <button data-vue="personnage" title="Vue à la 1re personne">👁️ Perso</button>
+  <button data-vue="loin" title="Vue de loin">🔭 Loin</button>
+</div>
+<button id="btnConstruire" title="Construire">🔨</button>
+<div id="palette"></div>
+<div id="niveauCtrl" class="cache">
+  <button id="niveauPlus" title="Monter d'un étage (R)">▲</button>
+  <div id="niveauAff">Étage 0</div>
+  <button id="niveauMoins" title="Descendre d'un étage (F)">▼</button>
+</div>
+
+<div id="maisonOpts" class="cache">
+  <div class="moTitre">🏠 Taille</div>
+  <div class="moRangee">
+    <button data-taille="1">Petite</button>
+    <button data-taille="2">Moyenne</button>
+    <button data-taille="3">Grande</button>
+  </div>
+  <div class="moTitre">Murs</div>
+  <div class="moRangee">
+    <button data-style="mur_bois">🪵 Bois</button>
+    <button data-style="mur_brique">🧱 Brique</button>
+    <button data-style="mur_pierre">🪨 Pierre</button>
+  </div>
+  <div class="moTitre">Étages</div>
+  <div class="moRangee">
+    <button data-etages="1">1</button>
+    <button data-etages="2">2</button>
+    <button data-etages="3">3</button>
+  </div>
+</div>
+
+<div id="menu">
+  <div class="carte">
+    <h1>🌍 Monde créatif</h1>
+    <p>Explore, ramasse des fruits 🍎 et construis des maisons.</p>
+    <button class="bMenu bNouvelle" id="bNouvelle">🌱 Nouvelle partie</button>
+    <div id="listeParties"></div>
+    <div style="margin-top:14px;font-size:11px;opacity:.55;color:#cfe8c2">✓ confirmation de suppression des lieux activée</div>
+  </div>
+</div>
+
+<div id="confirmSuppr" class="cache">
+  <div class="carteConfirm">
+    <p id="confirmTxt">Êtes-vous sûr de vouloir supprimer la partie ?</p>
+    <div class="boutonsConfirm">
+      <button id="confirmOui" class="bConfirm bOui">Oui</button>
+      <button id="confirmNon" class="bConfirm bNon">Non</button>
+    </div>
+  </div>
+</div>
+
+<div id="choixMode" class="cache">
+  <div class="carte">
+    <h1 style="font-size:24px">Choisis ton mode</h1>
+    <div id="listeModes">
+      <button class="bMode" id="modeCreatif"><span class="em">🎨</span>Créatif<small>Explore et construis librement</small></button>
+      <button class="bMode" id="modeSurvie"><span class="em">⚔️</span>Survie<small>Survis dans la forêt : loups & serpents, 3 vies</small></button>
+    </div>
+    <button class="bMenu bNon" id="annulerMode" style="margin-top:12px">← Retour</button>
+  </div>
+</div>
+
+<div id="choixDifficulte" class="cache">
+  <div class="carte">
+    <h1 style="font-size:24px">Choisis la difficulté</h1>
+    <div id="listeDifficultes">
+      <button class="bMode" data-diff="facile"><span class="em">🟢</span>Facile<small>Peu de bêtes, lentes · 5 vies</small></button>
+      <button class="bMode" data-diff="moyen"><span class="em">🟠</span>Moyen<small>Équilibré · 3 vies</small></button>
+      <button class="bMode" data-diff="difficile"><span class="em">🔴</span>Difficile<small>Beaucoup de bêtes, rapides · 3 vies</small></button>
+    </div>
+    <button class="bMenu bNon" id="annulerDiff" style="margin-top:12px">← Retour</button>
+  </div>
+</div>
+
+<div id="choixMonde" class="cache">
+  <div class="carte">
+    <h1 style="font-size:24px">Choisis ton monde</h1>
+    <div id="listeMondes"></div>
+    <button class="bMenu bNon" id="annulerChoix" style="margin-top:12px">← Retour</button>
+  </div>
+</div>
+
+<div id="gameOver" class="cache">
+  <div class="carteConfirm">
+    <p style="font-size:26px;margin-bottom:6px">💀 Game Over</p>
+    <p id="gameOverTxt" style="font-size:15px;opacity:.85">Les bêtes ont eu raison de toi…</p>
+    <div class="boutonsConfirm">
+      <button id="gameOverMenu" class="bConfirm bOui" style="background:#27ae60">Menu</button>
+    </div>
+  </div>
+</div>
+
+<div id="gps">
+  <button id="btnNommer" title="Nommer cette place">📍</button>
+  <button id="btnCarte" title="Carte (déplace-toi ; clique un lieu pour t'y téléporter)">🗺️</button>
+  <button id="btnPerso" title="Changer de personnage et de vêtements">👕</button>
+</div>
+
+<div id="persoModal" class="cache">
+  <div class="carte" style="max-width:400px">
+    <h1 style="font-size:22px">🧑 Ton personnage</h1>
+    <div id="persoApercu"></div>
+    <div class="persoRow"><span>Modèles</span><div id="persoPresets" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Peau</span><div id="sw_peau" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Coiffure</span><div id="opt_styleCheveux" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Cheveux</span><div id="sw_cheveux" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Vêtement</span><div id="opt_styleHaut" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Haut</span><div id="sw_haut" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Bas</span><div id="sw_bas" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Chaussures</span><div id="sw_chaussures" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Chapeau</span><div id="opt_chapeau" class="swatchRow"></div></div>
+    <div class="persoRow"><span>Accessoire</span><div id="opt_accessoire" class="swatchRow"></div></div>
+    <button class="bMenu bNon" id="persoFermer" style="margin-top:14px">✓ Terminé</button>
+  </div>
+</div>
+
+<div id="dlgNommer" class="dlgOverlay cache">
+  <div class="dlgCarte">
+    <h2 id="nommerTitre">📍 Nommer cette place</h2>
+    <p id="nommerCoords" style="font-size:13px;opacity:.8;margin:0 0 12px"></p>
+    <input id="nommerInput" type="text" maxlength="24" placeholder="Nom du lieu…" />
+    <div class="boutonsConfirm" style="margin-top:14px">
+      <button id="nommerOk" class="bConfirm bOui" style="background:#27ae60">Enregistrer</button>
+      <button id="nommerAnnuler" class="bConfirm bNon">Annuler</button>
+    </div>
+  </div>
+</div>
+
+<div id="dlgTeleport" class="dlgOverlay cache">
+  <div class="dlgCarte">
+    <h2>✈️ Se téléporter</h2>
+    <div id="teleListe"></div>
+    <div id="teleConfirm" class="cache">
+      <p id="teleConfirmTxt"></p>
+      <div class="boutonsConfirm">
+        <button id="teleOui" class="bConfirm bOui" style="background:#27ae60">Oui</button>
+        <button id="teleNon" class="bConfirm bNon">Non</button>
+      </div>
+    </div>
+    <button id="teleAnnuler" class="bMenu bNon" style="margin-top:12px">Fermer</button>
+  </div>
+</div>
+
+<div id="dlgCarte" class="dlgOverlay cache">
+  <div class="dlgCarte">
+    <h2>🗺️ Carte</h2>
+    <p style="font-size:12px;opacity:.8;margin:0 0 8px">Clique un lieu 📍 pour t'y téléporter</p>
+    <canvas id="carteCanvas" width="360" height="300"></canvas>
+    <button id="carteFermer" class="bMenu bNon" style="margin-top:12px">Fermer</button>
+  </div>
+</div>
+
+<div id="carteMenu" class="dlgOverlay cache">
+  <div class="dlgCarte">
+    <h2 id="carteMenuTitre">📍 Lieu</h2>
+    <button class="bMenu bNouvelle" id="carteTele" style="background:#27ae60">✈️ Se téléporter</button>
+    <button class="bMenu bPartie" id="carteRen">✏️ Renommer</button>
+    <button class="bMenu bPartie" id="carteSup">🗑️ Supprimer</button>
+    <button class="bMenu bNon" id="carteMenuFermer" style="margin-top:8px">Annuler</button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+const canvas = document.getElementById("jeu");
+const ctx = canvas.getContext("2d");
+const elScore = document.getElementById("score");
+const elHorloge = document.getElementById("horloge");
+const elSaisonMeteo = document.getElementById("saisonMeteo");
+const elFaimFill = document.getElementById("faimFill");
+
+let W = 0, H = 0;
+function redimensionner() {
+  const dpr = window.devicePixelRatio || 1;
+  W = window.innerWidth;
+  H = window.innerHeight;
+  canvas.width  = Math.floor(W * dpr);
+  canvas.height = Math.floor(H * dpr);
+  canvas.style.width  = W + "px";
+  canvas.style.height = H + "px";
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", redimensionner);
+redimensionner();
+
+// --- Mode de jeu : "creatif" (comme avant) ou "survie" (loups & serpents) ---
+let modeJeu = "creatif";
+let difficulte = "moyen"; // "facile" | "moyen" | "difficile"
+const DIFFICULTES = {
+  facile:    { nom: "🟢 Facile",    vitesse: 0.75, spawnMin: 6, spawnVar: 3, maxEnnemis: 3, vies: 5 },
+  moyen:     { nom: "🟠 Moyen",     vitesse: 1.0,  spawnMin: 4, spawnVar: 3, maxEnnemis: 6, vies: 3 },
+  difficile: { nom: "🔴 Difficile", vitesse: 1.4,  spawnMin: 2, spawnVar: 2, maxEnnemis: 9, vies: 3 },
+};
+function diff() { return DIFFICULTES[difficulte] || DIFFICULTES.moyen; }
+let vies = 3;             // survie : nombre de vies restantes
+let invuln = 0;          // secondes d'invulnérabilité après un coup reçu
+const ennemis = [];      // { type:"loup"|"serpent", x, y, vx, vy, pas, regarde, mort, mortT, tombe }
+let spawnEnnemi = 3;     // minuteur avant la prochaine apparition d'ennemi
+
+// --- Bruit pseudo-aléatoire déterministe (monde infini stable) ---
+function hash(x, y) {
+  const n = Math.sin(x * 127.1 + y * 311.7) * 43758.5453;
+  return n - Math.floor(n); // 0..1
+}
+function bruit(x, y) {
+  const xi = Math.floor(x), yi = Math.floor(y);
+  const xf = x - xi, yf = y - yi;
+  const u = xf * xf * (3 - 2 * xf);
+  const v = yf * yf * (3 - 2 * yf);
+  const a = hash(xi, yi),     b = hash(xi + 1, yi);
+  const c = hash(xi, yi + 1), d = hash(xi + 1, yi + 1);
+  return a + (b - a) * u + (c - a) * v + (a - b - c + d) * u * v;
+}
+
+const TUILE = 64;
+
+// --- Eau : basée sur un bruit basse fréquence ---
+const SEUIL_EAU = 0.34;
+const eauPosee = new Set(); // "gx,gy" des cases arrosées à l'arrosoir (eau posée par terre / dans les trous)
+function estEauPosee(wx, wy) { return eauPosee.has(Math.floor(wx / 32) + "," + Math.floor(wy / 32)); }
+function niveauEau(wx, wy) { return bruit(wx * 0.0016, wy * 0.0016); }
+function estEau(wx, wy) {
+  if (estEauPosee(wx, wy)) return true;                              // eau versée à l'arrosoir
+  if (MONDES[mondeType] && MONDES[mondeType].sansEau) return false; // mondes sans liquide
+  return niveauEau(wx, wy) < SEUIL_EAU;
+}
+
+// --- Caméra & joueur ---
+const camera = { x: 0, y: 0 };
+const joueur = { x: 0, y: 0, vitesse: 260, rayon: 12, pas: 0, regarde: 1, angle: 0, niveau: 0, cellePrec: "" };
+let mode = "2D"; // "2D" (vue de dessus) ou "3D" (derrière le personnage)
+let vue3D = "haute"; // "haute" (derrière+dessus), "personnage" (1re pers.), "loin" (de loin)
+let zoom3D = 1, camYaw = 0, camPitch = 0; // réglages caméra 3D (molette + glisser)
+let dragCam = false, dragX = 0, dragY = 0;
+let pontsLeves = false; // état des ponts-levis : true = levés (bloquent), false = abaissés
+let faim = 100;         // barre de faim (0 = affamé, 100 = rassasié)
+let lieux = [];         // lieux nommés (GPS) : { nom, x, y }
+
+// --- Apparence du personnage (peau, cheveux, vêtements) — préférence globale ---
+const persoDefaut = { peau: "#f2c79a", cheveux: "#5a3a1a", haut: "#3498db", bas: "#2c3e50", chaussures: "#5a3a1a", chapeau: "", accessoire: "", styleHaut: "tshirt", styleCheveux: "court" };
+let perso = { ...persoDefaut };
+try { const p = JSON.parse(localStorage.getItem("monde_perso") || "null"); if (p) perso = { ...persoDefaut, ...p }; } catch (e) {}
+function sauverPerso() { try { localStorage.setItem("monde_perso", JSON.stringify(perso)); } catch (e) {} }
+// éclaircit/assombrit une couleur #rrggbb (f<1 assombrit, f>1 éclaircit)
+function teinte(hex, f) {
+  const n = parseInt(hex.slice(1), 16);
+  const c = v => Math.max(0, Math.min(255, Math.round(v * f)));
+  return "rgb(" + c((n >> 16) & 255) + "," + c((n >> 8) & 255) + "," + c(n & 255) + ")";
+}
+
+// --- Types de monde ---
+let mondeType = "plaine";
+const MONDES = {
+  plaine:   { nom: "Plaine d'herbe",    emoji: "🌱", herbe: true,  arbre: "feuillu",   dArbre: 0.055, feature: "fleurs", liquide: "eau"   },
+  prairie:  { nom: "Prairie sans eau",  emoji: "🌿", herbe: true,  arbre: "feuillu",   dArbre: 0.05,  feature: "fleurs", liquide: "eau", sansEau: true },
+  montagne: { nom: "Montagne",          emoji: "⛰️", herbe: false, arbre: "pin",       dArbre: 0.05,  feature: "rochers", liquide: "eau"   },
+  neige:    { nom: "Montagne de neige", emoji: "🏔️", herbe: false, arbre: "pin_neige", dArbre: 0.05,  feature: "neige",   liquide: "glace" },
+  volcan:   { nom: "Volcan",            emoji: "🌋", herbe: false, arbre: "mort",      dArbre: 0.02,  feature: "braises", liquide: "lave" },
+  ville:    { nom: "Ville",             emoji: "🏙️", herbe: true,  arbre: "feuillu",   dArbre: 0.008, feature: "aucun",   liquide: "eau", routes: true, batiments: true, sansEau: true },
+  champs:   { nom: "Champs",            emoji: "🌾", herbe: false, arbre: "feuillu",   dArbre: 0.012, feature: "ble",     liquide: "eau", cultures: true, sansEau: true },
+};
+
+// couleur d'un liquide (eau / glace / lave) selon le monde
+function couleurLiquide(seed, prof) {
+  const shim = Math.sin(temps * 1.5 + seed) * 8;
+  const liq = MONDES[mondeType].liquide;
+  if (liq === "lave") return `rgb(${(210 - prof*40 + shim)|0}, ${(70 - prof*30 + shim*0.6)|0}, ${(15 + shim*0.3)|0})`;
+  if (liq === "glace") { const g = 205 - prof*25 + shim; return `rgb(${g|0}, ${(g+8)|0}, ${(g+22)|0})`; }
+  return `rgb(${(40 + shim)|0}, ${(110 - prof*40 + shim)|0}, ${(210 - prof*70 + shim)|0})`; // eau
+}
+
+// bâtiments de ville : un par « bloc » de 6 cases, espacés, footprint 2×2 au centre
+function batimentEn(wx, wy) {
+  const cx = Math.floor(wx / TUILE), cy = Math.floor(wy / TUILE);
+  const bx = Math.floor(cx / 6), by = Math.floor(cy / 6);
+  if (hash(bx * 1.7 + 3, by * 2.9 + 5) > 0.45) return false; // ~55% des blocs vides (place pour construire)
+  const lx = ((cx % 6) + 6) % 6, ly = ((cy % 6) + 6) % 6;
+  return (lx === 2 || lx === 3) && (ly === 2 || ly === 3);
+}
+// obstacles de terrain (bâtiments de ville) qui bloquent le déplacement
+function estObstacle(wx, wy) {
+  return MONDES[mondeType].batiments ? batimentEn(wx, wy) : false;
+}
+
+// vise une case au sol (plan e=0) depuis un point écran, en vue 3D
+function cibleSol3D(mx, my) {
+  if (!cam3D) return null;
+  const { cam, F, R, U, foc } = cam3D;
+  const a = (mx - W / 2) / foc, b = -(my - H / 2) / foc;
+  const dir = [a*R[0] + b*U[0] + F[0], a*R[1] + b*U[1] + F[1], a*R[2] + b*U[2] + F[2]];
+  if (Math.abs(dir[2]) < 1e-6) return null;
+  const s = (0 - cam[2]) / dir[2];
+  if (s <= 0) return null;
+  const wx = cam[0] + s * dir[0], wy = cam[1] + s * dir[1];
+  return { gx: Math.floor(wx / GRILLE), gy: Math.floor(wy / GRILLE), wx, wy };
+}
+
+// y a-t-il un plafond (bloc) juste au-dessus de l'étage courant du joueur ?
+function plafondAuDessus() {
+  const gx = Math.floor(joueur.x / GRILLE), gy = Math.floor(joueur.y / GRILLE);
+  return etages.has(gx + "," + gy + "," + (joueur.niveau + 1));
+}
+
+// y a-t-il un escalier à cette case, à l'étage f ?
+function escalierA(gx, gy, f) {
+  const id = (f === 0) ? construction.get(gx + "," + gy) : etages.get(gx + "," + gy + "," + f);
+  return id === "escalier";
+}
+
+// le joueur est-il bloqué à sa position (murs de son étage) ?
+function bloqueJoueur(wx, wy) {
+  if (joueur.niveau === 0) return estMurConstruit(wx, wy) || estObstacle(wx, wy);
+  const gx = Math.floor(wx / GRILLE), gy = Math.floor(wy / GRILLE);
+  const id = etages.get(gx + "," + gy + "," + joueur.niveau);
+  return !!(id && matParId[id] && matParId[id].solide); // murs, fenêtres… bloquent ; escaliers/sols non
+}
+
+// monte/descend d'un étage en marchant sur un escalier (une fois par case entrée), en 3D
+function verifEscalier() {
+  if (mode !== "3D") return;
+  const gx = Math.floor(joueur.x / GRILLE), gy = Math.floor(joueur.y / GRILLE);
+  const cle = gx + "," + gy;
+  if (cle === joueur.cellePrec) return;
+  joueur.cellePrec = cle;
+  const f = joueur.niveau;
+  if (escalierA(gx, gy, f)) joueur.niveau = Math.min(8, f + 1);        // monter
+  else if (f >= 1 && escalierA(gx, gy, f - 1)) joueur.niveau = f - 1;  // descendre
+  if (joueur.niveau !== f) { niveauCons = 0; majNiveauUI(); }          // on construit sur son étage
+}
+
+// place le joueur sur la terre ferme
+function placerSurTerre() {
+  joueur.x = 0; joueur.y = 0;
+  let r = 0;
+  while ((estEau(joueur.x, joueur.y) || estObstacle(joueur.x, joueur.y)) && r < 4000) {
+    r += 20;
+    const a = r * 0.5;
+    joueur.x = Math.cos(a) * r;
+    joueur.y = Math.sin(a) * r;
+  }
+  camera.x = joueur.x; camera.y = joueur.y;
+}
+placerSurTerre();
+
+// --- Entrées clavier ---
+const touches = {};
+window.addEventListener("keydown", e => { touches[e.key.toLowerCase()] = true; });
+window.addEventListener("keyup",   e => { touches[e.key.toLowerCase()] = false; });
+// L : lever / abaisser tous les ponts-levis
+window.addEventListener("keydown", e => {
+  if (e.key.toLowerCase() === "l" && enJeu && !modalOuvert()) pontsLeves = !pontsLeves;
+});
+// Espace : donner un coup de bâton (mode survie)
+window.addEventListener("keydown", e => {
+  if (e.code !== "Space") return;
+  if (enJeu && modeJeu === "survie" && !modalOuvert()) { e.preventDefault(); if (!e.repeat) attaquer(); }
+});
+// E : monter (démarre) → E arrête le wagon → E descend
+window.addEventListener("keydown", e => {
+  if (e.repeat) return; // ignore la répétition automatique de la touche
+  if (e.key.toLowerCase() !== "e" || !enJeu || modalOuvert()) return;
+  if (wagonJoueur >= 0) {
+    const w = wagons[wagonJoueur];
+    if (w && w.actif) w.actif = false; // 1er appui : le wagon s'arrête (on reste dedans)
+    else wagonJoueur = -1;             // wagon arrêté : on descend
+  } else { // monter dans le wagon le plus proche et démarrer
+    let best = -1, bd = 44;
+    for (let i = 0; i < wagons.length; i++) {
+      const d = Math.hypot(wagons[i].x - joueur.x, wagons[i].y - joueur.y);
+      if (d < bd) { bd = d; best = i; }
+    }
+    if (best >= 0) { wagonJoueur = best; wagons[best].actif = true; }
+  }
+});
+function directionEntree() {
+  let dx = 0, dy = 0;
+  if (touches["arrowup"]    || touches["z"] || touches["w"]) dy -= 1;
+  if (touches["arrowdown"]  || touches["s"])                 dy += 1;
+  if (touches["arrowleft"]  || touches["q"] || touches["a"]) dx -= 1;
+  if (touches["arrowright"] || touches["d"])                 dx += 1;
+  const l = Math.hypot(dx, dy);
+  if (l > 0) { dx /= l; dy /= l; }
+  return { dx, dy };
+}
+
+// --- Couleur du sol selon le type de monde ---
+function couleurFond(cx, cy) {
+  const t = bruit(cx * 0.08, cy * 0.08);
+  const t2 = bruit(cx * 0.3 + 100, cy * 0.3 + 100);
+  if (saisonActuelle() === 3) { const g = 226 + t * 26; return `rgb(${g|0}, ${g|0}, ${(g + 4)|0})`; } // hiver : sol blanc (neige)
+  const m = mondeType;
+  if (m === "montagne") {
+    const g = 95 + t * 65;
+    return `rgb(${g|0}, ${(g*0.9 + t2*12)|0}, ${(g*0.78)|0})`;      // roche gris-brun
+  }
+  if (m === "neige") {
+    const g = 224 + t * 28;
+    return `rgb(${g|0}, ${g|0}, ${(g + 4)|0})`;                     // neige
+  }
+  if (m === "volcan") {
+    const g = 42 + t * 34;
+    return `rgb(${(g + t2*22)|0}, ${(g*0.7)|0}, ${(g*0.62)|0})`;    // roche volcanique sombre
+  }
+  if (m === "ville" && ((((cx % 6) + 6) % 6) === 0 || (((cy % 6) + 6) % 6) === 0)) {
+    const g = 92 + t * 16;
+    return `rgb(${g|0}, ${g|0}, ${(g + 6)|0})`;                     // route (asphalte)
+  }
+  if (m === "champs") {
+    if ((((cy % 2) + 2) % 2) === 0) return `rgb(${(118 + t*28)|0}, ${(152 + t*28)|0}, ${(60 + t*18)|0})`; // culture
+    return `rgb(${(152 + t*26)|0}, ${(120 + t*22)|0}, ${(64 + t*14)|0})`;                                 // terre labourée
+  }
+  const clair = 90 + t * 60, teinte = 95 + t2 * 25;                 // herbe (plaine / lots de ville)
+  return `rgb(${(60 + t*30)|0}, ${(clair + teinte*0.4)|0}, ${(50 + t*30)|0})`;
+}
+
+// --- Détails du sol selon le type de monde ---
+function detailCase(cx, cy) {
+  const feat = MONDES[mondeType].feature;
+  if (feat === "aucun") return null;
+  const r = hash(cx * 3.7, cy * 9.1);
+  if (feat === "fleurs") {
+    if (r < 0.06) return { type: "fleur", teinte: hash(cx, cy) };
+    if (r < 0.10) return { type: "caillou" };
+    if (r < 0.16) return { type: "touffe" };
+  } else if (feat === "rochers") {
+    if (r < 0.14) return { type: "rocher" };
+    if (r < 0.18) return { type: "caillou" };
+  } else if (feat === "neige") {
+    if (r < 0.10) return { type: "rocher" };
+    if (r < 0.20) return { type: "monticule" };
+  } else if (feat === "braises") {
+    if (r < 0.08) return { type: "rocherSombre" };
+    if (r < 0.13) return { type: "braise" };
+  } else if (feat === "ble") {
+    if (r < 0.4) return { type: "ble" };
+  }
+  return null;
+}
+
+// --- Arbres (déterministes, sur terre, densité selon le monde) ---
+function arbreCase(cx, cy) {
+  if (hash(cx * 1.3 + 7, cy * 2.9 + 3) > MONDES[mondeType].dArbre) return null;
+  const wx = cx * TUILE + hash(cx, cy) * TUILE;
+  const wy = cy * TUILE + hash(cy, cx) * TUILE;
+  if (estEau(wx, wy) || estObstacle(wx, wy)) return null;
+  return { wx, wy, taille: 0.8 + hash(cx + 5, cy + 5) * 0.6 };
+}
+
+// --- Objets à ramasser (fruits) ---
+const ramasses = new Set();     // cases déjà collectées "cx,cy"
+let score = 0;
+function fruitCase(cx, cy) {
+  if (hash(cx * 4.1 + 11, cy * 6.7 + 13) > 0.03) return null;
+  const wx = cx * TUILE + hash(cx + 2, cy + 8) * TUILE;
+  const wy = cy * TUILE + hash(cy + 2, cx + 8) * TUILE;
+  if (estEau(wx, wy)) return null;
+  return { wx, wy };
+}
+
+// --- Animaux (état mutable, errent autour du joueur) ---
+const ESPECES = ["lapin", "oiseau", "renard"];
+const animaux = [];
+function creerAnimal(pres) {
+  const ang = hash(pres + 1, pres + 9) * 6.28 + performance.now() * 0.0001;
+  const dist = 300 + (pres % 5) * 120;
+  const esp = ESPECES[Math.floor(hash(pres * 1.7, pres * 3.3) * ESPECES.length)];
+  return {
+    x: joueur.x + Math.cos(ang) * dist,
+    y: joueur.y + Math.sin(ang) * dist,
+    vx: 0, vy: 0,
+    esp,
+    minuteur: 0,
+    pas: 0,
+    regarde: 1,
+  };
+}
+// (plus d'animaux sauvages dans le monde : seuls comptent les animaux qu'on pose)
+
+function majAnimaux(dt) {
+  for (const a of animaux) {
+    a.minuteur -= dt;
+    if (a.minuteur <= 0) {
+      // nouvelle intention de déplacement
+      const ang = Math.random() * 6.28;
+      const v = a.esp === "oiseau" ? 90 : (a.esp === "renard" ? 70 : 45);
+      const bouge = Math.random() < 0.7;
+      a.vx = bouge ? Math.cos(ang) * v : 0;
+      a.vy = bouge ? Math.sin(ang) * v : 0;
+      a.minuteur = 0.6 + Math.random() * 1.8;
+    }
+    // les animaux (sauf oiseaux) évitent l'eau
+    let nx = a.x + a.vx * dt, ny = a.y + a.vy * dt;
+    if (a.esp !== "oiseau" && estEau(nx, ny)) { a.vx = -a.vx; a.vy = -a.vy; nx = a.x; ny = a.y; }
+    a.x = nx; a.y = ny;
+    if (a.vx || a.vy) { a.pas += dt; if (a.vx) a.regarde = a.vx > 0 ? 1 : -1; } else a.pas = 0;
+    // respawn s'ils s'éloignent trop
+    if (Math.hypot(a.x - joueur.x, a.y - joueur.y) > 1400) {
+      Object.assign(a, creerAnimal(Math.floor(Math.random() * 1000)));
+    }
+  }
+}
+
+// --- Mode construction ---
+const GRILLE = 32; // taille d'une case de construction
+const construction = new Map(); // "gx,gy" -> id du sol/mur/structure
+const decors = new Map();       // "gx,gy" -> pile d'objets déco [id, id, …] posés sur le sol
+const trous = new Set();        // "gx,gy" des cases creusées à la pelle (vrais trous)
+function estTrou(wx, wy) { return trous.has(Math.floor(wx / GRILLE) + "," + Math.floor(wy / GRILLE)); }
+const PILE_MAX = 6;             // hauteur maximale d'une pile d'objets
+const etages = new Map();       // "gx,gy,n" -> id (blocs empilés aux étages, n>=1)
+const HAUT_BLOC = 60;           // hauteur d'un bloc / d'un étage en 3D (bien plus haut que le personnage)
+let niveauCons = 0;             // étage de construction courant (0 = sol)
+let cam3D = null;               // repère caméra 3D (pour viser au sol depuis la souris)
+let maisonTaille = 2;           // 1=petite, 2=moyenne, 3=grande
+let maisonStyle = "mur_pierre"; // matériau des murs de la maison auto
+let nbEtagesMaison = 1;         // nombre d'étages de la maison auto
+// emprise au sol carrée : petite 100 (10×10), moyenne 225 (15×15), grande 400 (20×20)
+const TAILLES_MAISON = { 1: { w: 10, h: 10 }, 2: { w: 15, h: 15 }, 3: { w: 20, h: 20 } };
+let modeConstruction = false;
+let matSel = "mur_bois";
+const souris = { x: -1, y: -1, dedans: false, presse: false };
+
+const MATERIAUX = [
+  // Murs
+  { id:"mur_bois",    nom:"Mur bois",    cat:"Murs",  couleur:"#a9743b", solide:true, motif:"planchesV" },
+  { id:"mur_pierre",  nom:"Mur pierre",  cat:"Murs",  couleur:"#9a9a9a", solide:true, motif:"pierre" },
+  { id:"mur_brique",  nom:"Mur brique",  cat:"Murs",  couleur:"#b5533a", solide:true, motif:"briques" },
+  { id:"mur_beton",   nom:"Mur béton",   cat:"Murs",  couleur:"#c8ccce", solide:true, motif:"pierre" },
+  { id:"mur_metal",   nom:"Mur métal",   cat:"Murs",  couleur:"#8a97a3", solide:true, motif:"metal" },
+  { id:"mur_verre",   nom:"Mur verre",   cat:"Murs",  couleur:"#a9d6e5", solide:true, motif:"vitre" },
+  { id:"mur_paille",  nom:"Mur paille",  cat:"Murs",  couleur:"#d9b657", solide:true, motif:"chaume" },
+  { id:"mur_rondins", nom:"Rondins",     cat:"Murs",  couleur:"#8a5a2b", solide:true, motif:"rondins" },
+  // Sols
+  { id:"sol_bois",     nom:"Plancher",   cat:"Sols",  couleur:"#c99a5b", solide:false, motif:"planchesH" },
+  { id:"sol_pierre",   nom:"Dalle",      cat:"Sols",  couleur:"#b0b0b0", solide:false, motif:"dalle" },
+  { id:"sol_carrelage",nom:"Carrelage",  cat:"Sols",  couleur:"#e8e8e8", solide:false, motif:"damier" },
+  { id:"sol_tapis",    nom:"Tapis",      cat:"Sols",  couleur:"#b0392f", solide:false, motif:"tapis" },
+  { id:"sol_pave",     nom:"Pavé",       cat:"Sols",  couleur:"#9d9187", solide:false, motif:"briques" },
+  { id:"chemin",       nom:"Chemin",     cat:"Sols",  couleur:"#c2a878", solide:false, motif:"terre" },
+  // Ponts (surfaces marchables, franchissent l'eau à pied sec)
+  { id:"pont_bois",   nom:"Pont bois",     cat:"Ponts", couleur:"#b5824a", solide:false, motif:"pont" },
+  { id:"ponton",      nom:"Ponton",        cat:"Ponts", couleur:"#c9a05b", solide:false, motif:"pont" },
+  { id:"pont_pierre", nom:"Pont pierre",   cat:"Ponts", couleur:"#9a9a9a", solide:false, motif:"pontPierre" },
+  { id:"pont_corde",  nom:"Pont de corde", cat:"Ponts", couleur:"#caa46a", solide:false, motif:"pontCorde" },
+  { id:"pont_levis",  nom:"Pont-levis",    cat:"Ponts", couleur:"#8a5a2b", solide:false, motif:"pontLevis" },
+  // Rails
+  { id:"rail",   nom:"Rail",   cat:"Rails", couleur:"#7a6a55", solide:false, motif:"rail" },
+  { id:"wagon",  nom:"Wagon",  cat:"Rails", couleur:"#c0392b", solide:false, emoji:"🚃" },
+  // Toits
+  { id:"toit",        nom:"Toit tuiles", cat:"Toits", couleur:"#c0392b", solide:false, motif:"tuiles" },
+  { id:"toit_paille", nom:"Toit chaume", cat:"Toits", couleur:"#cdae5a", solide:false, motif:"chaume" },
+  { id:"toit_metal",  nom:"Toit métal",  cat:"Toits", couleur:"#7f8c99", solide:false, motif:"planchesH" },
+  { id:"toit_ardoise",nom:"Toit ardoise",cat:"Toits", couleur:"#5d6d7e", solide:false, motif:"tuiles" },
+  // Ouvertures
+  { id:"porte",        nom:"Porte",       cat:"Ouvertures", couleur:"#6b4226", solide:false, special:"porte" },
+  { id:"porte_verre",  nom:"Porte vitrée",cat:"Ouvertures", couleur:"#9ac6d8", solide:false, special:"porte_verre" },
+  { id:"fenetre",      nom:"Fenêtre",     cat:"Ouvertures", couleur:"#7fb8d8", solide:true,  special:"fenetre" },
+  { id:"fenetre_ronde",nom:"Œil-de-bœuf",cat:"Ouvertures", couleur:"#7fb8d8", solide:true,  special:"fenetre_ronde" },
+  { id:"escalier",     nom:"Escalier",    cat:"Ouvertures", couleur:"#b08d57", solide:false, motif:"escalier" },
+  // Jardin
+  { id:"cloture",   nom:"Clôture",    cat:"Jardin", couleur:"#b98a4b", solide:true,  sansFond:true, special:"cloture" },
+  { id:"portail",   nom:"Portail",    cat:"Jardin", couleur:"#8a5a2b", solide:false, sansFond:true, special:"portail" },
+  { id:"haie",      nom:"Haie",       cat:"Jardin", couleur:"#4c9a3a", solide:true,  motif:"haie" },
+  { id:"puits",     nom:"Puits",      cat:"Jardin", couleur:"#9a9a9a", solide:true,  special:"puits" },
+  { id:"fleur_deco",nom:"Fleurs",     cat:"Jardin", couleur:"#e84393", solide:false, deco:true, emoji:"🌷" },
+  { id:"arbuste",   nom:"Arbuste",    cat:"Jardin", couleur:"#2e8b57", solide:false, deco:true, emoji:"🌿" },
+  { id:"lampadaire",nom:"Lampadaire", cat:"Jardin", couleur:"#f1c40f", solide:false, deco:true, emoji:"🏮" },
+  { id:"cactus",    nom:"Cactus",     cat:"Jardin", couleur:"#2e8b57", solide:false, deco:true, emoji:"🌵" },
+  { id:"palmier",   nom:"Palmier",    cat:"Jardin", couleur:"#2e8b57", solide:false, deco:true, emoji:"🌴" },
+  { id:"sapin",     nom:"Sapin",      cat:"Jardin", couleur:"#1e7a3a", solide:false, deco:true, emoji:"🌲" },
+  { id:"tournesol", nom:"Tournesol",  cat:"Jardin", couleur:"#f1c40f", solide:false, deco:true, emoji:"🌻" },
+  { id:"rose",      nom:"Rose",       cat:"Jardin", couleur:"#e84393", solide:false, deco:true, emoji:"🌹" },
+  { id:"champignon",nom:"Champignon", cat:"Jardin", couleur:"#c0392b", solide:false, deco:true, emoji:"🍄" },
+  { id:"trefle",    nom:"Trèfle",     cat:"Jardin", couleur:"#27ae60", solide:false, deco:true, emoji:"🍀" },
+  { id:"rocher",    nom:"Rocher",     cat:"Jardin", couleur:"#9a9a9a", solide:true,  deco:true, emoji:"🪨" },
+  { id:"fontaine",  nom:"Fontaine",   cat:"Jardin", couleur:"#5dade2", solide:true,  deco:true, emoji:"⛲" },
+  // Mobilier
+  { id:"lit",     nom:"Lit",       cat:"Mobilier", couleur:"#c0392b", solide:false, deco:true, emoji:"🛏️" },
+  { id:"table",   nom:"Table",     cat:"Mobilier", couleur:"#a9743b", solide:false, deco:true, emoji:"🍽️" },
+  { id:"chaise",  nom:"Chaise",    cat:"Mobilier", couleur:"#8a5a2b", solide:false, deco:true, emoji:"🪑" },
+  { id:"coffre",  nom:"Coffre",    cat:"Mobilier", couleur:"#b08d57", solide:false, deco:true, emoji:"🧰" },
+  { id:"cheminee",nom:"Cheminée",  cat:"Mobilier", couleur:"#e67e22", solide:true,  deco:true, emoji:"🔥" },
+  { id:"etagere", nom:"Étagère",   cat:"Mobilier", couleur:"#8a5a2b", solide:true,  deco:true, emoji:"📚" },
+  { id:"lampe",   nom:"Lampe",     cat:"Mobilier", couleur:"#f1c40f", solide:false, deco:true, emoji:"💡" },
+  { id:"plante",  nom:"Plante",    cat:"Mobilier", couleur:"#27ae60", solide:false, deco:true, emoji:"🪴" },
+  { id:"tonneau", nom:"Tonneau",   cat:"Mobilier", couleur:"#8a5a2b", solide:true,  deco:true, emoji:"🛢️" },
+  { id:"tableau", nom:"Tableau",   cat:"Mobilier", couleur:"#d4af37", solide:false, deco:true, emoji:"🖼️" },
+  { id:"canape",  nom:"Canapé",    cat:"Mobilier", couleur:"#7f8c8d", solide:false, deco:true, emoji:"🛋️" },
+  { id:"tele",    nom:"Télé",      cat:"Mobilier", couleur:"#2c3e50", solide:true,  deco:true, emoji:"📺" },
+  { id:"baignoire",nom:"Baignoire",cat:"Mobilier", couleur:"#aed6f1", solide:true,  deco:true, emoji:"🛁" },
+  { id:"toilette",nom:"Toilettes", cat:"Mobilier", couleur:"#ecf0f1", solide:true,  deco:true, emoji:"🚽" },
+  { id:"douche",  nom:"Douche",    cat:"Mobilier", couleur:"#aed6f1", solide:true,  deco:true, emoji:"🚿" },
+  { id:"horloge", nom:"Horloge",   cat:"Mobilier", couleur:"#8a5a2b", solide:false, deco:true, emoji:"🕰️" },
+  { id:"miroir",  nom:"Miroir",    cat:"Mobilier", couleur:"#d6eaf8", solide:false, deco:true, emoji:"🪞" },
+  { id:"bougie",  nom:"Bougie",    cat:"Mobilier", couleur:"#f5cba7", solide:false, deco:true, emoji:"🕯️" },
+  { id:"guitare", nom:"Guitare",   cat:"Mobilier", couleur:"#b9770e", solide:false, deco:true, emoji:"🎸" },
+  { id:"piano",   nom:"Piano",     cat:"Mobilier", couleur:"#1c1c1c", solide:true,  deco:true, emoji:"🎹" },
+  { id:"telescope",nom:"Télescope",cat:"Mobilier", couleur:"#34495e", solide:false, deco:true, emoji:"🔭" },
+  { id:"cadeau",  nom:"Cadeau",    cat:"Mobilier", couleur:"#e74c3c", solide:false, deco:true, emoji:"🎁" },
+  { id:"ballon",  nom:"Ballon",    cat:"Mobilier", couleur:"#e74c3c", solide:false, deco:true, emoji:"🎈" },
+  { id:"statue",  nom:"Statue",    cat:"Mobilier", couleur:"#95a5a6", solide:true,  deco:true, emoji:"🗿" },
+  // Nourriture
+  { id:"n_pomme",  nom:"Pomme",     cat:"Nourriture", couleur:"#e74c3c", solide:false, deco:true, emoji:"🍎" },
+  { id:"n_banane", nom:"Banane",    cat:"Nourriture", couleur:"#f1c40f", solide:false, deco:true, emoji:"🍌" },
+  { id:"n_fraise", nom:"Fraise",    cat:"Nourriture", couleur:"#e84393", solide:false, deco:true, emoji:"🍓" },
+  { id:"n_cerise", nom:"Cerises",   cat:"Nourriture", couleur:"#c0392b", solide:false, deco:true, emoji:"🍒" },
+  { id:"n_raisin", nom:"Raisin",    cat:"Nourriture", couleur:"#8e44ad", solide:false, deco:true, emoji:"🍇" },
+  { id:"n_pasteque",nom:"Pastèque", cat:"Nourriture", couleur:"#27ae60", solide:false, deco:true, emoji:"🍉" },
+  { id:"n_orange", nom:"Orange",    cat:"Nourriture", couleur:"#e67e22", solide:false, deco:true, emoji:"🍊" },
+  { id:"n_carotte",nom:"Carotte",   cat:"Nourriture", couleur:"#e67e22", solide:false, deco:true, emoji:"🥕" },
+  { id:"n_mais",   nom:"Maïs",      cat:"Nourriture", couleur:"#f1c40f", solide:false, deco:true, emoji:"🌽" },
+  { id:"n_pain",   nom:"Pain",      cat:"Nourriture", couleur:"#b9770e", solide:false, deco:true, emoji:"🍞" },
+  { id:"n_fromage",nom:"Fromage",   cat:"Nourriture", couleur:"#f4d03f", solide:false, deco:true, emoji:"🧀" },
+  { id:"n_gateau", nom:"Gâteau",    cat:"Nourriture", couleur:"#e84393", solide:false, deco:true, emoji:"🎂" },
+  { id:"n_glace",  nom:"Glace",     cat:"Nourriture", couleur:"#f5b7b1", solide:false, deco:true, emoji:"🍦" },
+  { id:"n_pizza",  nom:"Pizza",     cat:"Nourriture", couleur:"#e67e22", solide:false, deco:true, emoji:"🍕" },
+  { id:"n_bonbon", nom:"Bonbon",    cat:"Nourriture", couleur:"#e84393", solide:false, deco:true, emoji:"🍬" },
+  { id:"n_sucette",nom:"Sucette",   cat:"Nourriture", couleur:"#e74c3c", solide:false, deco:true, emoji:"🍭" },
+  { id:"n_donut",  nom:"Donut",     cat:"Nourriture", couleur:"#d98880", solide:false, deco:true, emoji:"🍩" },
+  { id:"n_cookie", nom:"Cookie",    cat:"Nourriture", couleur:"#b9770e", solide:false, deco:true, emoji:"🍪" },
+  // Animaux
+  { id:"a_chien",   nom:"Chien",    cat:"Animaux", couleur:"#c9a06a", solide:false, deco:true, emoji:"🐕" },
+  { id:"a_chat",    nom:"Chat",     cat:"Animaux", couleur:"#d7b98e", solide:false, deco:true, emoji:"🐈" },
+  { id:"a_lapin",   nom:"Lapin",    cat:"Animaux", couleur:"#e8e2d8", solide:false, deco:true, emoji:"🐇" },
+  { id:"a_cheval",  nom:"Cheval",   cat:"Animaux", couleur:"#8a5a3a", solide:false, deco:true, emoji:"🐎" },
+  { id:"a_vache",   nom:"Vache",    cat:"Animaux", couleur:"#d9d0c5", solide:false, deco:true, emoji:"🐄" },
+  { id:"a_mouton",  nom:"Mouton",   cat:"Animaux", couleur:"#efe9df", solide:false, deco:true, emoji:"🐑" },
+  { id:"a_chevre",  nom:"Chèvre",   cat:"Animaux", couleur:"#cdbfa8", solide:false, deco:true, emoji:"🐐" },
+  { id:"a_cochon",  nom:"Cochon",   cat:"Animaux", couleur:"#e6a9b8", solide:false, deco:true, emoji:"🐖" },
+  { id:"a_poule",   nom:"Poule",    cat:"Animaux", couleur:"#e8d7a8", solide:false, deco:true, emoji:"🐔" },
+  { id:"a_coq",     nom:"Coq",      cat:"Animaux", couleur:"#c0392b", solide:false, deco:true, emoji:"🐓" },
+  { id:"a_poussin", nom:"Poussin",  cat:"Animaux", couleur:"#f1c40f", solide:false, deco:true, emoji:"🐤" },
+  { id:"a_canard",  nom:"Canard",   cat:"Animaux", couleur:"#dfe6e9", solide:false, deco:true, emoji:"🦆" },
+  { id:"a_tortue",  nom:"Tortue",   cat:"Animaux", couleur:"#2e8b57", solide:false, deco:true, emoji:"🐢" },
+  { id:"a_abeille", nom:"Abeille",  cat:"Animaux", couleur:"#f1c40f", solide:false, deco:true, emoji:"🐝" },
+  { id:"a_grenouille",nom:"Grenouille",cat:"Animaux", couleur:"#27ae60", solide:false, deco:true, emoji:"🐸" },
+  { id:"a_ecureuil", nom:"Écureuil", cat:"Animaux", couleur:"#b9770e", solide:false, deco:true, emoji:"🐿️" },
+  { id:"a_herisson", nom:"Hérisson", cat:"Animaux", couleur:"#8a5a3a", solide:false, deco:true, emoji:"🦔" },
+  { id:"a_souris",   nom:"Souris",   cat:"Animaux", couleur:"#b0b0b0", solide:false, deco:true, emoji:"🐭" },
+  { id:"a_renard",   nom:"Renard",   cat:"Animaux", couleur:"#e67e22", solide:false, deco:true, emoji:"🦊" },
+  { id:"a_singe",    nom:"Singe",    cat:"Animaux", couleur:"#8a5a3a", solide:false, deco:true, emoji:"🐒" },
+  { id:"a_panda",    nom:"Panda",    cat:"Animaux", couleur:"#ecf0f1", solide:false, deco:true, emoji:"🐼" },
+  { id:"a_ours",     nom:"Ours",     cat:"Animaux", couleur:"#8a5a3a", solide:false, deco:true, emoji:"🐻" },
+  { id:"a_loup",     nom:"Loup",     cat:"Animaux", couleur:"#95a5a6", solide:false, deco:true, emoji:"🐺" },
+  { id:"a_lion",     nom:"Lion",     cat:"Animaux", couleur:"#e6a817", solide:false, deco:true, emoji:"🦁" },
+  { id:"a_tigre",    nom:"Tigre",    cat:"Animaux", couleur:"#e67e22", solide:false, deco:true, emoji:"🐯" },
+  { id:"a_elephant", nom:"Éléphant", cat:"Animaux", couleur:"#95a5a6", solide:false, deco:true, emoji:"🐘" },
+  { id:"a_girafe",   nom:"Girafe",   cat:"Animaux", couleur:"#e6b800", solide:false, deco:true, emoji:"🦒" },
+  { id:"a_zebre",    nom:"Zèbre",    cat:"Animaux", couleur:"#dcdcdc", solide:false, deco:true, emoji:"🦓" },
+  { id:"a_kangourou",nom:"Kangourou",cat:"Animaux", couleur:"#c9772e", solide:false, deco:true, emoji:"🦘" },
+  { id:"a_pingouin", nom:"Pingouin", cat:"Animaux", couleur:"#2c3e50", solide:false, deco:true, emoji:"🐧" },
+  { id:"a_paon",     nom:"Paon",     cat:"Animaux", couleur:"#1abc9c", solide:false, deco:true, emoji:"🦚" },
+  { id:"a_perroquet",nom:"Perroquet",cat:"Animaux", couleur:"#27ae60", solide:false, deco:true, emoji:"🦜" },
+  { id:"a_hibou",    nom:"Hibou",    cat:"Animaux", couleur:"#a0836a", solide:false, deco:true, emoji:"🦉" },
+  { id:"a_papillon", nom:"Papillon", cat:"Animaux", couleur:"#9b59b6", solide:false, deco:true, emoji:"🦋" },
+  { id:"a_escargot", nom:"Escargot", cat:"Animaux", couleur:"#b9770e", solide:false, deco:true, emoji:"🐌" },
+  { id:"a_dino",     nom:"Dinosaure",cat:"Animaux", couleur:"#27ae60", solide:false, deco:true, emoji:"🦖" },
+  { id:"a_guide",   nom:"Chien en laisse", cat:"Animaux", couleur:"#c9a06a", solide:false, deco:true, emoji:"🦮" },
+  { id:"a_laisse",  nom:"Laisse",   cat:"Animaux", couleur:"#8a5a3a", solide:false, deco:true, emoji:"🪢" },
+  { id:"a_corde",   nom:"Corde",    cat:"Animaux", couleur:"#b08d57", solide:false, deco:true, emoji:"➿" },
+  // Outils
+  { id:"maison",  nom:"Maison auto", cat:"Outils", couleur:"#c96f4c", solide:false, emoji:"🏠" },
+  { id:"pelle",   nom:"Pelle (creuser)", cat:"Outils", couleur:"#a0724a", solide:false, emoji:"⛏️" },
+  { id:"baton",   nom:"Bâton (taper)",   cat:"Outils", couleur:"#8a5a2b", solide:false, emoji:"🏏" },
+  { id:"arrosoir",nom:"Arrosoir (eau)",  cat:"Outils", couleur:"#3aa0d8", solide:false, emoji:"🪣" },
+  { id:"gomme",   nom:"Gomme",     cat:"Outils", couleur:"#eeeeee", solide:false },
+];
+const matParId = Object.fromEntries(MATERIAUX.map(m => [m.id, m]));
+
+// Construit la palette (boutons HTML)
+const elPalette = document.getElementById("palette");
+const elBtnConstruire = document.getElementById("btnConstruire");
+let catCourante = null;
+for (const m of MATERIAUX) {
+  if (m.cat !== catCourante) {
+    catCourante = m.cat;
+    const t = document.createElement("div");
+    t.className = "catTitre";
+    t.textContent = m.cat;
+    t.dataset.cat = m.cat;
+    elPalette.appendChild(t);
+  }
+  const b = document.createElement("button");
+  b.className = "matBtn" + (m.id === matSel ? " sel" : "");
+  b.dataset.id = m.id;
+  b.dataset.cat = m.cat;
+  const apercu = m.emoji ? `<span class="emojiIcon">${m.emoji}</span>` : `<span class="pastille" style="background:${m.couleur}"></span>`;
+  const icone = m.id === "gomme" ? "🧽" : "";
+  b.innerHTML = `${apercu} ${m.nom} ${icone}`;
+  b.addEventListener("click", () => {
+    matSel = m.id;
+    for (const x of elPalette.querySelectorAll(".matBtn")) x.classList.toggle("sel", x.dataset.id === m.id);
+    majMaisonOpts();
+  });
+  elPalette.appendChild(b);
+}
+
+// en survie, la palette n'a que : Murs, la Pelle et le Bâton
+function survieAutorise(id) {
+  const m = matParId[id];
+  return m.cat === "Murs" || id === "pelle" || id === "baton";
+}
+function majPaletteMode() {
+  const survie = modeJeu === "survie";
+  for (const b of elPalette.querySelectorAll(".matBtn")) {
+    b.style.display = (!survie || survieAutorise(b.dataset.id)) ? "" : "none";
+  }
+  for (const t of elPalette.querySelectorAll(".catTitre")) {
+    const visibles = [...elPalette.querySelectorAll('.matBtn[data-cat="' + t.dataset.cat + '"]')].some(b => b.style.display !== "none");
+    t.style.display = visibles ? "" : "none";
+  }
+  // si l'outil sélectionné n'est plus dispo, revenir au bâton
+  if (survie && !survieAutorise(matSel)) {
+    matSel = "baton";
+    for (const x of elPalette.querySelectorAll(".matBtn")) x.classList.toggle("sel", x.dataset.id === matSel);
+  }
+}
+const elVies = document.getElementById("vies");
+function majViesUI() {
+  if (modeJeu === "survie") {
+    const maxV = diff().vies;
+    elVies.classList.remove("cache");
+    elVies.textContent = "❤️".repeat(Math.max(0, vies)) + "🖤".repeat(Math.max(0, maxV - vies));
+  } else {
+    elVies.classList.add("cache");
+  }
+}
+
+elBtnConstruire.addEventListener("click", () => {
+  modeConstruction = !modeConstruction;
+  elBtnConstruire.classList.toggle("actif", modeConstruction);
+  elPalette.classList.toggle("ouvert", modeConstruction);
+  canvas.style.cursor = modeConstruction ? "crosshair" : "default";
+  majNiveauUI();
+  majMaisonOpts();
+});
+
+const elBtnMode = document.getElementById("btnMode");
+const elAide2D = document.getElementById("aide2D");
+const elNiveauCtrl = document.getElementById("niveauCtrl");
+const elNiveauAff = document.getElementById("niveauAff");
+
+function majNiveauUI() {
+  // le contrôle d'étage n'apparaît qu'en 3D pendant la construction
+  elNiveauCtrl.classList.toggle("cache", !(mode === "3D" && modeConstruction));
+  elNiveauAff.textContent = "Étage " + (joueur.niveau + niveauCons);
+}
+
+function majUImode() {
+  elBtnMode.textContent = mode === "2D" ? "🎥 Vue 2D" : "🎥 Vue 3D";
+  elBtnConstruire.style.display = "";       // construction dispo en 2D ET en 3D
+  canvas.style.cursor = modeConstruction ? "crosshair" : "default";
+  if (modeJeu === "survie") {
+    elAide2D.innerHTML = "⚔️ Survie · <b>Z Q S D</b> bouger · <b>Espace</b> taper au bâton · ⛏️ creuse un trou (les loups y tombent !) · 🧱 des murs pour te protéger";
+  } else if (mode === "3D") {
+    elAide2D.innerHTML = "🧍 <b>Z/S</b> avancer · <b>Q/D</b> tourner · 🔨 construire · <b>molette</b> zoom · <b>glisser</b> caméra · <b>C</b> recentrer";
+  } else {
+    elAide2D.innerHTML = "Déplacez-vous avec <b>Z Q S D</b> / <b>flèches</b> · 🔨 construire · <b>L</b> pont-levis · 🚃 <b>E</b> monter/descendre";
+  }
+  majNiveauUI();
+  majMaisonOpts();
+  majVueUI();
+}
+const elVueCtrl = document.getElementById("vueCtrl");
+function majVueUI() {
+  elVueCtrl.classList.toggle("cache", mode !== "3D");
+  for (const b of elVueCtrl.querySelectorAll("[data-vue]")) b.classList.toggle("sel", b.dataset.vue === vue3D);
+}
+elVueCtrl.querySelectorAll("[data-vue]").forEach(b => b.addEventListener("click", () => { vue3D = b.dataset.vue; majVueUI(); }));
+elBtnMode.addEventListener("click", () => {
+  mode = (mode === "2D") ? "3D" : "2D";
+  if (mode === "2D") { joueur.niveau = 0; joueur.cellePrec = ""; zoom3D = 1; camYaw = 0; camPitch = 0; } // reset caméra
+  niveauCons = 0;
+  majUImode();
+});
+
+// Étage de construction (3D) : boutons ▲▼ et touches R / F
+function changerNiveau(d) {
+  niveauCons = Math.max(0, Math.min(8, niveauCons + d));
+  majNiveauUI();
+}
+document.getElementById("niveauPlus").addEventListener("click", () => changerNiveau(1));
+document.getElementById("niveauMoins").addEventListener("click", () => changerNiveau(-1));
+window.addEventListener("keydown", e => {
+  if (mode !== "3D" || !modeConstruction || modalOuvert()) return;
+  const k = e.key.toLowerCase();
+  if (k === "r") changerNiveau(1);
+  else if (k === "f") changerNiveau(-1);
+});
+// C : recentrer la caméra derrière le personnage
+window.addEventListener("keydown", e => {
+  if (mode === "3D" && e.key.toLowerCase() === "c" && !modalOuvert()) { camYaw = 0; camPitch = 0; zoom3D = 1; }
+});
+
+// Options de la maison auto (taille + style), visibles quand l'outil 🏠 est choisi
+const elMaisonOpts = document.getElementById("maisonOpts");
+function majMaisonOpts() {
+  elMaisonOpts.classList.toggle("cache", !(modeConstruction && matSel === "maison"));
+  for (const b of elMaisonOpts.querySelectorAll("[data-taille]")) b.classList.toggle("sel", +b.dataset.taille === maisonTaille);
+  for (const b of elMaisonOpts.querySelectorAll("[data-style]")) b.classList.toggle("sel", b.dataset.style === maisonStyle);
+  for (const b of elMaisonOpts.querySelectorAll("[data-etages]")) b.classList.toggle("sel", +b.dataset.etages === nbEtagesMaison);
+}
+elMaisonOpts.querySelectorAll("[data-taille]").forEach(b => b.addEventListener("click", () => { maisonTaille = +b.dataset.taille; majMaisonOpts(); }));
+elMaisonOpts.querySelectorAll("[data-style]").forEach(b => b.addEventListener("click", () => { maisonStyle = b.dataset.style; majMaisonOpts(); }));
+elMaisonOpts.querySelectorAll("[data-etages]").forEach(b => b.addEventListener("click", () => { nbEtagesMaison = +b.dataset.etages; majMaisonOpts(); }));
+
+// =====================================================================
+//  ÉCRAN DE DÉMARRAGE & SAUVEGARDES (localStorage)
+// =====================================================================
+const CLE_SAUVE = "monde_herbe_parties";
+const elMenu = document.getElementById("menu");
+const elBtnMenu = document.getElementById("btnMenu");
+const elListeParties = document.getElementById("listeParties");
+const elBtnNouvelle = document.getElementById("bNouvelle");
+let parties = [];
+let partieIndex = -1;
+let enJeu = false;
+let autosaveAcc = 0;
+
+function chargerParties() {
+  try { return JSON.parse(localStorage.getItem(CLE_SAUVE)) || []; }
+  catch (e) { return []; }
+}
+function ecrireParties() {
+  try { localStorage.setItem(CLE_SAUVE, JSON.stringify(parties)); } catch (e) {}
+}
+
+function etatActuel() {
+  return {
+    joueur: { x: joueur.x, y: joueur.y, angle: joueur.angle },
+    score, horloge, mode, pontsLeves, faim, mondeType, jourTotal, modeJeu, difficulte, vies,
+    construction: [...construction.entries()],
+    decors: [...decors.entries()],
+    trous: [...trous],
+    eauPosee: [...eauPosee],
+    ramasses: [...ramasses],
+    animauxPoses: animauxPoses.map(a => ({ id: a.id, x: a.x, y: a.y, bx: a.bx, by: a.by, bebe: !!a.bebe, age: a.age || 0, enLaisse: !!a.enLaisse })),
+    lieux: lieux.map(l => ({ nom: l.nom, x: l.x, y: l.y })),
+    etages: [...etages.entries()],
+    wagons: wagons.map(w => ({ x: w.x, y: w.y, dir: w.dir })),
+  };
+}
+function appliquerEtat(s) {
+  joueur.x = s.joueur.x; joueur.y = s.joueur.y; joueur.angle = s.joueur.angle || 0;
+  camera.x = joueur.x; camera.y = joueur.y;
+  joueur.pas = 0; joueur.niveau = 0; joueur.cellePrec = "";
+  score = s.score || 0; elScore.textContent = score;
+  horloge = s.horloge || 0;
+  jourTotal = s.jourTotal || 0;
+  mode = s.mode || "2D";
+  pontsLeves = !!s.pontsLeves;
+  faim = (s.faim != null) ? s.faim : 100;
+  mondeType = (s.mondeType && MONDES[s.mondeType]) ? s.mondeType : "plaine";
+  modeJeu = (s.modeJeu === "survie") ? "survie" : "creatif";
+  difficulte = (s.difficulte && DIFFICULTES[s.difficulte]) ? s.difficulte : "moyen";
+  vies = (s.vies != null) ? s.vies : 3;
+  invuln = 0; ennemis.length = 0; spawnEnnemi = 3;
+  majPaletteMode(); majViesUI();
+  construction.clear();
+  for (const [k, v] of (s.construction || [])) if (matParId[v]) construction.set(k, v);
+  trous.clear();
+  for (const k of (s.trous || [])) trous.add(k);
+  eauPosee.clear();
+  for (const k of (s.eauPosee || [])) eauPosee.add(k);
+  decors.clear();
+  for (const [k, v] of (s.decors || [])) {
+    // rétrocompat : ancienne sauvegarde = un seul id (string) au lieu d'une pile
+    const arr = (Array.isArray(v) ? v : [v]).filter(id => matParId[id]);
+    if (arr.length) decors.set(k, arr);
+  }
+  ramasses.clear();
+  for (const k of (s.ramasses || [])) ramasses.add(k);
+  animauxPoses.length = 0;
+  for (const a of (s.animauxPoses || [])) {
+    if (!matParId[a.id]) continue;
+    const na = creerAnimalPose(a.id, a.x, a.y);
+    na.bx = (a.bx != null) ? a.bx : a.x;
+    na.by = (a.by != null) ? a.by : a.y;
+    na.bebe = !!a.bebe;
+    na.age = a.age || 0;
+    na.enLaisse = !!a.enLaisse;
+    animauxPoses.push(na);
+  }
+  lieux = Array.isArray(s.lieux) ? s.lieux.map(l => ({ nom: l.nom, x: l.x, y: l.y })) : [];
+  etages.clear();
+  for (const [k, v] of (s.etages || [])) if (matParId[v]) etages.set(k, v);
+  wagons.length = 0; wagonJoueur = -1;
+  for (const w of (s.wagons || [])) {
+    const dir = w.dir || { x: 1, y: 0 };
+    wagons.push({ x: w.x, y: w.y, dir, cible: { x: w.x, y: w.y }, actif: false });
+  }
+  niveauCons = 0;
+  majUImode();
+}
+
+function sauvegarder() {
+  if (partieIndex < 0 || !parties[partieIndex]) return;
+  parties[partieIndex].etat = etatActuel();
+  ecrireParties();
+}
+
+function nouvellePartie(type, modeJ, diffJ) {
+  modeJeu = (modeJ === "survie") ? "survie" : "creatif";
+  if (diffJ && DIFFICULTES[diffJ]) difficulte = diffJ;
+  mondeType = (type && MONDES[type]) ? type : "plaine";
+  placerSurTerre();
+  joueur.angle = 0; joueur.pas = 0; joueur.niveau = 0; joueur.cellePrec = "";
+  score = 0; elScore.textContent = 0;
+  faim = 100;
+  horloge = DUREE_JOUR * 0.30; jourTotal = 0;
+  mode = "2D"; pontsLeves = false; majUImode();
+  construction.clear();
+  decors.clear();
+  trous.clear();
+  eauPosee.clear();
+  etages.clear();
+  niveauCons = 0;
+  ramasses.clear();
+  animauxPoses.length = 0;
+  wagons.length = 0; wagonJoueur = -1;
+  ennemis.length = 0; invuln = 0; spawnEnnemi = 3;
+  vies = (modeJeu === "survie") ? diff().vies : 3;
+  if (modeJeu === "survie") matSel = "baton";
+  majPaletteMode(); majViesUI();
+  lieux = [];
+  const n = parties.length + 1;
+  parties.push({ nom: "Partie " + n, etat: etatActuel() });
+  partieIndex = parties.length - 1;
+  ecrireParties();
+  enJeu = true;
+  masquerMenu();
+}
+
+function ouvrirPartie(i) {
+  partieIndex = i;
+  appliquerEtat(parties[i].etat);
+  enJeu = true;
+  masquerMenu();
+}
+
+let indexASupprimer = -1;
+let confirmCallback = null;
+const elConfirmSuppr = document.getElementById("confirmSuppr");
+
+// Fenêtre de confirmation générique (utilisée pour toute suppression)
+function demanderConfirmation(message, onOui) {
+  document.getElementById("confirmTxt").innerHTML = message;
+  confirmCallback = onOui;
+  elConfirmSuppr.classList.remove("cache");
+}
+
+function supprimerPartie(i, ev) {
+  ev.stopPropagation();
+  indexASupprimer = i;
+  demanderConfirmation("Êtes-vous sûr de vouloir supprimer la partie ?", effectuerSuppression);
+}
+
+function effectuerSuppression() {
+  const i = indexASupprimer;
+  indexASupprimer = -1;
+  if (i < 0 || i >= parties.length) return;
+  parties.splice(i, 1);
+  parties.forEach((p, k) => p.nom = "Partie " + (k + 1)); // renumérote pour rester séquentiel
+  if (i < partieIndex) partieIndex--;
+  else if (i === partieIndex) partieIndex = -1;
+  ecrireParties();
+  afficherMenu();
+}
+
+document.getElementById("confirmOui").addEventListener("click", () => {
+  elConfirmSuppr.classList.add("cache");
+  const cb = confirmCallback; confirmCallback = null;
+  if (cb) cb();
+});
+document.getElementById("confirmNon").addEventListener("click", () => {
+  confirmCallback = null; indexASupprimer = -1;
+  elConfirmSuppr.classList.add("cache");
+});
+
+function afficherMenu() {
+  enJeu = false;
+  parties = chargerParties();
+  elListeParties.innerHTML = "";
+  if (parties.length) {
+    const t = document.createElement("div");
+    t.className = "titreSection";
+    t.textContent = "Reprendre une partie";
+    elListeParties.appendChild(t);
+  }
+  parties.forEach((p, i) => {
+    const sc = (p.etat && p.etat.score) || 0;
+    const nbBloc = ((p.etat && p.etat.construction) ? p.etat.construction.length : 0)
+                 + ((p.etat && p.etat.decors) ? p.etat.decors.reduce((s, e) => s + (Array.isArray(e[1]) ? e[1].length : 1), 0) : 0);
+    const nbAni = (p.etat && p.etat.animauxPoses) ? p.etat.animauxPoses.length : 0;
+    const em = (p.etat && p.etat.mondeType && MONDES[p.etat.mondeType]) ? MONDES[p.etat.mondeType].emoji : "🌱";
+    const b = document.createElement("button");
+    b.className = "bMenu bPartie";
+    b.innerHTML = `<span>${em} Partie ${i + 1} <small>· 🍎 ${sc} · 🧱 ${nbBloc} · 🐾 ${nbAni}</small></span><span class="bSuppr" title="Supprimer">🗑️</span>`;
+    b.addEventListener("click", () => ouvrirPartie(i));
+    b.querySelector(".bSuppr").addEventListener("click", (ev) => supprimerPartie(i, ev));
+    elListeParties.appendChild(b);
+  });
+  elMenu.classList.remove("cache");
+  elBtnMenu.style.display = "none";
+}
+function masquerMenu() {
+  elMenu.classList.add("cache");
+  elChoixMonde.classList.add("cache");
+  document.getElementById("choixMode").classList.add("cache");
+  document.getElementById("choixDifficulte").classList.add("cache");
+  elBtnMenu.style.display = "";
+}
+
+// --- Écran de choix du monde ---
+const elChoixMonde = document.getElementById("choixMonde");
+const elListeMondes = document.getElementById("listeMondes");
+const ORDRE_MONDES = ["plaine", "prairie", "montagne", "neige", "volcan", "ville", "champs"];
+function afficherChoixMonde() {
+  elListeMondes.innerHTML = "";
+  for (const type of ORDRE_MONDES) {
+    const m = MONDES[type];
+    const b = document.createElement("button");
+    b.className = "bMonde";
+    b.innerHTML = `<span class="em">${m.emoji}</span>${m.nom}`;
+    b.addEventListener("click", () => nouvellePartie(type, "creatif"));
+    elListeMondes.appendChild(b);
+  }
+  elMenu.classList.add("cache");
+  elChoixMode.classList.add("cache");
+  elChoixMonde.classList.remove("cache");
+}
+
+// on choisit d'abord le MODE (créatif / survie)
+const elChoixMode = document.getElementById("choixMode");
+function afficherChoixMode() {
+  elMenu.classList.add("cache");
+  elChoixMonde.classList.add("cache");
+  document.getElementById("choixDifficulte").classList.add("cache");
+  elChoixMode.classList.remove("cache");
+}
+const elChoixDifficulte = document.getElementById("choixDifficulte");
+elBtnNouvelle.addEventListener("click", afficherChoixMode);
+document.getElementById("modeCreatif").addEventListener("click", afficherChoixMonde); // créatif → choix du monde
+document.getElementById("modeSurvie").addEventListener("click", () => {              // survie → choix de la difficulté
+  elChoixMode.classList.add("cache");
+  elChoixDifficulte.classList.remove("cache");
+});
+for (const b of elChoixDifficulte.querySelectorAll("[data-diff]")) {
+  b.addEventListener("click", () => {
+    elChoixDifficulte.classList.add("cache");
+    nouvellePartie("plaine", "survie", b.dataset.diff); // forêt + difficulté choisie
+  });
+}
+document.getElementById("annulerDiff").addEventListener("click", () => {
+  elChoixDifficulte.classList.add("cache");
+  afficherChoixMode();
+});
+document.getElementById("annulerMode").addEventListener("click", () => {
+  elChoixMode.classList.add("cache");
+  afficherMenu();
+});
+document.getElementById("annulerChoix").addEventListener("click", () => {
+  elChoixMonde.classList.add("cache");
+  afficherChoixMode(); // retour au choix du mode
+});
+document.getElementById("gameOverMenu").addEventListener("click", () => {
+  document.getElementById("gameOver").classList.add("cache");
+  afficherMenu();
+});
+elBtnMenu.addEventListener("click", () => { if (enJeu) sauvegarder(); afficherMenu(); });
+window.addEventListener("beforeunload", () => { if (enJeu) sauvegarder(); });
+
+// --- GPS : nommer un lieu, téléportation, carte ---
+const elDlgNommer = document.getElementById("dlgNommer");
+const elDlgTeleport = document.getElementById("dlgTeleport");
+const elDlgCarte = document.getElementById("dlgCarte");
+const elTeleListe = document.getElementById("teleListe");
+const elTeleConfirm = document.getElementById("teleConfirm");
+const elCarteCanvas = document.getElementById("carteCanvas");
+const elCarteMenu = document.getElementById("carteMenu");
+let teleSel = -1;
+let carteSel = -1;         // lieu sélectionné sur la carte
+let carteLieux = [];       // positions écran des lieux sur la carte { sx, sy, i }
+
+function fermerDialogues() {
+  elDlgNommer.classList.add("cache");
+  elDlgTeleport.classList.add("cache");
+  elDlgCarte.classList.add("cache");
+  elCarteMenu.classList.add("cache");
+}
+function modalOuvert() {
+  // la grande carte (dlgCarte) ne bloque PAS le déplacement : on peut marcher en la regardant
+  return !elDlgNommer.classList.contains("cache")
+      || !elDlgTeleport.classList.contains("cache")
+      || !elCarteMenu.classList.contains("cache")
+      || !document.getElementById("persoModal").classList.contains("cache");
+}
+
+// téléporter vers un lieu (par la carte)
+function teleporterVers(i) {
+  const l = lieux[i];
+  if (!l) return;
+  joueur.x = l.x; joueur.y = l.y; joueur.niveau = 0; joueur.cellePrec = "";
+  camera.x = joueur.x; camera.y = joueur.y; joueur.pas = 0;
+  sauvegarder();
+  fermerDialogues();
+}
+function reinitTouches() { for (const k in touches) touches[k] = false; }
+
+// 📍 Nommer cette place
+document.getElementById("btnNommer").addEventListener("click", () => {
+  if (!enJeu) return;
+  reinitTouches();
+  nommerMode = "nouveau"; renommerIndex = -1;
+  document.getElementById("nommerTitre").textContent = "📍 Nommer cette place";
+  document.getElementById("nommerCoords").textContent = `Position : x ${Math.round(joueur.x)}, y ${Math.round(joueur.y)}`;
+  const inp = document.getElementById("nommerInput");
+  inp.value = "";
+  elDlgNommer.classList.remove("cache");
+  inp.focus();
+});
+const elNommerInput = document.getElementById("nommerInput");
+elNommerInput.addEventListener("keydown", e => { e.stopPropagation(); if (e.key === "Enter") document.getElementById("nommerOk").click(); });
+elNommerInput.addEventListener("keyup", e => e.stopPropagation());
+document.getElementById("nommerOk").addEventListener("click", () => {
+  const val = elNommerInput.value.trim();
+  if (nommerMode === "renommer") {
+    if (renommerIndex >= 0 && lieux[renommerIndex] && val) lieux[renommerIndex].nom = val;
+    sauvegarder();
+    elDlgNommer.classList.add("cache");
+    nommerMode = "nouveau"; renommerIndex = -1;
+    rouvrirCarte();
+  } else {
+    lieux.push({ nom: val || ("Lieu " + (lieux.length + 1)), x: joueur.x, y: joueur.y });
+    sauvegarder();
+    fermerDialogues();
+  }
+});
+document.getElementById("nommerAnnuler").addEventListener("click", () => {
+  const etaitRenommer = nommerMode === "renommer";
+  nommerMode = "nouveau"; renommerIndex = -1;
+  elDlgNommer.classList.add("cache");
+  if (etaitRenommer) rouvrirCarte();
+});
+
+// (la téléportation se fait maintenant en cliquant un lieu sur la carte 🗺️)
+function construireListeTeleport() {
+  elTeleListe.innerHTML = "";
+  if (!lieux.length) {
+    const d = document.createElement("div");
+    d.className = "aucun";
+    d.textContent = "Aucun lieu nommé. Utilise 📍 pour en créer.";
+    elTeleListe.appendChild(d);
+    return;
+  }
+  lieux.forEach((l, i) => {
+    const dist = Math.round(Math.hypot(l.x - joueur.x, l.y - joueur.y));
+    const ligne = document.createElement("div");
+    ligne.className = "ligneLieu";
+    const b = document.createElement("button");
+    b.className = "bLieu";
+    b.innerHTML = `📍 ${l.nom} <span class="dist">${dist} m</span>`;
+    b.addEventListener("click", () => {
+      teleSel = i;
+      document.getElementById("teleConfirmTxt").innerHTML = `Se téléporter à « <b>${l.nom}</b> » ?`;
+      elTeleListe.classList.add("cache");
+      elTeleConfirm.classList.remove("cache");
+    });
+    const bRen = document.createElement("button");
+    bRen.className = "miniB"; bRen.textContent = "✏️"; bRen.title = "Renommer";
+    bRen.addEventListener("click", () => ouvrirRenommer(i));
+    const bDel = document.createElement("button");
+    bDel.className = "miniB"; bDel.textContent = "🗑️"; bDel.title = "Supprimer";
+    bDel.addEventListener("click", () => {
+      demanderConfirmation(`Êtes-vous sûr de vouloir supprimer le lieu « <b>${l.nom}</b> » ?`, () => {
+        lieux.splice(i, 1); sauvegarder(); construireListeTeleport();
+      });
+    });
+    ligne.appendChild(b); ligne.appendChild(bRen); ligne.appendChild(bDel);
+    elTeleListe.appendChild(ligne);
+  });
+}
+
+let nommerMode = "nouveau"; // "nouveau" | "renommer"
+let renommerIndex = -1;
+function ouvrirRenommer(i) {
+  nommerMode = "renommer"; renommerIndex = i;
+  elCarteMenu.classList.add("cache");
+  elDlgCarte.classList.add("cache");
+  document.getElementById("nommerTitre").textContent = "✏️ Renommer le lieu";
+  document.getElementById("nommerCoords").textContent = `Position : x ${Math.round(lieux[i].x)}, y ${Math.round(lieux[i].y)}`;
+  elNommerInput.value = lieux[i].nom;
+  elDlgNommer.classList.remove("cache");
+  elNommerInput.focus(); elNommerInput.select();
+}
+// après un renommage/suppression, revenir à la carte
+function rouvrirCarte() {
+  elCarteMenu.classList.add("cache");
+  if (!elDlgCarte.classList.contains("cache")) dessinerCarte(); // plein écran ouvert → redessiner ; le mini-plan se met à jour seul
+}
+document.getElementById("teleOui").addEventListener("click", () => {
+  if (teleSel >= 0 && lieux[teleSel]) {
+    joueur.x = lieux[teleSel].x; joueur.y = lieux[teleSel].y;
+    joueur.niveau = 0; joueur.cellePrec = "";
+    camera.x = joueur.x; camera.y = joueur.y; joueur.pas = 0;
+    sauvegarder();
+  }
+  teleSel = -1;
+  fermerDialogues();
+});
+document.getElementById("teleNon").addEventListener("click", () => {
+  teleSel = -1;
+  elTeleConfirm.classList.add("cache");
+  elTeleListe.classList.remove("cache");
+});
+document.getElementById("teleAnnuler").addEventListener("click", fermerDialogues);
+
+// 🗺️ Carte : la grande carte reste ouverte pendant qu'on marche (redessinée en direct)
+document.getElementById("btnCarte").addEventListener("click", () => {
+  if (!enJeu) return;
+  dessinerCarte();
+  elDlgCarte.classList.remove("cache");
+});
+document.getElementById("carteFermer").addEventListener("click", fermerDialogues);
+
+// =====================================================================
+//  PERSONNALISATION DU PERSONNAGE (bouton 👕)
+// =====================================================================
+const PALETTES = {
+  peau:       ["#ffe0bd","#f2c79a","#e0ac69","#c68642","#8d5524","#5c3a21","#95a5a6"],
+  cheveux:    ["#1c1c1c","#5a3a1a","#a9743b","#e6b800","#c0392b","#ecf0f1","#e84393","#8e44ad","#2980b9","#27ae60","#7f8c8d"],
+  haut:       ["#3498db","#e74c3c","#27ae60","#f1c40f","#9b59b6","#e67e22","#1abc9c","#ffffff","#2c3e50","#e84393"],
+  bas:        ["#2c3e50","#34495e","#5a3a1a","#7f8c8d","#2980b9","#111111","#8e44ad","#16a085"],
+  chaussures: ["#5a3a1a","#111111","#ffffff","#e74c3c","#2980b9","#f1c40f"],
+};
+const PRESETS = [
+  { nom:"🙂 Classique",  c:{ peau:"#f2c79a", cheveux:"#5a3a1a", haut:"#3498db", bas:"#2c3e50", chaussures:"#5a3a1a" } },
+  { nom:"🌲 Aventurier", c:{ peau:"#e0ac69", cheveux:"#5a3a1a", haut:"#27ae60", bas:"#5a3a1a", chaussures:"#5a3a1a" } },
+  { nom:"👑 Princesse",  c:{ peau:"#ffe0bd", cheveux:"#e6b800", haut:"#e84393", bas:"#8e44ad", chaussures:"#ffffff" } },
+  { nom:"🥷 Ninja",      c:{ peau:"#c68642", cheveux:"#1c1c1c", haut:"#2c3e50", bas:"#111111", chaussures:"#111111" } },
+  { nom:"🚀 Astronaute", c:{ peau:"#f2c79a", cheveux:"#1c1c1c", haut:"#ffffff", bas:"#7f8c8d", chaussures:"#7f8c8d" } },
+  { nom:"🤖 Robot",      c:{ peau:"#95a5a6", cheveux:"#7f8c8d", haut:"#34495e", bas:"#2c3e50", chaussures:"#111111" } },
+  { nom:"🦸 Héros",      c:{ peau:"#e0ac69", cheveux:"#1c1c1c", haut:"#e74c3c", bas:"#2980b9", chaussures:"#f1c40f" } },
+];
+const STYLES_HAUT = [
+  { id: "tshirt", emoji: "👕" }, { id: "pull", emoji: "🧶" }, { id: "gilet", emoji: "🦺" },
+  { id: "veste", emoji: "🧥" }, { id: "robe", emoji: "👗" },
+];
+const STYLES_CHEVEUX = [
+  { id: "court", label: "Court" }, { id: "long", label: "Long" }, { id: "queue", label: "Queue" },
+  { id: "tresses", label: "Tresses" }, { id: "boucles", label: "Bouclés" }, { id: "chauve", label: "Chauve" },
+];
+const CHAPEAUX = ["", "🎩", "🧢", "👒", "🎓", "👑", "⛑️", "🪖", "🎃", "🎀", "🌸"];
+const ACCESSOIRES = [
+  { id: "", y: 0, s: 0 },
+  { id: "👓", y: -35, s: 11 }, { id: "🕶️", y: -35, s: 11 }, { id: "🥽", y: -35, s: 12 },
+  { id: "😷", y: -34, s: 12 }, { id: "🧣", y: -28, s: 12 }, { id: "🎀", y: -30, s: 10 },
+  { id: "👔", y: -20, s: 11 }, { id: "📿", y: -26, s: 11 }, { id: "🧤", y: -14, s: 10 },
+];
+const ACC_POS = Object.fromEntries(ACCESSOIRES.map(a => [a.id, { y: a.y, s: a.s }]));
+const elPersoModal = document.getElementById("persoModal");
+let persoApercuCanvas = null;
+
+function dessinerApercuPerso() {
+  const c = persoApercuCanvas.getContext("2d");
+  c.clearRect(0, 0, persoApercuCanvas.width, persoApercuCanvas.height);
+  c.save();
+  c.translate(persoApercuCanvas.width / 2, persoApercuCanvas.height - 14);
+  c.scale(1.9, 1.9);
+  dessinerCorps(c, false, 0); // même dessin que dans le jeu, de face, immobile
+  c.restore();
+}
+
+function majPastillesPerso() {
+  for (const champ of Object.keys(PALETTES)) {
+    const cont = document.getElementById("sw_" + champ);
+    if (!cont) continue;
+    for (const b of cont.children) b.classList.toggle("sel", b.dataset.col === perso[champ]);
+  }
+  for (const champ of ["chapeau", "accessoire", "styleHaut", "styleCheveux"]) {
+    const cont = document.getElementById("opt_" + champ);
+    if (!cont) continue;
+    for (const b of cont.children) b.classList.toggle("sel", b.dataset.opt === perso[champ]);
+  }
+  dessinerApercuPerso();
+}
+
+function construirePerso() {
+  // aperçu
+  persoApercuCanvas = document.createElement("canvas");
+  persoApercuCanvas.width = 96; persoApercuCanvas.height = 128;
+  document.getElementById("persoApercu").appendChild(persoApercuCanvas);
+  // modèles
+  const contP = document.getElementById("persoPresets");
+  for (const p of PRESETS) {
+    const b = document.createElement("button");
+    b.className = "presetSw"; b.textContent = p.nom;
+    b.addEventListener("click", () => { Object.assign(perso, p.c); sauverPerso(); majPastillesPerso(); });
+    contP.appendChild(b);
+  }
+  // pastilles de couleur par partie du corps
+  for (const champ of Object.keys(PALETTES)) {
+    const cont = document.getElementById("sw_" + champ);
+    for (const col of PALETTES[champ]) {
+      const b = document.createElement("button");
+      b.className = "swatch"; b.dataset.col = col; b.style.background = col;
+      b.addEventListener("click", () => { perso[champ] = col; sauverPerso(); majPastillesPerso(); });
+      cont.appendChild(b);
+    }
+  }
+  // chapeaux et accessoires (emoji ; "" = aucun)
+  const btnEmoji = (champ, id) => {
+    const b = document.createElement("button");
+    b.dataset.opt = id;
+    if (id === "") { b.className = "optEmoji aucun"; b.textContent = "Aucun"; }
+    else { b.className = "optEmoji"; b.textContent = id; }
+    b.addEventListener("click", () => { perso[champ] = id; sauverPerso(); majPastillesPerso(); });
+    return b;
+  };
+  const contC = document.getElementById("opt_chapeau");
+  for (const id of CHAPEAUX) contC.appendChild(btnEmoji("chapeau", id));
+  const contA = document.getElementById("opt_accessoire");
+  for (const a of ACCESSOIRES) contA.appendChild(btnEmoji("accessoire", a.id));
+  // formes de vêtement (emoji) et de coiffure (texte)
+  const contVet = document.getElementById("opt_styleHaut");
+  for (const s of STYLES_HAUT) {
+    const b = document.createElement("button");
+    b.className = "optEmoji"; b.dataset.opt = s.id; b.textContent = s.emoji; b.title = s.id;
+    b.addEventListener("click", () => { perso.styleHaut = s.id; sauverPerso(); majPastillesPerso(); });
+    contVet.appendChild(b);
+  }
+  const contCoif = document.getElementById("opt_styleCheveux");
+  for (const s of STYLES_CHEVEUX) {
+    const b = document.createElement("button");
+    b.className = "presetSw"; b.dataset.opt = s.id; b.textContent = s.label;
+    b.addEventListener("click", () => { perso.styleCheveux = s.id; sauverPerso(); majPastillesPerso(); });
+    contCoif.appendChild(b);
+  }
+}
+construirePerso();
+
+document.getElementById("btnPerso").addEventListener("click", () => {
+  majPastillesPerso();
+  elPersoModal.classList.remove("cache");
+});
+document.getElementById("persoFermer").addEventListener("click", () => { sauverPerso(); elPersoModal.classList.add("cache"); });
+elPersoModal.addEventListener("click", e => { if (e.target === elPersoModal) { sauverPerso(); elPersoModal.classList.add("cache"); } });
+
+// --- Plein écran ---
+const elBtnPlein = document.getElementById("btnPlein");
+elBtnPlein.addEventListener("click", () => {
+  const doc = document, el = doc.documentElement;
+  if (!doc.fullscreenElement && !doc.webkitFullscreenElement) {
+    (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
+  } else {
+    (doc.exitFullscreen || doc.webkitExitFullscreen || doc.msExitFullscreen).call(doc);
+  }
+});
+function majBoutonPlein() {
+  const plein = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  elBtnPlein.textContent = plein ? "🗗" : "⛶";
+  elBtnPlein.title = plein ? "Quitter le plein écran" : "Plein écran";
+}
+document.addEventListener("fullscreenchange", majBoutonPlein);
+document.addEventListener("webkitfullscreenchange", majBoutonPlein);
+
+// clic sur la carte : sélectionne le lieu le plus proche → menu d'actions
+elCarteCanvas.addEventListener("click", e => {
+  const rect = elCarteCanvas.getBoundingClientRect();
+  const px = (e.clientX - rect.left) * (elCarteCanvas.width / rect.width);
+  const py = (e.clientY - rect.top) * (elCarteCanvas.height / rect.height);
+  let best = -1, bestD = 22;
+  for (const p of carteLieux) {
+    const d = Math.hypot(p.sx - px, p.sy - py);
+    if (d < bestD) { bestD = d; best = p.i; }
+  }
+  if (best >= 0 && lieux[best]) {
+    carteSel = best;
+    document.getElementById("carteMenuTitre").innerHTML = `📍 ${lieux[best].nom}`;
+    elCarteMenu.classList.remove("cache");
+  }
+});
+document.getElementById("carteTele").addEventListener("click", () => {
+  const l = lieux[carteSel]; if (!l) return;
+  elCarteMenu.classList.add("cache");
+  demanderConfirmation(`Se téléporter à « <b>${l.nom}</b> » ?`, () => teleporterVers(carteSel));
+});
+document.getElementById("carteRen").addEventListener("click", () => {
+  if (lieux[carteSel]) ouvrirRenommer(carteSel);
+});
+document.getElementById("carteSup").addEventListener("click", () => {
+  const l = lieux[carteSel]; if (!l) return;
+  const i = carteSel;
+  elCarteMenu.classList.add("cache");
+  demanderConfirmation(`Êtes-vous sûr de vouloir supprimer le lieu « <b>${l.nom}</b> » ?`, () => {
+    lieux.splice(i, 1); sauvegarder(); rouvrirCarte();
+  });
+});
+document.getElementById("carteMenuFermer").addEventListener("click", () => elCarteMenu.classList.add("cache"));
+
+function dessinerCarte() {
+  const cx = elCarteCanvas.getContext("2d");
+  const W2 = elCarteCanvas.width, H2 = elCarteCanvas.height;
+  cx.fillStyle = "#223a20"; cx.fillRect(0, 0, W2, H2);
+  const pts = lieux.map(l => ({ x: l.x, y: l.y, nom: l.nom, moi: false }));
+  pts.push({ x: joueur.x, y: joueur.y, nom: "Vous", moi: true });
+  let minx = Infinity, maxx = -Infinity, miny = Infinity, maxy = -Infinity;
+  for (const p of pts) { minx = Math.min(minx, p.x); maxx = Math.max(maxx, p.x); miny = Math.min(miny, p.y); maxy = Math.max(maxy, p.y); }
+  const spanx = Math.max(500, maxx - minx), spany = Math.max(500, maxy - miny);
+  const ccx = (minx + maxx) / 2, ccy = (miny + maxy) / 2, marge = 46;
+  const sc = Math.min((W2 - marge * 2) / spanx, (H2 - marge * 2) / spany);
+  const proj = (wx, wy) => [W2 / 2 + (wx - ccx) * sc, H2 / 2 + (wy - ccy) * sc];
+  // grille
+  cx.strokeStyle = "rgba(255,255,255,0.08)"; cx.lineWidth = 1;
+  for (let g = 0; g <= W2; g += 30) { cx.beginPath(); cx.moveTo(g, 0); cx.lineTo(g, H2); cx.stroke(); }
+  for (let g = 0; g <= H2; g += 30) { cx.beginPath(); cx.moveTo(0, g); cx.lineTo(W2, g); cx.stroke(); }
+  // points
+  carteLieux = [];
+  cx.textAlign = "center";
+  pts.forEach((p, k) => {
+    const [sx, sy] = proj(p.x, p.y);
+    if (p.moi) {
+      // flèche rouge orientée vers la direction où l'on va
+      cx.save(); cx.translate(sx, sy); cx.rotate(joueur.angle);
+      cx.fillStyle = "#e74c3c"; cx.strokeStyle = "#fff"; cx.lineWidth = 2;
+      cx.beginPath(); cx.moveTo(13, 0); cx.lineTo(-9, -9); cx.lineTo(-4, 0); cx.lineTo(-9, 9); cx.closePath();
+      cx.fill(); cx.stroke();
+      cx.restore();
+    } else {
+      cx.fillStyle = "#f1c40f";
+      cx.beginPath(); cx.arc(sx, sy, 8, 0, 6.283); cx.fill();
+      cx.strokeStyle = "rgba(0,0,0,0.4)"; cx.lineWidth = 1; cx.stroke();
+      carteLieux.push({ sx, sy, i: k }); // pts[k] = lieux[k] (le joueur est le dernier)
+    }
+    cx.fillStyle = "#fff"; cx.font = "12px system-ui, sans-serif";
+    cx.fillText(p.nom, sx, sy - 11);
+  });
+}
+
+// Coordonnées souris -> case de construction
+function caseSousSouris() {
+  const wx = camera.x - W / 2 + souris.x;
+  const wy = camera.y - H / 2 + souris.y;
+  return { gx: Math.floor(wx / GRILLE), gy: Math.floor(wy / GRILLE) };
+}
+
+// Construit une maison complète (murs, porte, plancher, escaliers, plafond)
+// emprise w×h, N étages ; chaque étage franchi par un escalier
+function construireMaison(cgx, cgy) {
+  const { w, h } = TAILLES_MAISON[maisonTaille] || TAILLES_MAISON[2];
+  const N = Math.max(1, nbEtagesMaison);
+  const x0 = cgx - Math.floor(w / 2), y0 = cgy - Math.floor(h / 2);
+  const porteX = Math.floor(w / 2);   // porte au milieu du bord bas (rez-de-chaussée)
+  // chaque étage a des murs et un sol différents
+  const autresMurs = ["mur_pierre", "mur_brique", "mur_bois", "mur_beton", "mur_metal"].filter(s => s !== maisonStyle);
+  const solsEtage = ["sol_bois", "sol_pierre", "sol_carrelage", "sol_tapis", "sol_pave"];
+  const murPour = (k) => k === 0 ? maisonStyle : autresMurs[(k - 1) % autresMurs.length];
+  const solPour = (k) => solsEtage[k % solsEtage.length];
+  for (let k = 0; k < N; k++) {       // pour chaque étage
+    const mur = murPour(k), sol = solPour(k);
+    const esc = (k % 2 === 0) ? [1, 1] : [w - 2, h - 2]; // case d'escalier décalée d'un étage à l'autre
+    for (let iy = 0; iy < h; iy++) {
+      for (let ix = 0; ix < w; ix++) {
+        const gx = x0 + ix, gy = y0 + iy, key = gx + "," + gy;
+        const bord = ix === 0 || iy === 0 || ix === w - 1 || iy === h - 1;
+        let id;
+        if (bord) id = (k === 0 && iy === h - 1 && ix === porteX) ? "porte" : mur;
+        else if (k < N - 1 && ix === esc[0] && iy === esc[1]) id = "escalier"; // monte à l'étage suivant
+        else id = sol;
+        if (k === 0) { construction.set(key, id); if (!bord) decors.delete(key); }
+        else etages.set(key + "," + k, id);
+      }
+    }
+  }
+  // plafond (toit) tout en haut
+  for (let iy = 0; iy < h; iy++)
+    for (let ix = 0; ix < w; ix++)
+      etages.set((x0 + ix) + "," + (y0 + iy) + "," + N, "toit");
+}
+
+function posePiece(glisse) {
+  if (!modeConstruction || !souris.dedans) return;
+  let gx, gy, wx, wy;
+  if (mode === "3D") {
+    const c = cibleSol3D(souris.x, souris.y); // visée au sol depuis la souris
+    if (!c) return;
+    gx = c.gx; gy = c.gy; wx = c.wx; wy = c.wy;
+  } else {
+    wx = camera.x - W / 2 + souris.x;
+    wy = camera.y - H / 2 + souris.y;
+    gx = Math.floor(wx / GRILLE); gy = Math.floor(wy / GRILLE);
+  }
+  const niv = (mode === "3D") ? (joueur.niveau + niveauCons) : 0; // construire à l'étage du joueur (+ décalage)
+  const key = gx + "," + gy;
+
+  if (matSel === "maison") { construireMaison(gx, gy); return; } // maison en un clic
+
+  if (matSel === "wagon") { // wagon : posé sur un rail
+    if (glisse || niv > 0) return;
+    if (estRail(gx, gy)) wagons.push(creerWagon(gx, gy));
+    return;
+  }
+
+  if (matSel === "a_laisse") { // laisse : cliquer un animal pour l'attacher / le détacher (sans le supprimer)
+    if (glisse) return;
+    let best = -1, bd = 60; // rayon généreux (facile à viser, même en 3D)
+    for (let i = 0; i < animauxPoses.length; i++) {
+      const d = Math.hypot(animauxPoses[i].x - wx, animauxPoses[i].y - wy);
+      if (d < bd) { bd = d; best = i; }
+    }
+    // à défaut d'animal sous le curseur, détacher l'animal en laisse le plus proche du joueur
+    if (best < 0) {
+      let bj = 130;
+      for (let i = 0; i < animauxPoses.length; i++) {
+        if (!animauxPoses[i].enLaisse) continue;
+        const d = Math.hypot(animauxPoses[i].x - joueur.x, animauxPoses[i].y - joueur.y);
+        if (d < bj) { bj = d; best = i; }
+      }
+      if (best >= 0) { animauxPoses[best].enLaisse = false; return; } // détache
+    }
+    if (best >= 0) animauxPoses[best].enLaisse = !animauxPoses[best].enLaisse;
+    return;
+  }
+
+  if (matSel === "pelle") { // creuser un vrai trou au sol
+    if (niv > 0) return;    // on ne creuse qu'au rez-de-chaussée
+    trous.add(key);
+    construction.delete(key); // on creuse à travers un éventuel sol posé
+    return;
+  }
+
+  if (matSel === "arrosoir") { // verser de l'eau par terre ou dans un trou
+    if (niv > 0) return;
+    eauPosee.add(key);
+    return;
+  }
+
+  if (matSel === "gomme") {
+    if (niv > 0) etages.delete(key + "," + niv);
+    else effacerA(wx, wy);
+    return;
+  }
+  if (niv > 0) {
+    // aux étages : seulement des structures (murs, sols, toits/plafonds…), pas d'animaux
+    if (!ANIMAUX_MOBILES.has(matSel)) etages.set(key + "," + niv, matSel);
+    return;
+  }
+  // niveau sol
+  if (ANIMAUX_MOBILES.has(matSel)) {
+    if (glisse) return;
+    animauxPoses.push(creerAnimalPose(matSel, gx * GRILLE + GRILLE / 2, gy * GRILLE + GRILLE / 2));
+    return;
+  }
+  if (matParId[matSel].deco) {
+    const pile = decors.get(key) || [];
+    if (!(glisse && pile.length > 0) && pile.length < PILE_MAX) { pile.push(matSel); decors.set(key, pile); }
+  } else construction.set(key, matSel);
+}
+
+canvas.addEventListener("mousemove", e => {
+  const r = canvas.getBoundingClientRect();
+  souris.x = e.clientX - r.left;
+  souris.y = e.clientY - r.top;
+  souris.dedans = true;
+  if (dragCam) { // glisser = tourner / incliner la caméra
+    camYaw += (e.clientX - dragX) * 0.006;
+    camPitch = Math.max(-25, Math.min(130, camPitch - (e.clientY - dragY) * 0.5));
+    dragX = e.clientX; dragY = e.clientY;
+  } else if (souris.presse && modeConstruction) posePiece(true); // pose en glissant
+});
+canvas.addEventListener("mouseleave", () => { souris.dedans = false; souris.presse = false; dragCam = false; });
+canvas.addEventListener("mousedown", e => {
+  if (e.button !== 0) return;
+  souris.presse = true;
+  if (mode === "3D" && !modeConstruction) { dragCam = true; dragX = e.clientX; dragY = e.clientY; } // orbite caméra
+  else posePiece();
+});
+window.addEventListener("mouseup", () => { souris.presse = false; dragCam = false; });
+// molette = zoom (rapprocher / éloigner) en vue 3D
+canvas.addEventListener("wheel", e => {
+  if (mode !== "3D") return;
+  e.preventDefault();
+  zoom3D = Math.max(0.4, Math.min(3, zoom3D * (1 + e.deltaY * 0.0012)));
+}, { passive: false });
+// clic droit = effacer
+canvas.addEventListener("contextmenu", e => {
+  if (!modeConstruction) return;
+  e.preventDefault();
+  effacerA(camera.x - W / 2 + souris.x, camera.y - H / 2 + souris.y);
+});
+
+// Une case de construction bloque-t-elle le passage ?
+function estMurConstruit(wx, wy) {
+  const gx = Math.floor(wx / GRILLE), gy = Math.floor(wy / GRILLE);
+  const key = gx + "," + gy;
+  const id = construction.get(key);
+  if (id) {
+    if (id === "pont_levis") return pontsLeves; // levé = bloque le passage
+    if (matParId[id].solide) return true;
+  }
+  const pile = decors.get(key);
+  if (pile && pile.some(o => matParId[o].solide)) return true; // objet déco solide dans la pile
+  return false;
+}
+
+// =====================================================================
+//  ANIMAUX POSÉS (mobiles) — placés depuis la catégorie « Animaux »
+// =====================================================================
+const ANIMAUX_MOBILES = new Set([
+  "a_chien","a_chat","a_lapin","a_cheval","a_vache","a_mouton","a_chevre",
+  "a_cochon","a_poule","a_coq","a_poussin","a_canard","a_tortue","a_abeille",
+  "a_grenouille","a_ecureuil","a_herisson","a_souris","a_renard","a_singe",
+  "a_panda","a_ours","a_loup","a_lion","a_tigre","a_elephant","a_girafe",
+  "a_zebre","a_kangourou","a_pingouin","a_paon","a_perroquet","a_hibou",
+  "a_papillon","a_escargot","a_dino",
+]); // (a_guide / a_laisse / a_corde restent des objets fixes)
+const VITESSE_POSE = {
+  a_tortue: 12, a_vache: 22, a_mouton: 24, a_canard: 26, a_cochon: 28,
+  a_poussin: 30, a_poule: 30, a_coq: 30, a_chevre: 34, a_chat: 44,
+  a_chien: 56, a_lapin: 58, a_cheval: 66, a_abeille: 74,
+  a_escargot: 8, a_herisson: 20, a_ours: 26, a_panda: 24, a_elephant: 22,
+  a_tortue2: 12, a_singe: 52, a_ecureuil: 62, a_souris: 60, a_grenouille: 40,
+  a_renard: 58, a_loup: 60, a_lion: 50, a_tigre: 56, a_girafe: 40,
+  a_zebre: 60, a_kangourou: 64, a_pingouin: 28, a_paon: 34, a_perroquet: 70,
+  a_hibou: 66, a_papillon: 72, a_dino: 46,
+};
+const IGNORE_EAU = new Set(["a_canard", "a_abeille", "a_grenouille", "a_papillon", "a_perroquet", "a_hibou", "a_pingouin"]); // nagent ou volent
+// tempérament face au personnage : "suit" (s'approche), "fuit" (s'enfuit), "neutre"
+const TEMPERAMENT = {
+  a_chien: "suit", a_chat: "suit", a_cheval: "suit", a_poussin: "suit",
+  a_poule: "neutre", a_coq: "neutre", a_vache: "neutre",
+  a_mouton: "fuit", a_chevre: "fuit", a_cochon: "fuit", a_lapin: "fuit",
+  a_canard: "fuit", a_tortue: "fuit", a_abeille: "fuit",
+  a_singe: "suit", a_perroquet: "suit", a_dino: "suit",
+  a_panda: "neutre", a_ours: "neutre", a_lion: "neutre", a_tigre: "neutre",
+  a_elephant: "neutre", a_girafe: "neutre", a_pingouin: "neutre", a_hibou: "neutre",
+  a_grenouille: "fuit", a_ecureuil: "fuit", a_herisson: "fuit", a_souris: "fuit",
+  a_renard: "fuit", a_loup: "fuit", a_zebre: "fuit", a_kangourou: "fuit",
+  a_paon: "fuit", a_papillon: "fuit", a_escargot: "fuit",
+};
+const POP_MAX = 60;        // limite globale d'animaux posés
+const POP_MAX_ESPECE = 12; // limite par espèce
+const animauxPoses = [];
+
+// certaines espèces sont plus petites (abeille, canard, poussin)
+const PETITES_ESPECES = {
+  a_abeille: 0.5, a_canard: 0.68, a_poussin: 0.6,
+  a_papillon: 0.5, a_escargot: 0.55, a_souris: 0.55, a_grenouille: 0.62,
+  a_perroquet: 0.72, a_hibou: 0.78, a_ecureuil: 0.72, a_herisson: 0.75,
+  a_elephant: 1.35, a_girafe: 1.4, a_ours: 1.25, a_dino: 1.3, a_lion: 1.15,
+};
+function tailleEspece(id) { return PETITES_ESPECES[id] || 1; }
+// taille d'affichage (bébés qui grandissent × facteur d'espèce)
+function tailleAnimal(a) {
+  const bebe = a.bebe ? Math.min(1, 0.55 + (a.age || 0) / 25) : 1;
+  return bebe * tailleEspece(a.id);
+}
+
+function creerAnimalPose(id, x, y) {
+  return { id, x, y, bx: x, by: y, vx: 0, vy: 0, minuteur: 0, pas: 0, regarde: 1 };
+}
+
+function majAnimauxPoses(dt) {
+  const bebes = [];
+  for (const a of animauxPoses) {
+    if (a.bebe) { a.age = (a.age || 0) + dt; if (a.age > 25) a.bebe = false; } // grandit
+    a.repro = (a.repro || 0) + dt;
+
+    // EN LAISSE : l'animal suit le joueur, tenu par la corde (ne peut pas se distancer)
+    if (a.enLaisse) {
+      if (enJeu) {
+        const dpx = joueur.x - a.x, dpy = joueur.y - a.y, dp = Math.hypot(dpx, dpy);
+        const LONG_LAISSE = 85; // longueur au repos : l'animal trotte derrière
+        if (dp > LONG_LAISSE) {
+          const pull = Math.min(340, dp * 8); // corde inextensible : rattrape d'autant plus vite qu'on s'éloigne
+          a.vx = dpx / dp * pull; a.vy = dpy / dp * pull;
+        } else { a.vx = 0; a.vy = 0; }
+        let nx = a.x + a.vx * dt, ny = a.y + a.vy * dt;
+        if (estMurConstruit(nx, ny)) { nx = a.x; ny = a.y; a.vx = a.vy = 0; } // un mur arrête (mais l'eau, non : on le tient)
+        a.x = nx; a.y = ny; a.bx = a.x; a.by = a.y;
+        if (a.vx || a.vy) { a.pas += dt; if (Math.abs(a.vx) > 1) a.regarde = a.vx > 0 ? 1 : -1; }
+        else a.pas = 0;
+      }
+      continue; // pas d'errance ni de fuite tant qu'il est en laisse
+    }
+
+    // intention d'errance
+    a.minuteur -= dt;
+    if (a.minuteur <= 0) {
+      if (Math.random() < 0.3) { a.vx = 0; a.vy = 0; }
+      else {
+        const ang = Math.random() * 6.28, v = VITESSE_POSE[a.id] || 30;
+        a.vx = Math.cos(ang) * v; a.vy = Math.sin(ang) * v;
+      }
+      a.minuteur = 0.7 + Math.random() * 2;
+    }
+
+    // réaction au personnage (suit ou fuit)
+    let reagit = false;
+    if (enJeu) {
+      const dpx = joueur.x - a.x, dpy = joueur.y - a.y, dp = Math.hypot(dpx, dpy);
+      const temp = TEMPERAMENT[a.id] || "neutre";
+      if (dp < 165 && dp > 0.01 && temp !== "neutre") {
+        const v = VITESSE_POSE[a.id] || 30;
+        if (temp === "fuit") { a.vx = -dpx / dp * v * 1.6; a.vy = -dpy / dp * v * 1.6; reagit = true; }
+        else { // suit
+          if (dp > 45) { a.vx = dpx / dp * v * 1.2; a.vy = dpy / dp * v * 1.2; }
+          else { a.vx = 0; a.vy = 0; }
+          reagit = true;
+        }
+      }
+    }
+
+    // rappel vers la zone de vie (sauf s'il réagit au joueur)
+    if (!reagit) {
+      const dx = a.bx - a.x, dy = a.by - a.y, dist = Math.hypot(dx, dy);
+      if (dist > 110) { a.vx += dx / dist * 45; a.vy += dy / dist * 45; }
+    }
+
+    // déplacement + collisions (eau / murs)
+    let nx = a.x + a.vx * dt, ny = a.y + a.vy * dt;
+    const bloque = (!IGNORE_EAU.has(a.id) && estEau(nx, ny)) || estMurConstruit(nx, ny);
+    if (bloque) { a.vx = -a.vx; a.vy = -a.vy; nx = a.x; ny = a.y; }
+    a.x = nx; a.y = ny;
+    // en réagissant au joueur, la zone de vie suit l'animal (il s'installe ailleurs)
+    if (reagit) { a.bx = a.x; a.by = a.y; }
+    if (a.vx || a.vy) { a.pas += dt; if (Math.abs(a.vx) > 1) a.regarde = a.vx > 0 ? 1 : -1; }
+    else a.pas = 0;
+  }
+
+  // reproduction : deux animaux de même espèce assez proches font un petit
+  if (enJeu && animauxPoses.length < POP_MAX) {
+    for (const a of animauxPoses) {
+      if (a.repro < 18) continue;
+      const p = animauxPoses.find(b => b !== a && b.id === a.id && b.repro >= 8 &&
+        Math.hypot(b.x - a.x, b.y - a.y) < 120);
+      if (!p) continue;
+      if (animauxPoses.filter(b => b.id === a.id).length >= POP_MAX_ESPECE) { a.repro = 6; continue; }
+      const bebe = creerAnimalPose(a.id, (a.x + p.x) / 2 + (Math.random()*20 - 10), (a.y + p.y) / 2 + (Math.random()*20 - 10));
+      bebe.bebe = true; bebe.age = 0;
+      bebes.push(bebe);
+      a.repro = 0; p.repro = 0;
+    }
+    for (const b of bebes) animauxPoses.push(b);
+  }
+}
+
+// =====================================================================
+//  MODE SURVIE : loups & serpents qui pourchassent le joueur
+// =====================================================================
+const VIT_ENNEMI = { loup: 120, serpent: 96 };
+const EMOJI_ENNEMI = { loup: "🐺", serpent: "🐍" };
+
+function spawnUnEnnemi() {
+  // apparaît sur un anneau autour du joueur, assez loin pour ne pas surgir dessus
+  const ang = hash(joueur.x * 0.13 + ennemis.length, joueur.y * 0.17 - spawnEnnemi) * 6.283;
+  const dist = 360 + hash(joueur.y, joueur.x + ennemis.length) * 150;
+  const x = joueur.x + Math.cos(ang) * dist, y = joueur.y + Math.sin(ang) * dist;
+  if (estEau(x, y)) return;
+  const type = hash(x + 1.7, y - 0.3) < 0.55 ? "loup" : "serpent";
+  ennemis.push({ type, x, y, vx: 0, vy: 0, pas: 0, regarde: 1, mort: false, mortT: 0, tombe: 0, minuteur: 0 });
+}
+
+function majEnnemis(dt) {
+  const D = diff();
+  spawnEnnemi -= dt;
+  const vivants = ennemis.reduce((n, e) => n + (e.mort ? 0 : 1), 0);
+  if (spawnEnnemi <= 0) { spawnEnnemi = D.spawnMin + Math.random() * D.spawnVar; if (vivants < D.maxEnnemis) spawnUnEnnemi(); }
+  for (let idx = ennemis.length - 1; idx >= 0; idx--) {
+    const e = ennemis[idx];
+    if (e.mort) { e.mortT += dt; if (e.mortT > 0.8) ennemis.splice(idx, 1); continue; }
+    // LOUP PIÉGÉ dans un trou : il ne peut plus sortir, s'enfonce et meurt
+    if (e.piege) {
+      e.tombe += dt; e.vx = 0; e.vy = 0; e.pas = 0;
+      if (e.tombe > 0.6) { e.mort = true; e.mortT = 0; }
+      continue;
+    }
+    const dx = joueur.x - e.x, dy = joueur.y - e.y, d = Math.hypot(dx, dy) || 1;
+    const v = VIT_ENNEMI[e.type] * D.vitesse;
+    if (d < 520) { e.vx = dx / d * v; e.vy = dy / d * v; }        // pourchasse le joueur
+    else {                                                         // errance
+      e.minuteur -= dt;
+      if (e.minuteur <= 0) { const a = Math.random() * 6.283; e.vx = Math.cos(a) * v * 0.4; e.vy = Math.sin(a) * v * 0.4; e.minuteur = 1 + Math.random() * 2; }
+    }
+    let nx = e.x + e.vx * dt, ny = e.y + e.vy * dt;
+    if (estMurConstruit(nx, ny)) { nx = e.x; ny = e.y; e.vx = -e.vx; e.vy = -e.vy; } // les murs les bloquent
+    e.x = nx; e.y = ny;
+    if (Math.abs(e.vx) > 1) e.regarde = e.vx > 0 ? 1 : -1;
+    e.pas += dt;
+    // LOUP : dès qu'il marche sur un trou, il tombe dedans (piégé). SERPENT : ressort (ignore le trou).
+    if (e.type === "loup" && estTrou(e.x, e.y)) { e.piege = true; e.tombe = 0; }
+    if (!e.mort && d < 22 && invuln <= 0) perdreVie(e); // contact → perte de vie
+  }
+}
+
+function attaquer() {
+  if (modeJeu !== "survie" || !enJeu || modalOuvert()) return;
+  joueur.swing = 0.28; // déclenche l'animation du coup de bâton
+  const dirx = Math.cos(joueur.angle), diry = Math.sin(joueur.angle);
+  for (const e of ennemis) {
+    if (e.mort) continue;
+    const dx = e.x - joueur.x, dy = e.y - joueur.y, d = Math.hypot(dx, dy) || 1;
+    if (d > 58) continue;
+    if ((dx * dirx + dy * diry) / d < 0.25) continue; // l'ennemi doit être DEVANT
+    e.mort = true; e.mortT = 0;                         // tué d'un coup de bâton
+  }
+}
+
+function perdreVie(e) {
+  vies -= 1; invuln = 1.3;
+  if (e) { const dx = joueur.x - e.x, dy = joueur.y - e.y, d = Math.hypot(dx, dy) || 1; joueur.x += dx / d * 36; joueur.y += dy / d * 36; } // recul
+  majViesUI();
+  if (vies <= 0) gameOver();
+}
+
+function gameOver() {
+  enJeu = false;
+  ennemis.length = 0;
+  document.getElementById("gameOver").classList.remove("cache");
+}
+
+// rendu 2D d'un ennemi (loup 🐺 / serpent 🐍) avec marche, mort en fondu, loup piégé qui s'enfonce
+function dessinerEnnemi2D(e, decX, decY) {
+  const sx = e.x + decX, sy = e.y + decY;
+  const t = e.mort ? Math.max(0, 1 - e.mortT / 0.8) : 1; // fondu à la mort
+  const bob = (e.mort || e.piege) ? 0 : Math.abs(Math.sin(e.pas * 11)) * 3;
+  const sink = e.piege ? Math.min(18, ((e.tombe || 0) + (e.mort ? e.mortT : 0)) * 28) : 0; // loup piégé s'enfonce
+  ctx.save();
+  ctx.globalAlpha = 0.2 * t;
+  ctx.fillStyle = "#000";
+  ctx.beginPath(); ctx.ellipse(sx, sy + 5, 12, 4, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(sx, sy - bob + sink);
+  ctx.scale(e.regarde, 1);
+  ctx.globalAlpha = t; ctx.fillStyle = "#000";
+  ctx.font = "28px serif"; ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText(EMOJI_ENNEMI[e.type], 0, -8);
+  ctx.restore();
+  ctx.globalAlpha = 1; ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+}
+
+// efface au point (wx,wy) : la case de construction ET les animaux proches
+function effacerA(wx, wy) {
+  const gx = Math.floor(wx / GRILLE), gy = Math.floor(wy / GRILLE);
+  const key = gx + "," + gy;
+  // priorité : objet déco du dessus > animal proche > sol/mur (un élément par clic)
+  if (decors.has(key)) {
+    const pile = decors.get(key);
+    pile.pop();
+    if (pile.length === 0) decors.delete(key);
+    return;
+  }
+  for (let i = wagons.length - 1; i >= 0; i--)
+    if (Math.hypot(wagons[i].x - wx, wagons[i].y - wy) < 22) { if (wagonJoueur === i) wagonJoueur = -1; wagons.splice(i, 1); return; }
+  for (let i = animauxPoses.length - 1; i >= 0; i--)
+    if (Math.hypot(animauxPoses[i].x - wx, animauxPoses[i].y - wy) < 24) { animauxPoses.splice(i, 1); return; }
+  if (eauPosee.has(key)) { eauPosee.delete(key); return; } // enlever l'eau versée
+  if (trous.has(key)) { trous.delete(key); return; } // reboucher un trou creusé
+  // efface le sol/mur ET tous les étages de cette case (plafonds compris)
+  construction.delete(key);
+  for (let n = 1; n <= 8; n++) etages.delete(key + "," + n);
+}
+
+// rendu 2D d'un animal posé (emoji animé, orienté selon la marche)
+function dessinerWagon2D(w, decX, decY) {
+  const sx = w.x + decX, sy = w.y + decY;
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.fillStyle = "rgba(0,0,0,0.2)"; ctx.beginPath(); ctx.ellipse(0, 7, 16, 5, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#222"; // roues
+  ctx.beginPath(); ctx.arc(-9, 7, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.beginPath(); ctx.arc(9, 7, 4, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = w.actif ? "#e74c3c" : "#a83a30"; // caisse
+  ctx.beginPath(); ctx.moveTo(-16, 5); ctx.lineTo(-13, -13); ctx.lineTo(13, -13); ctx.lineTo(16, 5); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#7a2419"; ctx.fillRect(-16, 3, 32, 3);
+  ctx.fillStyle = w.actif ? "#2ecc71" : "#555"; // lumière (allumé/éteint)
+  ctx.beginPath(); ctx.arc(0, -8, 3, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+}
+
+function dessinerAnimalPose2D(a, decX, decY) {
+  const sx = a.x + decX, sy = a.y + decY;
+  const t = tailleAnimal(a);
+  const bob = a.pas > 0 ? Math.abs(Math.sin(a.pas * 10)) * 3 : 0;
+  if (a.enLaisse) { // corde tendue entre la main du joueur et l'animal
+    const px = joueur.x + decX, py = joueur.y + decY;
+    const mx = (px + sx) / 2, my = (py + sy) / 2 + 10; // léger relâché de la corde
+    ctx.strokeStyle = "rgba(120,80,40,0.9)"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(px, py - 6); ctx.quadraticCurveTo(mx, my, sx, sy - 6 * t); ctx.stroke();
+  }
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.beginPath(); ctx.ellipse(sx, sy + 4, 13 * t, 4 * t, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.save();
+  ctx.translate(sx, sy - bob);
+  ctx.scale(a.regarde, 1);
+  ctx.globalAlpha = 1; ctx.fillStyle = "#000"; // emoji couleur opaque (sinon il hérite de l'alpha de l'ombre)
+  ctx.font = `${(32 * t) | 0}px serif`;
+  ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+  ctx.fillText(matParId[a.id].emoji, 0, 8);
+  ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+  ctx.restore();
+}
+
+// Comment une pièce se comporte en 3D (bloc volumineux, dalle plate, ou objet plat)
+const SOLS_PLATS = new Set(["sol_bois","sol_pierre","sol_carrelage","sol_tapis","sol_pave","chemin","porte","portail","escalier","pont_bois","ponton","pont_pierre","pont_corde","rail"]);
+
+// --- Rails & wagons ---
+function estRail(gx, gy) { return construction.get(gx + "," + gy) === "rail"; }
+const wagons = [];      // { x, y, dir:{x,y}, cible:{x,y}, actif }
+let wagonJoueur = -1;   // index du wagon où se trouve le joueur (-1 = aucun)
+
+function creerWagon(gx, gy) {
+  const cx = gx * GRILLE + GRILLE / 2, cy = gy * GRILLE + GRILLE / 2;
+  const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+  const d = dirs.find(dd => estRail(gx + dd.x, gy + dd.y)) || { x: 1, y: 0 };
+  return { x: cx, y: cy, dir: d, cible: { x: cx, y: cy }, actif: false };
+}
+
+// case de rail suivante (suit les rails, sans faire demi-tour)
+function prochaineCaseRail(w) {
+  const gx = Math.floor(w.x / GRILLE), gy = Math.floor(w.y / GRILLE);
+  const dirs = [{ x: 1, y: 0 }, { x: -1, y: 0 }, { x: 0, y: 1 }, { x: 0, y: -1 }];
+  const cons = dirs.filter(d => estRail(gx + d.x, gy + d.y));
+  let choix = cons.filter(d => !(d.x === -w.dir.x && d.y === -w.dir.y)); // pas de demi-tour…
+  if (!choix.length) choix = cons; // …sauf en bout de voie : demi-tour pour repartir (réutilisable)
+  if (!choix.length) return null;  // aucune case rail voisine (wagon isolé)
+  const d = choix.find(c => c.x === w.dir.x && c.y === w.dir.y) || choix[0]; // tout droit en priorité
+  return { dir: d, cible: { x: (gx + d.x) * GRILLE + GRILLE / 2, y: (gy + d.y) * GRILLE + GRILLE / 2 } };
+}
+
+function majWagons(dt) {
+  for (const w of wagons) {
+    if (!w.actif) continue;
+    const v = 520; // vitesse du wagon (bien plus rapide que la marche)
+    const dx = w.cible.x - w.x, dy = w.cible.y - w.y, dist = Math.hypot(dx, dy), pas = v * dt;
+    if (dist <= pas + 0.5) {
+      w.x = w.cible.x; w.y = w.cible.y;
+      const suite = prochaineCaseRail(w);
+      if (suite) { w.dir = suite.dir; w.cible = suite.cible; }
+      else w.actif = false; // bout des rails : s'arrête
+    } else {
+      w.x += dx / dist * pas; w.y += dy / dist * pas;
+    }
+  }
+  if (wagonJoueur >= 0 && wagons[wagonJoueur]) { // le joueur suit le wagon
+    joueur.x = wagons[wagonJoueur].x; joueur.y = wagons[wagonJoueur].y;
+    camera.x = joueur.x; camera.y = joueur.y;
+    if (wagons[wagonJoueur].dir) joueur.angle = Math.atan2(wagons[wagonJoueur].dir.y, wagons[wagonJoueur].dir.x);
+  }
+}
+
+// Le point (wx,wy) est-il posé sur une surface marchable « sèche » (sol/pont) ?
+function surSurfaceSeche(wx, wy) {
+  const gx = Math.floor(wx / GRILLE), gy = Math.floor(wy / GRILLE);
+  const id = construction.get(gx + "," + gy);
+  if (!id) return false;
+  if (id === "pont_levis") return !pontsLeves; // sec seulement s'il est abaissé
+  return SOLS_PLATS.has(id);
+}
+// Le joueur nage-t-il ? (dans l'eau et pas sur un pont/sol)
+function joueurNage() {
+  // pas de nage en étage supérieur, ni sur la glace (monde neige)
+  return joueur.niveau === 0 && estEau(joueur.x, joueur.y) && !surSurfaceSeche(joueur.x, joueur.y)
+      && MONDES[mondeType].liquide !== "glace";
+}
+function infoBloc(id) {
+  const m = matParId[id];
+  if (m.deco) return { type: "billboard" };
+  if (id === "pont_levis") return pontsLeves ? { type: "box", h: 26 } : { type: "plat" };
+  if (SOLS_PLATS.has(id)) return { type: "plat" };
+  if (id.startsWith("toit")) return { type: "plat" };
+  if (id === "cloture") return { type: "box", h: 22 };
+  return { type: "box", h: HAUT_BLOC }; // murs, fenêtres, haie, puits… (hauteur d'un étage)
+}
+
+// Utilitaires couleur pour l'ombrage des faces 3D
+function hex2rgb(h) {
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+function ombreCouleur(rgb, f) {
+  return `rgb(${Math.min(255,rgb[0]*f)|0}, ${Math.min(255,rgb[1]*f)|0}, ${Math.min(255,rgb[2]*f)|0})`;
+}
+
+// Collecte des fruits proches du joueur (fonctionne en 2D comme en 3D)
+function collecterFruits() {
+  const pcx = Math.floor(joueur.x / TUILE), pcy = Math.floor(joueur.y / TUILE);
+  for (let cy = pcy - 2; cy <= pcy + 2; cy++) {
+    for (let cx = pcx - 2; cx <= pcx + 2; cx++) {
+      const key = cx + "," + cy;
+      if (ramasses.has(key)) continue;
+      const f = fruitCase(cx, cy);
+      if (!f) continue;
+      if (Math.hypot(f.wx - joueur.x, f.wy - joueur.y) < 26) {
+        ramasses.add(key);
+        score++;
+        elScore.textContent = score;
+        faim = Math.min(100, faim + 20); // on mange la pomme : la faim remonte
+      }
+    }
+  }
+}
+
+// Dessin d'une pièce de construction
+function dessinerPiece(gx, gy, id, decX, decY, fantome) {
+  const sx = gx * GRILLE + decX;
+  const sy = gy * GRILLE + decY;
+  const G = GRILLE;
+  const m = matParId[id];
+  if (fantome) ctx.globalAlpha = 0.5;
+
+  // Objets décoratifs : juste un emoji posé sur le sol
+  if (m.deco) {
+    ctx.font = "27px serif";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(m.emoji, sx + G / 2, sy + G / 2 + 1);
+    ctx.textAlign = "start";
+    ctx.textBaseline = "alphabetic";
+    if (fantome) ctx.globalAlpha = 1;
+    return;
+  }
+
+  // Fond plein (sauf pièces sans fond : clôtures, portails, pont-levis…)
+  if (!m.sansFond && id !== "pont_levis") {
+    ctx.fillStyle = m.couleur;
+    ctx.fillRect(sx, sy, G, G);
+  }
+
+  const D = "rgba(0,0,0,0.18)"; // trait de texture
+
+  switch (m.motif) {
+    case "planchesV":
+      ctx.strokeStyle = D; ctx.lineWidth = 1;
+      for (let c = 1; c < 4; c++) { ctx.beginPath(); ctx.moveTo(sx + c*8, sy); ctx.lineTo(sx + c*8, sy+G); ctx.stroke(); }
+      break;
+    case "planchesH":
+      ctx.strokeStyle = "rgba(90,50,20,0.35)"; ctx.lineWidth = 1;
+      for (let r = 1; r < 4; r++) { ctx.beginPath(); ctx.moveTo(sx, sy+r*8); ctx.lineTo(sx+G, sy+r*8); ctx.stroke(); }
+      break;
+    case "briques":
+      ctx.strokeStyle = D; ctx.lineWidth = 1;
+      for (let r = 0; r < 4; r++) {
+        const yy = sy + r*8 + 4;
+        ctx.beginPath(); ctx.moveTo(sx, yy); ctx.lineTo(sx+G, yy); ctx.stroke();
+        const off = r % 2 ? 0 : 16;
+        ctx.beginPath(); ctx.moveTo(sx+off, yy-4); ctx.lineTo(sx+off, yy); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx+off+16, yy-4); ctx.lineTo(sx+off+16, yy); ctx.stroke();
+      }
+      break;
+    case "pierre":
+      ctx.strokeStyle = D; ctx.lineWidth = 1;
+      ctx.strokeRect(sx+3, sy+3, 10, 9);
+      ctx.strokeRect(sx+16, sy+5, 12, 8);
+      ctx.strokeRect(sx+5, sy+17, 14, 10);
+      ctx.strokeRect(sx+21, sy+18, 8, 10);
+      break;
+    case "metal":
+      ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx+2, sy+10); ctx.lineTo(sx+G-2, sy+10); ctx.stroke();
+      ctx.strokeStyle = D;
+      ctx.beginPath(); ctx.moveTo(sx+2, sy+22); ctx.lineTo(sx+G-2, sy+22); ctx.stroke();
+      ctx.fillStyle = "rgba(0,0,0,0.25)";
+      for (const [rx,ry] of [[5,5],[27,5],[5,27],[27,27]]) { ctx.beginPath(); ctx.arc(sx+rx, sy+ry, 1.4, 0, 6.3); ctx.fill(); }
+      break;
+    case "vitre":
+      ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx+6, sy+G-6); ctx.lineTo(sx+G-8, sy+6); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx+14, sy+G-6); ctx.lineTo(sx+G-4, sy+14); ctx.stroke();
+      break;
+    case "chaume":
+      ctx.strokeStyle = "rgba(120,90,20,0.4)"; ctx.lineWidth = 1;
+      for (let c = 0; c < 8; c++) {
+        const x = sx + c*4 + 2;
+        ctx.beginPath(); ctx.moveTo(x, sy); ctx.quadraticCurveTo(x+2, sy+G/2, x, sy+G); ctx.stroke();
+      }
+      break;
+    case "rondins":
+      ctx.strokeStyle = D; ctx.lineWidth = 1;
+      for (let r = 0; r < 4; r++) {
+        const yy = sy + r*8 + 4;
+        ctx.beginPath(); ctx.ellipse(sx+G/2, yy, G/2-1, 4, 0, 0, Math.PI*2); ctx.stroke();
+      }
+      break;
+    case "dalle":
+      ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx+G/2, sy); ctx.lineTo(sx+G/2, sy+G); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, sy+G/2); ctx.lineTo(sx+G, sy+G/2); ctx.stroke();
+      break;
+    case "damier":
+      ctx.fillStyle = "rgba(0,0,0,0.12)";
+      ctx.fillRect(sx, sy, G/2, G/2);
+      ctx.fillRect(sx+G/2, sy+G/2, G/2, G/2);
+      break;
+    case "tapis":
+      ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 2;
+      ctx.strokeRect(sx+3, sy+3, G-6, G-6);
+      ctx.strokeStyle = "rgba(0,0,0,0.25)"; ctx.lineWidth = 1;
+      ctx.strokeRect(sx+7, sy+7, G-14, G-14);
+      break;
+    case "terre":
+      ctx.fillStyle = "rgba(90,60,20,0.3)";
+      for (const [px,py] of [[6,7],[20,5],[12,18],[25,20],[8,24],[27,12]]) { ctx.beginPath(); ctx.arc(sx+px, sy+py, 1.6, 0, 6.3); ctx.fill(); }
+      break;
+    case "tuiles":
+      ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1;
+      for (let r = 0; r < 4; r++) {
+        const yy = sy + r*8;
+        ctx.beginPath(); ctx.moveTo(sx, yy+8); ctx.lineTo(sx+G, yy+8); ctx.stroke();
+        const off = r % 2 ? 8 : 0;
+        for (let c = 0; c < 2; c++) { ctx.beginPath(); ctx.moveTo(sx+off+c*16, yy); ctx.lineTo(sx+off+c*16, yy+8); ctx.stroke(); }
+      }
+      break;
+    case "haie":
+      ctx.fillStyle = "rgba(255,255,255,0.15)";
+      for (const [px,py] of [[7,8],[18,6],[25,14],[10,20],[22,24]]) { ctx.beginPath(); ctx.arc(sx+px, sy+py, 3, 0, 6.3); ctx.fill(); }
+      ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 1;
+      ctx.strokeRect(sx+0.5, sy+0.5, G-1, G-1);
+      break;
+    case "escalier":
+      ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1;
+      for (let s = 1; s < 5; s++) { ctx.beginPath(); ctx.moveTo(sx, sy+s*6.4); ctx.lineTo(sx+G, sy+s*6.4); ctx.stroke(); }
+      break;
+    case "rail": {
+      const cxr = sx + G/2, cyr = sy + G/2, off = 6;
+      const cons = [];
+      if (estRail(gx+1, gy)) cons.push([1,0]);
+      if (estRail(gx-1, gy)) cons.push([-1,0]);
+      if (estRail(gx, gy+1)) cons.push([0,1]);
+      if (estRail(gx, gy-1)) cons.push([0,-1]);
+      if (!cons.length) cons.push([1,0], [-1,0]);                    // isolé → horizontal
+      else if (cons.length === 1) cons.push([-cons[0][0], -cons[0][1]]); // prolonge tout droit
+      ctx.lineCap = "round";
+      for (const [tx,ty] of cons) { // lit de traverses
+        ctx.strokeStyle = "#6a5238"; ctx.lineWidth = 13;
+        ctx.beginPath(); ctx.moveTo(cxr, cyr); ctx.lineTo(cxr + tx*G/2, cyr + ty*G/2); ctx.stroke();
+      }
+      for (const [tx,ty] of cons) { // deux rails métalliques
+        ctx.strokeStyle = "#d0d0d0"; ctx.lineWidth = 2;
+        const px = -ty*off, py = tx*off;
+        ctx.beginPath(); ctx.moveTo(cxr+px, cyr+py); ctx.lineTo(cxr + tx*G/2 + px, cyr + ty*G/2 + py); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(cxr-px, cyr-py); ctx.lineTo(cxr + tx*G/2 - px, cyr + ty*G/2 - py); ctx.stroke();
+      }
+      ctx.lineCap = "butt";
+      break;
+    }
+    case "pont":
+      // planches transversales + garde-corps sur les deux bords
+      ctx.strokeStyle = "rgba(60,40,15,0.4)"; ctx.lineWidth = 1;
+      for (let c = 1; c < 8; c++) { ctx.beginPath(); ctx.moveTo(sx+c*4, sy); ctx.lineTo(sx+c*4, sy+G); ctx.stroke(); }
+      ctx.strokeStyle = "#7a4a1e"; ctx.lineWidth = 3;
+      ctx.beginPath(); ctx.moveTo(sx, sy+2); ctx.lineTo(sx+G, sy+2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, sy+G-2); ctx.lineTo(sx+G, sy+G-2); ctx.stroke();
+      break;
+    case "pontPierre":
+      ctx.strokeStyle = "rgba(0,0,0,0.2)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(sx+G/3, sy); ctx.lineTo(sx+G/3, sy+G); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx+2*G/3, sy); ctx.lineTo(sx+2*G/3, sy+G); ctx.stroke();
+      ctx.strokeStyle = "#6f6f6f"; ctx.lineWidth = 3; // parapets
+      ctx.beginPath(); ctx.moveTo(sx, sy+2); ctx.lineTo(sx+G, sy+2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, sy+G-2); ctx.lineTo(sx+G, sy+G-2); ctx.stroke();
+      break;
+    case "pontCorde":
+      ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 2; // lattes
+      for (let c = 0; c < 5; c++) { const x = sx+4+c*6; ctx.beginPath(); ctx.moveTo(x, sy+4); ctx.lineTo(x, sy+G-4); ctx.stroke(); }
+      ctx.strokeStyle = "#b08d57"; ctx.lineWidth = 2; // cordes
+      ctx.beginPath(); ctx.moveTo(sx, sy+3); ctx.lineTo(sx+G, sy+3); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, sy+G-3); ctx.lineTo(sx+G, sy+G-3); ctx.stroke();
+      break;
+    case "pontLevis":
+      if (pontsLeves) {
+        // levé : herse dressée au milieu (l'eau reste visible autour)
+        ctx.fillStyle = "#6b4226";
+        ctx.fillRect(sx + G/2 - 5, sy + 2, 10, G - 4);
+        ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 1;
+        ctx.strokeRect(sx + G/2 - 5, sy + 2, 10, G - 4);
+        for (let r = 1; r < 4; r++) { ctx.beginPath(); ctx.moveTo(sx+G/2-5, sy+2+r*7); ctx.lineTo(sx+G/2+5, sy+2+r*7); ctx.stroke(); }
+        // chaînes
+        ctx.strokeStyle = "#9aa0a6"; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(sx+G/2-4, sy+3); ctx.lineTo(sx+2, sy+1); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx+G/2+4, sy+3); ctx.lineTo(sx+G-2, sy+1); ctx.stroke();
+      } else {
+        // abaissé : tablier de bois franchissable
+        ctx.fillStyle = "#b5824a";
+        ctx.fillRect(sx, sy, G, G);
+        ctx.strokeStyle = "rgba(60,40,15,0.4)"; ctx.lineWidth = 1;
+        for (let c = 1; c < 8; c++) { ctx.beginPath(); ctx.moveTo(sx+c*4, sy); ctx.lineTo(sx+c*4, sy+G); ctx.stroke(); }
+        ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(sx, sy+2); ctx.lineTo(sx+G, sy+2); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(sx, sy+G-2); ctx.lineTo(sx+G, sy+G-2); ctx.stroke();
+      }
+      break;
+  }
+
+  // Pièces spéciales (portes, fenêtres, clôtures…)
+  if (m.special === "porte") {
+    ctx.strokeStyle = "rgba(0,0,0,0.4)"; ctx.lineWidth = 2;
+    ctx.strokeRect(sx+4, sy+3, G-8, G-4);
+    ctx.fillStyle = "#f1c40f";
+    ctx.beginPath(); ctx.arc(sx+G-9, sy+G/2, 2.2, 0, 6.3); ctx.fill();
+  } else if (m.special === "porte_verre") {
+    ctx.strokeStyle = "#5a6a72"; ctx.lineWidth = 3;
+    ctx.strokeRect(sx+5, sy+3, G-10, G-4);
+    ctx.strokeStyle = "rgba(255,255,255,0.6)"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(sx+9, sy+G-6); ctx.lineTo(sx+G-9, sy+8); ctx.stroke();
+  } else if (m.special === "fenetre") {
+    ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 3;
+    ctx.strokeRect(sx+3, sy+3, G-6, G-6);
+    ctx.beginPath(); ctx.moveTo(sx+G/2, sy+3); ctx.lineTo(sx+G/2, sy+G-3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+3, sy+G/2); ctx.lineTo(sx+G-3, sy+G/2); ctx.stroke();
+  } else if (m.special === "fenetre_ronde") {
+    ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(sx+G/2, sy+G/2, G/2-5, 0, 6.3); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+5, sy+G/2); ctx.lineTo(sx+G-5, sy+G/2); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+G/2, sy+5); ctx.lineTo(sx+G/2, sy+G-5); ctx.stroke();
+  } else if (m.special === "cloture" || m.special === "portail") {
+    ctx.strokeStyle = m.couleur; ctx.lineWidth = 3; ctx.lineCap = "round";
+    // deux traverses horizontales
+    ctx.beginPath(); ctx.moveTo(sx+2, sy+12); ctx.lineTo(sx+G-2, sy+12); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx+2, sy+22); ctx.lineTo(sx+G-2, sy+22); ctx.stroke();
+    // piquets verticaux
+    for (const x of [6, 16, 26]) { ctx.beginPath(); ctx.moveTo(sx+x, sy+6); ctx.lineTo(sx+x, sy+28); ctx.stroke(); }
+    ctx.lineCap = "butt";
+  } else if (m.special === "puits") {
+    ctx.strokeStyle = "rgba(0,0,0,0.35)"; ctx.lineWidth = 1;
+    ctx.strokeRect(sx+1, sy+1, G-2, G-2);
+    ctx.fillStyle = "#2c5a72";
+    ctx.beginPath(); ctx.arc(sx+G/2, sy+G/2, G/2-6, 0, 6.3); ctx.fill();
+    ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(sx+G/2, sy+G/2, G/2-6, 0, 6.3); ctx.stroke();
+  }
+
+  // Liseré des blocs solides pleins
+  if (m.solide && !m.sansFond && m.motif !== "haie") {
+    ctx.strokeStyle = "rgba(0,0,0,0.3)"; ctx.lineWidth = 1;
+    ctx.strokeRect(sx+0.5, sy+0.5, G-1, G-1);
+  }
+
+  if (fantome) ctx.globalAlpha = 1;
+}
+
+// --- Cycle jour / nuit (une journée complète = 120 s) ---
+const DUREE_JOUR = 120;
+const DUREE_NUIT = 10;           // le soir/nuit (période sombre) ne dure que 10 s
+let horloge = DUREE_JOUR * 0.30; // commence en matinée
+let jourTotal = 0;               // nombre de jours écoulés (pour saisons/météo)
+let ventForce = 1;               // multiplicateur de vent (jour de vent)
+// renvoie infos d'ambiance selon l'heure (le soir est très court)
+function ambiance() {
+  const t = (horloge / DUREE_JOUR) % 1;         // 0 = minuit
+  const demiNuit = (DUREE_NUIT / DUREE_JOUR) / 2; // moitié de la nuit avant/après minuit
+  const lever = demiNuit, coucher = 1 - demiNuit; // nuit centrée sur minuit, très courte
+  let soleil = 0;
+  if (t > lever && t < coucher) soleil = Math.sin((t - lever) / (coucher - lever) * Math.PI); // 0→1→0
+  return { t, soleil };
+}
+
+// --- Saisons (15 jours chacune) & météo du jour ---
+const SAISONS = [
+  { nom: "Printemps", emoji: "🌸" },
+  { nom: "Été",       emoji: "☀️" },
+  { nom: "Automne",   emoji: "🍂" },
+  { nom: "Hiver",     emoji: "❄️" },
+];
+const METEO_SAISON = {
+  0: ["pluie", "soleil", "vent", "soleil"], // printemps
+  1: ["soleil"],                            // été
+  2: ["pluie", "soleil", "pluie"],          // automne
+  3: ["soleil", "neige", "neige"],          // hiver
+};
+const METEO_EMOJI = { soleil: "☀️", pluie: "🌧️", vent: "🌬️", neige: "🌨️" };
+const JOURS_PAR_SAISON = 10;
+function saisonActuelle() { return Math.floor(jourTotal / JOURS_PAR_SAISON) % 4; }
+function meteoJour() { const p = METEO_SAISON[saisonActuelle()]; return p[(jourTotal % JOURS_PAR_SAISON) % p.length]; }
+// apparence des arbres feuillus selon la saison
+function saisonArbre() {
+  const s = saisonActuelle();
+  if (s === 0) return { couleurs: ["#63bd63", "#7ccf7c", "#52ad52"], fleurs: true, nu: false }; // printemps
+  if (s === 2) return { couleurs: ["#e08a2b", "#d9a520", "#c0631f"], fleurs: false, nu: false }; // automne
+  if (s === 3) return { couleurs: null, fleurs: false, nu: true };                               // hiver : nu
+  return { couleurs: ["#3f9d3a", "#4caf50", "#357a34"], fleurs: false, nu: false };              // été
+}
+
+// mélange deux couleurs [r,g,b]
+function mix(a, b, k) {
+  return [a[0]+(b[0]-a[0])*k, a[1]+(b[1]-a[1])*k, a[2]+(b[2]-a[2])*k];
+}
+
+let temps = 0;
+
+function dessiner(dt) {
+  temps += dt;
+  const { t, soleil } = ambiance();
+
+  ctx.fillStyle = "#6ab04c";
+  ctx.fillRect(0, 0, W, H);
+
+  const x0 = Math.floor((camera.x - W / 2) / TUILE) - 1;
+  const y0 = Math.floor((camera.y - H / 2) / TUILE) - 1;
+  const x1 = Math.floor((camera.x + W / 2) / TUILE) + 1;
+  const y1 = Math.floor((camera.y + H / 2) / TUILE) + 1;
+  const decX = W / 2 - camera.x;
+  const decY = H / 2 - camera.y;
+
+  // 1) Sol : herbe ou eau
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const sx = cx * TUILE + decX;
+      const sy = cy * TUILE + decY;
+      const wx = cx * TUILE + TUILE / 2, wy = cy * TUILE + TUILE / 2;
+      const niv = niveauEau(wx, wy);
+      if (niv < SEUIL_EAU && !MONDES[mondeType].sansEau) {
+        const prof = (SEUIL_EAU - niv) / SEUIL_EAU; // 0 rive → 1 profond
+        ctx.fillStyle = couleurLiquide(cx * 0.7 + cy * 0.5, prof);
+      } else {
+        ctx.fillStyle = couleurFond(cx, cy);
+      }
+      ctx.fillRect(sx, sy, TUILE + 1, TUILE + 1);
+    }
+  }
+
+  // 2) Brins d'herbe (uniquement sur terre, si le monde en a, sauf en hiver)
+  if (MONDES[mondeType].herbe && saisonActuelle() !== 3)
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const sx = cx * TUILE + decX;
+      const sy = cy * TUILE + decY;
+      if (estEau(cx * TUILE + TUILE/2, cy * TUILE + TUILE/2)) continue;
+      for (let i = 0; i < 5; i++) {
+        const hx = hash(cx * 5.1 + i * 2.3, cy * 7.7 + i * 1.9);
+        const hy = hash(cx * 8.3 + i * 3.1, cy * 4.2 + i * 6.6);
+        const bx = sx + hx * TUILE;
+        const by = sy + hy * TUILE;
+        const hauteur = 10 + hash(cx + i, cy - i) * 14;
+        const phase = (hx + hy) * 6.28;
+        const vent = Math.sin(temps * 2 + (cx + cy) * 0.6 + phase) * 5 * ventForce;
+        const teinteV = 120 + Math.floor(hash(cx - i, cy + i) * 70);
+        ctx.strokeStyle = `rgb(${40 + (teinteV>>2)}, ${teinteV}, ${45})`;
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        ctx.moveTo(bx, by);
+        ctx.quadraticCurveTo(bx + vent * 0.5, by - hauteur * 0.6, bx + vent, by - hauteur);
+        ctx.stroke();
+      }
+    }
+  }
+
+  // 3) Détails du sol
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const d = detailCase(cx, cy);
+      if (!d) continue;
+      const wx = cx * TUILE + (hash(cx, cy) * 0.6 + 0.2) * TUILE;
+      const wy = cy * TUILE + (hash(cy, cx) * 0.6 + 0.2) * TUILE;
+      if (estEau(wx, wy)) continue;
+      const sx = wx + decX, sy = wy + decY;
+      if (d.type === "fleur") {
+        const couleurs = ["#ff6b81", "#feca57", "#ffffff", "#a29bfe", "#ff9ff3"];
+        const c = couleurs[Math.floor(d.teinte * couleurs.length)];
+        const balance = Math.sin(temps * 2 + cx + cy) * 2;
+        ctx.save();
+        ctx.translate(sx + balance, sy);
+        ctx.strokeStyle = "#3a7d2c"; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(0, 6); ctx.lineTo(0, -4); ctx.stroke();
+        ctx.fillStyle = c;
+        for (let p = 0; p < 5; p++) {
+          const ang = (p / 5) * Math.PI * 2;
+          ctx.beginPath(); ctx.arc(Math.cos(ang) * 4, Math.sin(ang) * 4 - 4, 3, 0, Math.PI * 2); ctx.fill();
+        }
+        ctx.fillStyle = "#f7d417";
+        ctx.beginPath(); ctx.arc(0, -4, 2.4, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+      } else if (d.type === "caillou") {
+        ctx.fillStyle = "#9e9e9e";
+        ctx.beginPath(); ctx.ellipse(sx, sy, 7, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "#bdbdbd";
+        ctx.beginPath(); ctx.ellipse(sx - 1.5, sy - 1.5, 3, 2, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (d.type === "touffe") {
+        ctx.strokeStyle = "#4e9b3a"; ctx.lineWidth = 2.5;
+        for (let k = -2; k <= 2; k++) {
+          const v = Math.sin(temps * 2 + cx + k) * 3;
+          ctx.beginPath();
+          ctx.moveTo(sx + k * 3, sy + 4);
+          ctx.quadraticCurveTo(sx + k * 3 + v, sy - 6, sx + k * 3 + v * 1.5, sy - 12);
+          ctx.stroke();
+        }
+      } else if (d.type === "rocher" || d.type === "rocherSombre") {
+        const c1 = d.type === "rocherSombre" ? "#4a4038" : "#8d8d8d";
+        const c2 = d.type === "rocherSombre" ? "#6a5d52" : "#b0b0b0";
+        ctx.fillStyle = c1;
+        ctx.beginPath(); ctx.moveTo(sx-11, sy+6); ctx.lineTo(sx-5, sy-8); ctx.lineTo(sx+4, sy-6); ctx.lineTo(sx+11, sy+6); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = c2;
+        ctx.beginPath(); ctx.moveTo(sx-5, sy-8); ctx.lineTo(sx+4, sy-6); ctx.lineTo(sx-1, sy+2); ctx.closePath(); ctx.fill();
+      } else if (d.type === "monticule") {
+        ctx.fillStyle = "#ffffff";
+        ctx.beginPath(); ctx.ellipse(sx, sy, 10, 5, 0, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = "rgba(200,215,235,0.7)";
+        ctx.beginPath(); ctx.ellipse(sx + 2, sy + 1, 5, 2, 0, 0, Math.PI * 2); ctx.fill();
+      } else if (d.type === "braise") {
+        const lueur = 0.5 + 0.5 * Math.sin(temps * 4 + cx * 2 + cy);
+        ctx.fillStyle = `rgba(255, ${(90 + lueur*80)|0}, 20, ${0.6 + lueur*0.4})`;
+        ctx.beginPath(); ctx.arc(sx, sy, 3 + lueur * 1.5, 0, Math.PI * 2); ctx.fill();
+      } else if (d.type === "ble") {
+        const v = Math.sin(temps * 2 + cx + cy) * 2;
+        ctx.strokeStyle = "#c9a227"; ctx.lineWidth = 2;
+        for (let k = -1; k <= 1; k++) {
+          ctx.beginPath();
+          ctx.moveTo(sx + k * 4, sy + 6);
+          ctx.lineTo(sx + k * 4 + v, sy - 8);
+          ctx.stroke();
+          ctx.fillStyle = "#e6c34a";
+          ctx.beginPath(); ctx.ellipse(sx + k * 4 + v, sy - 9, 2, 3.5, 0, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+  }
+
+  // 3a) Bâtiments de ville (déterministes, espacés) — sur le sol, sous les objets
+  if (MONDES[mondeType].batiments) {
+    for (let by = Math.floor(y0/6)-1; by <= Math.floor(y1/6)+1; by++) {
+      for (let bx = Math.floor(x0/6)-1; bx <= Math.floor(x1/6)+1; bx++) {
+        if (hash(bx * 1.7 + 3, by * 2.9 + 5) > 0.45) continue;
+        const tx = bx * 6 + 2, ty = by * 6 + 2;             // coin haut-gauche du footprint 2×2
+        const sx = tx * TUILE + decX, sy = ty * TUILE + decY;
+        const w = 2 * TUILE, h = 2 * TUILE;
+        const teinte = hash(bx, by);
+        const murs = ["#c96f4c", "#c8b18a", "#9aa7b0", "#b98a5a"][Math.floor(teinte * 4)];
+        ctx.fillStyle = "rgba(0,0,0,0.18)";
+        ctx.fillRect(sx + 6, sy + 8, w, h);
+        ctx.fillStyle = murs; ctx.fillRect(sx, sy, w, h);
+        ctx.fillStyle = "#7a4a3a"; ctx.fillRect(sx, sy, w, 14);   // toit
+        // fenêtres
+        ctx.fillStyle = "rgba(120,180,220,0.85)";
+        for (let fy = 0; fy < 3; fy++) for (let fx = 0; fx < 3; fx++)
+          ctx.fillRect(sx + 14 + fx * 34, sy + 24 + fy * 30, 16, 18);
+        // porte
+        ctx.fillStyle = "#5a3a1a";
+        ctx.fillRect(sx + w/2 - 10, sy + h - 26, 20, 26);
+      }
+    }
+  }
+
+  // 3a-bis) Trous creusés à la pelle : carrés, et les cases voisines fusionnent en un grand trou
+  // passe 1 : intérieur sombre plein (les cases adjacentes se touchent → un seul grand trou)
+  for (const key of trous) {
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    ctx.fillStyle = "#170f06";
+    ctx.fillRect(sx, sy, GRILLE, GRILLE);
+  }
+  // passe 2 : bourrelet de terre + ombre de profondeur UNIQUEMENT sur les bords extérieurs
+  const R = 6; // épaisseur du bourrelet de terre
+  for (const key of trous) {
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    const g = trou => trous.has(trou);
+    ctx.fillStyle = "#6b4a2b"; // terre retournée sur le pourtour
+    if (!g((gx-1)+","+gy)) ctx.fillRect(sx, sy, R, GRILLE);
+    if (!g((gx+1)+","+gy)) ctx.fillRect(sx + GRILLE - R, sy, R, GRILLE);
+    if (!g(gx+","+(gy-1))) ctx.fillRect(sx, sy, GRILLE, R);
+    if (!g(gx+","+(gy+1))) ctx.fillRect(sx, sy + GRILLE - R, GRILLE, R);
+    // ombre portée juste sous le bord haut extérieur (impression de profondeur)
+    if (!g(gx+","+(gy-1))) { ctx.fillStyle = "rgba(0,0,0,0.55)"; ctx.fillRect(sx + (g((gx-1)+","+gy)?0:R), sy + R, GRILLE - (g((gx-1)+","+gy)?0:R) - (g((gx+1)+","+gy)?0:R), 5); }
+  }
+
+  // 3a-ter) Eau versée à l'arrosoir : les flaques voisines fusionnent en une seule nappe
+  // passe 1 : remplissage plein et jointif (couleur quasi identique entre voisines → pas de couture)
+  for (const key of eauPosee) {
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    const prof = trous.has(key) ? 0.9 : 0.4; // eau plus profonde dans un trou
+    ctx.fillStyle = couleurLiquide((gx + gy) * 0.1, prof);
+    ctx.fillRect(sx, sy, GRILLE + 1, GRILLE + 1); // léger chevauchement pour éviter les traits entre cases
+  }
+  // passe 2 : reflet seulement sur le bord haut extérieur de la nappe (une seule ligne, pas par case)
+  ctx.fillStyle = "rgba(255,255,255,0.16)";
+  for (const key of eauPosee) {
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    if (!eauPosee.has(gx + "," + (gy - 1))) ctx.fillRect(sx + 3, sy + 4, GRILLE - 6, 3);
+  }
+
+  // 3b) Constructions posées (les toits sont dessinés en dernier, par-dessus tout)
+  for (const [key, id] of construction) {
+    if (id.startsWith("toit")) continue;
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    dessinerPiece(gx, gy, id, decX, decY, false);
+  }
+  // 3c) Objets déco empilés PAR-DESSUS le sol (enfoncés s'ils sont posés dans un trou)
+  for (const [key, pile] of decors) {
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    const dansTrou = trous.has(key);          // objet posé dans un trou → plus bas et plus petit
+    ctx.font = (dansTrou ? 21 : 27) + "px serif";
+    ctx.textAlign = "center"; ctx.textBaseline = "middle";
+    ctx.globalAlpha = 1; ctx.fillStyle = "#000"; // emoji couleur opaque (sinon il hérite de l'alpha/teinte précédente)
+    for (let n = 0; n < pile.length; n++) {
+      const jx = (hash(gx * 7 + n * 3, gy * 11 + n * 5) - 0.5) * 7;
+      const jy = (hash(gx * 5 + n * 2, gy * 9 + n * 4) - 0.5) * 4;
+      const off = dansTrou ? 12 : 0;
+      ctx.fillText(matParId[pile[n]].emoji, sx + GRILLE / 2 + jx, sy + GRILLE / 2 + 1 - n * (dansTrou ? 9 : 12) + jy + off);
+    }
+    ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+  }
+  // aperçu fantôme sous la souris
+  if (modeConstruction && souris.dedans && matSel !== "gomme") {
+    const { gx, gy } = caseSousSouris();
+    dessinerPiece(gx, gy, matSel, decX, decY, true);
+  } else if (modeConstruction && souris.dedans && matSel === "gomme") {
+    const { gx, gy } = caseSousSouris();
+    ctx.strokeStyle = "rgba(255,0,0,0.8)"; ctx.lineWidth = 2;
+    ctx.strokeRect(gx * GRILLE + decX, gy * GRILLE + decY, GRILLE, GRILLE);
+  }
+
+  // 4) Fruits à ramasser
+  for (let cy = y0; cy <= y1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      if (ramasses.has(cx + "," + cy)) continue;
+      const f = fruitCase(cx, cy);
+      if (!f) continue;
+      const flot = Math.sin(temps * 3 + cx + cy) * 3;
+      const sx = f.wx + decX, sy = f.wy + decY - 10 + flot;
+      // ombre
+      ctx.fillStyle = "rgba(0,0,0,0.18)";
+      ctx.beginPath(); ctx.ellipse(f.wx + decX, f.wy + decY, 7, 3, 0, 0, Math.PI*2); ctx.fill();
+      // pomme
+      ctx.fillStyle = "#e74c3c";
+      ctx.beginPath(); ctx.arc(sx, sy, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.5)";
+      ctx.beginPath(); ctx.arc(sx - 2.5, sy - 2.5, 2, 0, Math.PI * 2); ctx.fill();
+      ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(sx, sy - 6); ctx.lineTo(sx + 2, sy - 10); ctx.stroke();
+      ctx.fillStyle = "#2ecc71";
+      ctx.beginPath(); ctx.ellipse(sx + 4, sy - 9, 3, 1.6, -0.6, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // 5) (collecte des fruits gérée dans la boucle, pour les deux modes)
+
+  // 6) Arbres + joueur avec tri en profondeur (ce qui est plus bas passe devant)
+  const arbres = [];
+  for (let cy = y0 - 1; cy <= y1 + 1; cy++) {
+    for (let cx = x0; cx <= x1; cx++) {
+      const a = arbreCase(cx, cy);
+      if (a) arbres.push(a);
+    }
+  }
+  const rendus = arbres.map(a => ({ y: a.wy, type: "arbre", d: a }));
+  rendus.push({ y: joueur.y, type: "joueur" });
+  // animaux sauvages
+  for (const a of animaux) rendus.push({ y: a.y, type: "animal", d: a });
+  // animaux posés (visibles)
+  const margeX = W / 2 + 40, margeY = H / 2 + 40;
+  for (const a of animauxPoses) {
+    if (Math.abs(a.x - camera.x) > margeX || Math.abs(a.y - camera.y) > margeY) continue;
+    rendus.push({ y: a.y, type: "anipose", d: a });
+  }
+  for (const w of wagons) {
+    if (Math.abs(w.x - camera.x) > margeX || Math.abs(w.y - camera.y) > margeY) continue;
+    rendus.push({ y: w.y, type: "wagon", d: w });
+  }
+  for (const e of ennemis) {
+    if (Math.abs(e.x - camera.x) > margeX || Math.abs(e.y - camera.y) > margeY) continue;
+    rendus.push({ y: e.y, type: "ennemi", d: e });
+  }
+  rendus.sort((p, q) => p.y - q.y);
+
+  for (const r of rendus) {
+    if (r.type === "arbre") dessinerArbre(r.d, decX, decY);
+    else if (r.type === "animal") dessinerAnimal(r.d, decX, decY);
+    else if (r.type === "anipose") dessinerAnimalPose2D(r.d, decX, decY);
+    else if (r.type === "wagon") dessinerWagon2D(r.d, decX, decY);
+    else if (r.type === "ennemi") dessinerEnnemi2D(r.d, decX, decY);
+    else dessinerJoueur();
+  }
+
+  // 6b) Toits : dessinés en dernier, ils recouvrent murs et personnage (vue de dessus)
+  for (const [key, id] of construction) {
+    if (!id.startsWith("toit")) continue;
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    dessinerPiece(gx, gy, id, decX, decY, false);
+  }
+
+  // 6c) Étages (murs/plafonds hauts) en semi-transparent : on voit l'intérieur
+  ctx.globalAlpha = 0.45;
+  for (const [key, id] of etages) {
+    const [gx, gy] = key.split(",").map(Number);
+    const sx = gx * GRILLE + decX, sy = gy * GRILLE + decY;
+    if (sx < -GRILLE || sx > W || sy < -GRILLE || sy > H) continue;
+    dessinerPiece(gx, gy, id, decX, decY, false);
+  }
+  ctx.globalAlpha = 1;
+
+  // 7) Voile jour/nuit
+  // nuit = bleu foncé, aube/crépuscule = orangé
+  let voile;
+  if (soleil > 0.15) {
+    // jour : voile chaud très léger
+    const orange = [255, 200, 120];
+    voile = [orange[0], orange[1], orange[2], (1 - soleil) * 0.28];
+  } else {
+    const nuit = [20, 30, 70];
+    const k = 1 - soleil / 0.15; // 0 au lever/coucher → 1 nuit noire
+    voile = [nuit[0], nuit[1], nuit[2], 0.15 + k * 0.5];
+  }
+  ctx.fillStyle = `rgba(${voile[0]|0}, ${voile[1]|0}, ${voile[2]|0}, ${voile[3]})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // 8) Soleil / Lune (arc dans le ciel, coin haut)
+  dessinerAstre(t, soleil);
+
+  // Coordonnées
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font = "13px system-ui, sans-serif";
+  ctx.fillText(`x: ${Math.round(joueur.x)}  y: ${Math.round(joueur.y)}`, 14, 52);
+}
+
+function dessinerArbre(a, decX, decY) {
+  const sx = a.wx + decX, sy = a.wy + decY;
+  const s = a.taille;
+  const style = MONDES[mondeType].arbre;
+  const vent = Math.sin(temps * 1.3 + a.wx * 0.01) * 3 * ventForce;
+  // ombre
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath(); ctx.ellipse(sx, sy, 20 * s, 7 * s, 0, 0, Math.PI * 2); ctx.fill();
+
+  if (style === "pin" || style === "pin_neige") {
+    ctx.fillStyle = "#6b4423";
+    ctx.fillRect(sx - 4 * s, sy - 14 * s, 8 * s, 14 * s);
+    const etages = [[-14, 24], [-28, 19], [-40, 14]];
+    for (const [ey, ew] of etages) {
+      ctx.fillStyle = "#2f7d3a";
+      ctx.beginPath();
+      ctx.moveTo(sx + vent * 0.5, sy + (ey - 12) * s);
+      ctx.lineTo(sx - ew * s, sy + ey * s);
+      ctx.lineTo(sx + ew * s, sy + ey * s);
+      ctx.closePath(); ctx.fill();
+      if (style === "pin_neige") {
+        ctx.fillStyle = "rgba(255,255,255,0.9)";
+        ctx.beginPath();
+        ctx.moveTo(sx + vent * 0.5, sy + (ey - 12) * s);
+        ctx.lineTo(sx - ew * 0.5 * s, sy + (ey - 5) * s);
+        ctx.lineTo(sx + ew * 0.5 * s, sy + (ey - 5) * s);
+        ctx.closePath(); ctx.fill();
+      }
+    }
+  } else if (style === "mort") {
+    ctx.strokeStyle = "#3a2e26"; ctx.lineWidth = 4 * s; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(sx + vent * 0.5, sy - 34 * s); ctx.stroke();
+    ctx.lineWidth = 2.5 * s;
+    ctx.beginPath(); ctx.moveTo(sx, sy - 22 * s); ctx.lineTo(sx - 12 * s, sy - 32 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy - 26 * s); ctx.lineTo(sx + 12 * s + vent, sy - 34 * s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy - 14 * s); ctx.lineTo(sx + 10 * s, sy - 20 * s); ctx.stroke();
+    ctx.lineCap = "butt";
+  } else {
+    // feuillu : apparence selon la saison
+    const sa = saisonArbre();
+    ctx.fillStyle = "#7a4a1e";
+    ctx.fillRect(sx - 5 * s, sy - 34 * s, 10 * s, 34 * s);
+    if (sa.nu) {
+      // hiver : branches nues
+      ctx.strokeStyle = "#7a4a1e"; ctx.lineWidth = 3 * s; ctx.lineCap = "round";
+      ctx.beginPath(); ctx.moveTo(sx, sy - 30 * s); ctx.lineTo(sx - 13 * s, sy - 46 * s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, sy - 33 * s); ctx.lineTo(sx + 13 * s + vent, sy - 47 * s); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(sx, sy - 34 * s); ctx.lineTo(sx + vent, sy - 52 * s); ctx.stroke();
+      ctx.lineCap = "butt";
+    } else {
+      const boules = [[0, -46, 26], [-16, -36, 20], [16, -36, 20], [0, -32, 22]];
+      for (let i = 0; i < boules.length; i++) {
+        const [bx, by, br] = boules[i];
+        ctx.fillStyle = sa.couleurs[i % sa.couleurs.length];
+        ctx.beginPath();
+        ctx.arc(sx + bx * s + vent, sy + by * s, br * s, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      if (sa.fleurs) { // printemps : fleurs sur le feuillage
+        const cols = ["#ff9ff3", "#ffffff", "#ff6b9d"];
+        for (let f = 0; f < 9; f++) {
+          const fx = sx + (hash(a.wx + f, a.wy) - 0.5) * 42 * s + vent;
+          const fy = sy + (-44 + (hash(a.wy + f, a.wx) - 0.5) * 24) * s;
+          ctx.fillStyle = cols[f % cols.length];
+          ctx.beginPath(); ctx.arc(fx, fy, 2.6 * s, 0, Math.PI * 2); ctx.fill();
+        }
+      }
+    }
+  }
+}
+
+function dessinerAnimal(a, decX, decY) {
+  const sx = a.x + decX, sy = a.y + decY;
+  const rebond = Math.abs(Math.sin(a.pas * 10)) * 3;
+  ctx.save();
+  ctx.translate(sx, sy);
+  ctx.scale(a.regarde, 1);
+  // ombre
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath(); ctx.ellipse(0, 2, 10, 3, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.translate(0, -rebond);
+  if (a.esp === "lapin") {
+    ctx.fillStyle = "#ece7df";
+    ctx.beginPath(); ctx.ellipse(0, -6, 8, 7, 0, 0, Math.PI * 2); ctx.fill();      // corps
+    ctx.beginPath(); ctx.arc(6, -11, 4.5, 0, Math.PI * 2); ctx.fill();            // tête
+    ctx.beginPath(); ctx.ellipse(6, -18, 1.6, 5, 0.2, 0, Math.PI * 2); ctx.fill(); // oreille
+    ctx.beginPath(); ctx.ellipse(3, -18, 1.6, 5, -0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.arc(-7, -5, 2.5, 0, Math.PI * 2); ctx.fill();            // queue
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.arc(8, -12, 1, 0, Math.PI * 2); ctx.fill();              // œil
+  } else if (a.esp === "renard") {
+    ctx.fillStyle = "#e2743a";
+    ctx.beginPath(); ctx.ellipse(0, -6, 10, 6, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(8, -9, 5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(6,-14); ctx.lineTo(9,-8); ctx.lineTo(4,-9); ctx.fill(); // oreille
+    ctx.beginPath(); ctx.moveTo(11,-14); ctx.lineTo(13,-8); ctx.lineTo(9,-9); ctx.fill();
+    ctx.fillStyle = "#c85a28";
+    ctx.beginPath(); ctx.ellipse(-11, -6, 6, 3, 0.3, 0, Math.PI * 2); ctx.fill();  // queue
+    ctx.fillStyle = "#fff";
+    ctx.beginPath(); ctx.moveTo(-16,-6); ctx.lineTo(-11,-8); ctx.lineTo(-11,-4); ctx.fill();
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.arc(10, -10, 1, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(13, -8, 1.3, 0, Math.PI * 2); ctx.fill();            // museau
+  } else { // oiseau
+    const vole = Math.sin(temps * 12) * 4;
+    ctx.fillStyle = "#5aa9e6";
+    ctx.beginPath(); ctx.ellipse(0, -14, 7, 5, 0, 0, Math.PI * 2); ctx.fill();     // corps
+    ctx.beginPath(); ctx.arc(6, -17, 3.5, 0, Math.PI * 2); ctx.fill();            // tête
+    ctx.fillStyle = "#f39c12";
+    ctx.beginPath(); ctx.moveTo(9,-17); ctx.lineTo(13,-16); ctx.lineTo(9,-15); ctx.fill(); // bec
+    ctx.fillStyle = "#3d8bc7";
+    ctx.beginPath(); ctx.ellipse(-2, -14 - vole, 6, 3, -0.5, 0, Math.PI * 2); ctx.fill();  // aile
+    ctx.fillStyle = "#000";
+    ctx.beginPath(); ctx.arc(7, -18, 1, 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+}
+
+// Corps de l'humain en coordonnées locales : pieds à (0,0), le corps monte en -y.
+// dos = true → vu de dos (3D), sinon de face (2D).
+function dessinerHumainCorps(dos) {
+  dessinerCorps(ctx, dos, joueur.pas);
+}
+
+// Torse selon le style de vêtement (pull, gilet, veste, robe, t-shirt)
+function dessinerHaut(c, S) {
+  const h = perso.haut, dk = teinte(h, 0.72);
+  if (S === "robe") {
+    c.fillStyle = h;                                    // corsage
+    c.beginPath(); c.moveTo(-7, -27); c.lineTo(7, -27); c.lineTo(5, -15); c.lineTo(-5, -15); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-5, -16); c.lineTo(5, -16); c.lineTo(13, -2); c.lineTo(-13, -2); c.closePath(); c.fill(); // jupe
+    c.fillStyle = dk; c.fillRect(-13, -3.5, 26, 1.6); return;                                                        // ourlet
+  }
+  c.fillStyle = h;                                      // torse de base
+  c.beginPath(); c.moveTo(-7, -27); c.lineTo(7, -27); c.lineTo(6, -12); c.lineTo(-6, -12); c.closePath(); c.fill();
+  if (S === "pull") {
+    c.fillStyle = dk;
+    c.fillRect(-6.5, -13.5, 13, 2);                     // ourlet côtelé
+    c.beginPath(); c.moveTo(-3, -27); c.lineTo(3, -27); c.lineTo(2, -24); c.lineTo(-2, -24); c.closePath(); c.fill(); // col
+  } else if (S === "veste") {
+    c.strokeStyle = dk; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(0, -26); c.lineTo(0, -12.5); c.stroke();  // fermeture éclair
+    c.fillStyle = dk;                                                 // revers du col
+    c.beginPath(); c.moveTo(-3, -27); c.lineTo(0, -23.5); c.lineTo(-1.5, -21); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(3, -27); c.lineTo(0, -23.5); c.lineTo(1.5, -21); c.closePath(); c.fill();
+  } else if (S === "gilet") {
+    c.fillStyle = "#ecf0f1"; c.fillRect(-2.5, -27, 5, 15);           // sous-pull clair (gilet ouvert)
+    c.fillStyle = dk;
+    for (let yy = -24; yy >= -15; yy += 4) { c.beginPath(); c.arc(0, yy, 0.8, 0, 6.3); c.fill(); } // boutons
+  }
+}
+
+// Coiffure selon le style (court, long, queue, tresses, bouclés, chauve)
+function dessinerCheveux(c, dos) {
+  const hc = perso.cheveux, H = perso.styleCheveux || "court";
+  // parties DERRIÈRE la tête (dessinées avant la tête)
+  c.fillStyle = hc;
+  if (H === "long") {
+    c.beginPath(); c.moveTo(-7, -40); c.lineTo(-8.5, -21); c.lineTo(-3, -21); c.lineTo(-5, -38); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(7, -40); c.lineTo(8.5, -21); c.lineTo(3, -21); c.lineTo(5, -38); c.closePath(); c.fill();
+  } else if (H === "queue") {
+    c.beginPath(); c.ellipse(9.5, -37, 3, 7.5, 0.5, 0, 6.3); c.fill();       // queue de cheval sur le côté
+  } else if (H === "tresses") {
+    for (const sx of [-8.5, 8.5]) for (let k = 0; k < 3; k++) { c.beginPath(); c.arc(sx, -33 + k * 5, 2.6, 0, 6.3); c.fill(); }
+  }
+  // tête (peau)
+  c.fillStyle = perso.peau;
+  c.beginPath(); c.arc(0, -36, 7, 0, 6.3); c.fill();
+  // dessus / devant
+  c.fillStyle = hc;
+  if (dos) {
+    if (H !== "chauve") { c.beginPath(); c.arc(0, -36, 7.2, 0, 6.3); c.fill(); } // arrière chevelu
+    return;
+  }
+  if (H === "boucles") {
+    for (let i = 0; i < 6; i++) { const an = Math.PI * (1.05 + i * (1.0 / 5)); c.beginPath(); c.arc(Math.cos(an) * 7, -37 + Math.sin(an) * 3.5, 2.6, 0, 6.3); c.fill(); }
+    c.beginPath(); c.arc(0, -37, 6, Math.PI, 2 * Math.PI); c.fill();
+  } else if (H !== "chauve") {
+    c.beginPath(); c.arc(0, -37, 7, Math.PI * 1.05, Math.PI * 2.05); c.fill();  // calotte
+    c.fillRect(-7, -38, 14, 3);
+  }
+  // visage (yeux + bouche)
+  c.fillStyle = "#000";
+  c.beginPath(); c.arc(-2.5, -35, 1, 0, 6.3); c.fill();
+  c.beginPath(); c.arc(2.5, -35, 1, 0, 6.3); c.fill();
+  c.strokeStyle = "#000"; c.lineWidth = 1;
+  c.beginPath(); c.arc(0, -33, 2.2, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
+}
+
+// Dessin complet du personnage (jeu + aperçu). c = contexte, dos = vu de dos, pas = phase de marche.
+function dessinerCorps(c, dos, pas) {
+  c.lineCap = "round";
+  const S = perso.styleHaut || "tshirt";
+  const brasNus = (S === "gilet" || S === "robe"); // sans manches
+
+  // --- cycle de marche ---
+  const marche = pas > 0;
+  const ph = pas * 9;
+  const swing = marche ? Math.sin(ph) * 7 : 0;                 // foulée (jambes ; bras en opposition)
+  const bras  = marche ? Math.sin(ph) * 8 : 0;                 // bras plus amples
+  const bob   = marche ? Math.abs(Math.sin(ph)) * 2.6          // rebond du corps à chaque pas
+                       : Math.sin((typeof temps === "number" ? temps : 0) * 2) * 0.6; // respiration à l'arrêt
+  const inclin = marche ? Math.sin(ph) * 0.03 : 0;             // léger balancement du buste
+
+  c.save();
+  c.translate(0, -bob);
+
+  // jambes (pantalon) + chaussures
+  c.strokeStyle = perso.bas; c.lineWidth = 5;
+  c.beginPath(); c.moveTo(-3, -13); c.lineTo(-3 + swing, 0); c.stroke();
+  c.beginPath(); c.moveTo(3, -13);  c.lineTo(3 - swing, 0);  c.stroke();
+  c.strokeStyle = perso.chaussures; c.lineWidth = 4;
+  c.beginPath(); c.moveTo(-3 + swing, -1); c.lineTo(-6 + swing, -1); c.stroke();
+  c.beginPath(); c.moveTo(3 - swing, -1);  c.lineTo(6 - swing, -1);  c.stroke();
+
+  // le haut du corps (buste, bras, tête) s'incline légèrement en marchant
+  c.save();
+  c.translate(0, -13); c.rotate(inclin); c.translate(0, 13);
+
+  // bras (manches = haut assombri, ou peau si sans manches) + mains (peau)
+  c.strokeStyle = brasNus ? perso.peau : teinte(perso.haut, 0.8); c.lineWidth = 4;
+  c.beginPath(); c.moveTo(-6, -25); c.lineTo(-8 - bras, -15); c.stroke();
+  c.beginPath(); c.moveTo(6, -25);  c.lineTo(8 - bras, -15);  c.stroke();
+  c.fillStyle = perso.peau;
+  c.beginPath(); c.arc(-8 - bras, -14, 2, 0, 6.3); c.fill();
+  c.beginPath(); c.arc(8 - bras, -14, 2, 0, 6.3); c.fill();
+
+  // torse (selon le vêtement) — dessiné après les jambes (la robe recouvre le haut des jambes)
+  dessinerHaut(c, S);
+
+  // cou
+  c.fillStyle = perso.peau; c.fillRect(-2.5, -30, 5, 4);
+
+  // tête + cheveux + visage
+  dessinerCheveux(c, dos);
+
+  // chapeau (au-dessus de la tête) + accessoire (sur le visage, seulement de face)
+  if (perso.chapeau || (perso.accessoire && !dos)) {
+    c.textAlign = "center"; c.textBaseline = "middle";
+    c.globalAlpha = 1; c.fillStyle = "#000";
+    if (perso.chapeau) { c.font = "15px serif"; c.fillText(perso.chapeau, 0, -45); }
+    if (perso.accessoire && !dos) { const a = ACC_POS[perso.accessoire] || { y: -35, s: 11 }; c.font = a.s + "px serif"; c.fillText(perso.accessoire, 0, a.y); }
+    c.textAlign = "start"; c.textBaseline = "alphabetic";
+  }
+  c.restore(); // fin inclinaison buste
+  c.restore(); // fin rebond
+  c.lineCap = "butt";
+}
+
+function dessinerJoueur() {
+  const px = W / 2, py = H / 2;
+  const nage = joueurNage();
+  const pt = joueur.profTrou || 0; // enfoncement dans un trou (0 = au sol, 1 = au fond)
+  // l'ombre rétrécit un peu quand le personnage rebondit en marchant
+  const bob = joueur.pas > 0 ? Math.abs(Math.sin(joueur.pas * 9)) : 0;
+
+  if (nage) {
+    // ondulations autour du nageur
+    ctx.strokeStyle = "rgba(255,255,255,0.55)"; ctx.lineWidth = 2;
+    for (let i = 0; i < 3; i++) {
+      const r = 9 + i * 7 + Math.sin(temps * 3 + i) * 2;
+      ctx.beginPath(); ctx.ellipse(px, py + 8, r, r * 0.4, 0, 0, Math.PI * 2); ctx.stroke();
+    }
+  } else {
+    ctx.fillStyle = `rgba(0,0,0,${0.22 * (1 - pt)})`; // l'ombre disparaît quand on tombe dans le trou
+    ctx.beginPath(); ctx.ellipse(px, py + 16, 12 - bob * 2, 4 - bob, 0, 0, Math.PI * 2); ctx.fill();
+  }
+
+  ctx.save();
+  ctx.translate(px, py + 16); // le rebond est géré dans dessinerCorps (marche en 2D et 3D)
+  ctx.scale(joueur.regarde, 1);
+  // clignotement quand on vient d'être touché (invulnérabilité)
+  if (invuln > 0 && Math.floor(temps * 12) % 2 === 0) ctx.globalAlpha = 0.35;
+  if (pt > 0.02) { ctx.beginPath(); ctx.rect(-30, -92, 60, 92); ctx.clip(); } // masque le corps sous le niveau du sol
+  if (nage) {
+    // seul le haut du corps dépasse de l'eau (les jambes sont immergées)
+    ctx.beginPath(); ctx.rect(-24, -70, 48, 59); ctx.clip();
+  }
+  ctx.translate(0, pt * 30); // le personnage s'enfonce dans le trou
+  dessinerHumainCorps(false);
+  // coup de bâton (mode survie) : balaie de haut vers l'avant
+  if ((joueur.swing || 0) > 0) {
+    const p = 1 - joueur.swing / 0.28;
+    ctx.save();
+    ctx.translate(6, -20); ctx.rotate(-1.2 + p * 2.3);
+    ctx.strokeStyle = "#8a5a2b"; ctx.lineWidth = 3; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(22, 0); ctx.stroke();
+    ctx.restore();
+  }
+  ctx.restore();
+}
+
+// Version « panneau » pour la 3D : pieds à l'écran (sx, syBase), taille s.
+function dessinerHumainBillboard(sx, syBase, s) {
+  ctx.save();
+  ctx.translate(sx, syBase);
+  ctx.scale(s, s);
+  dessinerHumainCorps(true);
+  ctx.restore();
+}
+
+function dessinerAstre(t, soleil) {
+  // progression du soleil de l'est (gauche) à l'ouest (droite) pendant le jour
+  const jour = (t - 0.25 + 1) % 1; // 0 au lever, 0.5 midi, 1 coucher (approx)
+  const estJour = soleil > 0.02;
+  const p = estJour ? jour : ((t + 0.25) % 1); // lune la nuit
+  const ax = W * (0.12 + p * 0.76);
+  const ay = H * 0.14 + Math.sin(p * Math.PI) * -H * 0.06 + H * 0.02;
+  ctx.save();
+  if (estJour) {
+    // halo
+    const g = ctx.createRadialGradient(ax, ay, 4, ax, ay, 60);
+    g.addColorStop(0, "rgba(255,240,180,0.9)");
+    g.addColorStop(1, "rgba(255,240,180,0)");
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(ax, ay, 60, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ffe27a";
+    ctx.beginPath(); ctx.arc(ax, ay, 22, 0, Math.PI * 2); ctx.fill();
+  } else {
+    ctx.fillStyle = "rgba(230,235,255,0.95)";
+    ctx.beginPath(); ctx.arc(ax, ay, 18, 0, Math.PI * 2); ctx.fill();
+    // croissant
+    ctx.globalCompositeOperation = "destination-out";
+    ctx.beginPath(); ctx.arc(ax + 7, ay - 4, 16, 0, Math.PI * 2); ctx.fill();
+    ctx.globalCompositeOperation = "source-over";
+  }
+  ctx.restore();
+}
+
+// --- Déplacement joueur avec collision d'eau (glisse le long des rives) ---
+function avancerVers(nx, ny) {
+  // murs (de l'étage courant) et bâtiments bloquent ; l'eau se traverse à la nage
+  if (!bloqueJoueur(nx, joueur.y)) joueur.x = nx;
+  if (!bloqueJoueur(joueur.x, ny)) joueur.y = ny;
+  verifEscalier();
+}
+
+function deplacerJoueur(dt) {
+  if (mode === "3D") { deplacer3D(dt); return; }
+  const { dx, dy } = directionEntree();
+  const pas = joueur.vitesse * dt * (joueurNage() ? 0.55 : 1) * (faim < 15 ? 0.7 : 1) * (1 - (joueur.profTrou || 0) * 0.5);
+  avancerVers(joueur.x + dx * pas, joueur.y + dy * pas);
+  if (dx || dy) {
+    joueur.pas += dt;
+    joueur.angle = Math.atan2(dy, dx);
+    if (dx) joueur.regarde = dx > 0 ? 1 : -1;
+  } else joueur.pas = 0;
+}
+
+function deplacer3D(dt) {
+  const g = touches;
+  const tourne = 2.6 * dt;
+  if (g["arrowleft"]  || g["q"] || g["a"]) joueur.angle -= tourne;
+  if (g["arrowright"] || g["d"])           joueur.angle += tourne;
+  let mv = 0;
+  if (g["arrowup"]   || g["z"] || g["w"]) mv += 1;
+  if (g["arrowdown"] || g["s"])           mv -= 1;
+  const pas = joueur.vitesse * dt * mv * (joueurNage() ? 0.55 : 1) * (faim < 15 ? 0.7 : 1) * (1 - (joueur.profTrou || 0) * 0.5);
+  avancerVers(joueur.x + Math.cos(joueur.angle) * pas, joueur.y + Math.sin(joueur.angle) * pas);
+  joueur.regarde = Math.cos(joueur.angle) >= 0 ? 1 : -1;
+  if (mv) joueur.pas += dt; else joueur.pas = 0;
+}
+
+// =====================================================================
+//  MODE 3D — vue à la 3e personne, derrière le personnage
+// =====================================================================
+function dessinerArbre3D(sx, sy, s) {
+  // s = pixels par unité de monde
+  ctx.fillStyle = "rgba(0,0,0,0.18)";
+  ctx.beginPath(); ctx.ellipse(sx, sy, 20 * s, 6 * s, 0, 0, Math.PI * 2); ctx.fill();
+  ctx.fillStyle = "#7a4a1e";
+  ctx.fillRect(sx - 4 * s, sy - 34 * s, 8 * s, 34 * s);
+  const vent = Math.sin(temps * 1.3 + sx * 0.01) * 2 * s * ventForce;
+  const sa = saisonArbre();
+  if (sa.nu) { // hiver : branches nues
+    ctx.strokeStyle = "#7a4a1e"; ctx.lineWidth = 3 * s; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(sx, sy - 30*s); ctx.lineTo(sx - 13*s, sy - 46*s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy - 33*s); ctx.lineTo(sx + 13*s + vent, sy - 47*s); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy - 34*s); ctx.lineTo(sx + vent, sy - 52*s); ctx.stroke();
+    ctx.lineCap = "butt";
+    return;
+  }
+  const cs = sa.couleurs;
+  const boules = [[0,-46,26,cs[2]],[-15,-38,20,cs[1]],[15,-38,20,cs[0]],[0,-34,22,cs[1]]];
+  for (const [bx,by,br,col] of boules) {
+    ctx.fillStyle = col;
+    ctx.beginPath(); ctx.arc(sx + bx*s + vent, sy + by*s, br*s, 0, Math.PI*2); ctx.fill();
+  }
+  if (sa.fleurs) { // printemps : fleurs
+    const cols = ["#ff9ff3", "#ffffff", "#ff6b9d"];
+    for (let f = 0; f < 9; f++) {
+      const fx = sx + (hash(sx + f, sy) - 0.5) * 42 * s + vent;
+      const fy = sy + (-44 + (hash(sy + f, sx) - 0.5) * 24) * s;
+      ctx.fillStyle = cols[f % cols.length];
+      ctx.beginPath(); ctx.arc(fx, fy, 2.6 * s, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+}
+
+function dessinerAnimal3D(esp, sx, sy, s) {
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.beginPath(); ctx.ellipse(sx, sy, 9*s, 3*s, 0, 0, Math.PI*2); ctx.fill();
+  if (esp === "lapin") {
+    ctx.fillStyle = "#ece7df";
+    ctx.beginPath(); ctx.ellipse(sx, sy - 8*s, 8*s, 8*s, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx - 3*s, sy - 18*s, 2*s, 6*s, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(sx + 3*s, sy - 18*s, 2*s, 6*s, 0, 0, Math.PI*2); ctx.fill();
+  } else if (esp === "renard") {
+    ctx.fillStyle = "#e2743a";
+    ctx.beginPath(); ctx.ellipse(sx, sy - 8*s, 9*s, 8*s, 0, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(sx-6*s, sy-16*s); ctx.lineTo(sx-2*s, sy-9*s); ctx.lineTo(sx-9*s, sy-9*s); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(sx+6*s, sy-16*s); ctx.lineTo(sx+9*s, sy-9*s); ctx.lineTo(sx+2*s, sy-9*s); ctx.fill();
+  } else {
+    ctx.fillStyle = "#5aa9e6";
+    ctx.beginPath(); ctx.ellipse(sx, sy - 10*s, 7*s, 6*s, 0, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = "#f39c12";
+    ctx.beginPath(); ctx.moveTo(sx, sy-11*s); ctx.lineTo(sx+6*s, sy-10*s); ctx.lineTo(sx, sy-9*s); ctx.fill();
+  }
+}
+
+function dessiner3D(dt) {
+  temps += dt;
+  const { soleil } = ambiance();
+
+  // --- Ciel (dégradé selon l'heure) ---
+  const k = Math.max(0, Math.min(1, soleil / 0.5));
+  const haut = mix([25,30,55], [110,170,235], k);
+  const bas  = mix([45,50,80], [200,225,245], k);
+  const grad = ctx.createLinearGradient(0, 0, 0, H * 0.6);
+  grad.addColorStop(0, `rgb(${haut[0]|0},${haut[1]|0},${haut[2]|0})`);
+  grad.addColorStop(1, `rgb(${bas[0]|0},${bas[1]|0},${bas[2]|0})`);
+  ctx.fillStyle = grad;
+  ctx.fillRect(0, 0, W, H);
+  // sol lointain (couvre les trous à l'horizon)
+  const gr = 0.4 + 0.6 * k;
+  ctx.fillStyle = `rgb(${(70*gr)|0},${(120*gr)|0},${(60*gr)|0})`;
+  ctx.fillRect(0, H * 0.5, W, H * 0.5);
+
+  // --- Caméra derrière le joueur (look-at) ---
+  // quand on est sous un plafond, la caméra descend et se rapproche → on se sent à l'intérieur
+  const dedans = plafondAuDessus();
+  const elev = joueur.niveau * HAUT_BLOC; // hauteur de l'étage du joueur
+  const ang = joueur.angle;
+  const fdx = Math.cos(ang), fdy = Math.sin(ang);
+  let cam, cible, montrerJoueur = true;
+  if (vue3D === "personnage") {
+    // 1re personne : caméra à la tête ; le glisser fait regarder autour
+    // quand on est dans un trou, l'œil descend → on voit plus bas
+    const chute = (joueur.profTrou || 0) * 30;
+    const la = joueur.angle + camYaw;
+    cam = [joueur.x, joueur.y, elev + 24 - chute];
+    cible = [joueur.x + Math.cos(la) * 80, joueur.y + Math.sin(la) * 80, elev + 24 - chute + camPitch];
+    montrerJoueur = false;
+  } else {
+    const loin = (vue3D === "loin");
+    const baseDist = dedans ? (loin ? 70 : 52) : (loin ? 180 : 95);
+    const baseHaut = dedans ? (loin ? 26 : 18) : (loin ? 95 : 70);
+    const dist = baseDist * zoom3D;                 // molette = zoom
+    const haut = baseHaut * zoom3D + camPitch;       // glisser vertical = inclinaison
+    const ca = joueur.angle + camYaw;                // glisser horizontal = orbite
+    cam = [joueur.x - Math.cos(ca) * dist, joueur.y - Math.sin(ca) * dist, haut + elev];
+    cible = [joueur.x, joueur.y, (dedans ? 14 : 20) + elev];
+  }
+  let F = [cible[0]-cam[0], cible[1]-cam[1], cible[2]-cam[2]];
+  const fl = Math.hypot(F[0], F[1], F[2]); F = [F[0]/fl, F[1]/fl, F[2]/fl];
+  let R = [F[1], -F[0], 0];
+  const rl = Math.hypot(R[0], R[1]) || 1; R = [R[0]/rl, R[1]/rl, 0];
+  const U = [R[1]*F[2]-R[2]*F[1], R[2]*F[0]-R[0]*F[2], R[0]*F[1]-R[1]*F[0]];
+  const foc = H * 0.9;
+  cam3D = { cam, F, R, U, foc }; // pour viser au sol avec la souris
+
+  function proj(p) {
+    const rx = p[0]-cam[0], ry = p[1]-cam[1], rz = p[2]-cam[2];
+    const zc = rx*F[0] + ry*F[1] + rz*F[2];
+    if (zc < 1) return null;
+    const xc = rx*R[0] + ry*R[1] + rz*R[2];
+    const yc = rx*U[0] + ry*U[1] + rz*U[2];
+    return [W/2 + foc*xc/zc, H/2 - foc*yc/zc, zc];
+  }
+  // un point est-il devant la caméra (grossier) ?
+  function devant(wx, wy) { return (wx-cam[0])*F[0] + (wy-cam[1])*F[1] > -40; }
+
+  // escalier en volume : une volée de marches montant de e0 à e0+HAUT_BLOC
+  function pousserEscalier(gx, gy, e0) {
+    const wx = gx * GRILLE, wy = gy * GRILLE;
+    const nMarches = 6, prof = GRILLE / nMarches, dh = HAUT_BLOC / nMarches;
+    const rgb = hex2rgb("#b08d57");
+    for (let s = 0; s < nMarches; s++) {
+      const y0 = wy + s * prof, y1 = wy + (s + 1) * prof, top = e0 + (s + 1) * dh;
+      const P = [
+        [wx, y0, e0], [wx+GRILLE, y0, e0], [wx+GRILLE, y1, e0], [wx, y1, e0],
+        [wx, y0, top], [wx+GRILLE, y0, top], [wx+GRILLE, y1, top], [wx, y1, top],
+      ].map(proj);
+      for (const fa of [{idx:[4,5,6,7],f:1.05},{idx:[0,1,5,4],f:0.8},{idx:[1,2,6,5],f:0.62},{idx:[2,3,7,6],f:0.8},{idx:[3,0,4,7],f:0.62}]) {
+        const q = fa.idx.map(nn => P[nn]);
+        if (q.some(v => !v)) continue;
+        let dz = 0; for (const v of q) dz += v[2]; dz /= 4;
+        prims.push({ d: dz, poly: q, col: ombreCouleur(rgb, fa.f), bord: true });
+      }
+    }
+  }
+
+  const prims = [];
+
+  // --- Sol (tuiles projetées) ---
+  const S = 32, N = 13;
+  const pcx = Math.round(joueur.x / S), pcy = Math.round(joueur.y / S);
+  for (let j = -N; j <= N; j++) for (let i = -N; i <= N; i++) {
+    const wx = (pcx + i) * S, wy = (pcy + j) * S;
+    if (!devant(wx + S/2, wy + S/2)) continue;
+    const eauIci = eauPosee.has((pcx + i) + "," + (pcy + j)); // eau versée à l'arrosoir
+    // case creusée : vraie fosse (parois de terre + fond sombre, ou eau si arrosée)
+    if (trous.has((pcx + i) + "," + (pcy + j))) {
+      const gxh = pcx + i, gyh = pcy + j;
+      const PROF = 34, ZE = eauIci ? -8 : -PROF; // surface d'eau à -8 si le trou est rempli
+      const pT = [[wx,wy,0],[wx+S,wy,0],[wx+S,wy+S,0],[wx,wy+S,0]].map(proj);
+      const pB = [[wx,wy,-PROF],[wx+S,wy,-PROF],[wx+S,wy+S,-PROF],[wx,wy+S,-PROF]].map(proj);
+      if (pT.some(v=>!v) || pB.some(v=>!v)) continue;
+      const rgbT = hex2rgb("#6b4a2b"); // parois de terre
+      // paroi dessinée SEULEMENT sur un bord extérieur (pas de mur entre deux cases d'un même grand trou)
+      const bords = [
+        [0,1,0.68, gxh + "," + (gyh-1)], // bord haut → voisin au-dessus
+        [1,2,0.52, (gxh+1) + "," + gyh], // bord droit → voisin à droite
+        [2,3,0.88, gxh + "," + (gyh+1)], // bord bas → voisin en dessous
+        [3,0,0.6,  (gxh-1) + "," + gyh], // bord gauche → voisin à gauche
+      ];
+      for (const [a,b,f,voisin] of bords) {
+        if (trous.has(voisin)) continue; // voisin aussi creusé → paroi intérieure, on ne la dessine pas
+        const q = [pT[a], pT[b], pB[b], pB[a]];
+        let dz=0; for (const v of q) dz+=v[2]; dz/=4;
+        prims.push({ d: dz, poly: q, col: ombreCouleur(rgbT, f), bord: true });
+      }
+      if (eauIci) { // surface d'eau au fond du trou
+        const pE = [[wx,wy,ZE],[wx+S,wy,ZE],[wx+S,wy+S,ZE],[wx,wy+S,ZE]].map(proj);
+        if (!pE.some(v=>!v)) { let dz=0; for (const v of pE) dz+=v[2]; dz/=4; prims.push({ d: dz, poly: pE, col: couleurLiquide((pcx+i)*0.7+(pcy+j)*0.5, 0.9), bord: false }); }
+      } else {
+        let dzf=0; for (const v of pB) dzf+=v[2]; dzf/=4;
+        prims.push({ d: dzf, poly: pB, col: ombreCouleur(hex2rgb("#1a1108"), 1), bord: false }); // fond
+      }
+      continue;
+    }
+    const c0 = proj([wx, wy, 0]),       c1 = proj([wx+S, wy, 0]);
+    const c2 = proj([wx+S, wy+S, 0]),   c3 = proj([wx, wy+S, 0]);
+    if (!c0 || !c1 || !c2 || !c3) continue;
+    let col;
+    const niv = niveauEau(wx + S/2, wy + S/2);
+    if (eauIci) {
+      col = couleurLiquide((pcx+i)*0.7 + (pcy+j)*0.5, 0.35); // flaque d'eau posée
+    } else if (niv < SEUIL_EAU && !MONDES[mondeType].sansEau) {
+      col = couleurLiquide((pcx+i)*0.7 + (pcy+j)*0.5, (SEUIL_EAU - niv) / SEUIL_EAU);
+    } else {
+      col = couleurFond(wx / TUILE, wy / TUILE);
+    }
+    prims.push({ d: (c0[2]+c2[2])/2, poly: [c0,c1,c2,c3], col, bord: false });
+  }
+
+  // --- Constructions ---
+  const portee = N * S + 40;
+  for (const [key, id] of construction) {
+    const [gx, gy] = key.split(",").map(Number);
+    const wx = gx * GRILLE, wy = gy * GRILLE;
+    if (!devant(wx + GRILLE/2, wy + GRILLE/2)) continue;
+    if (Math.hypot(wx - joueur.x, wy - joueur.y) > portee) continue;
+    const m = matParId[id];
+    if (id === "escalier") { pousserEscalier(gx, gy, 0); continue; } // volée de marches
+    const info = infoBloc(id);
+    if (info.type === "billboard") {
+      const b = proj([wx + GRILLE/2, wy + GRILLE/2, 0]);
+      if (b) prims.push({ d: b[2], emoji: m.emoji, sx: b[0], sy: b[1], s: foc/b[2] });
+      continue;
+    }
+    if (info.type === "plat") {
+      const c0 = proj([wx, wy, 0.5]),       c1 = proj([wx+GRILLE, wy, 0.5]);
+      const c2 = proj([wx+GRILLE, wy+GRILLE, 0.5]), c3 = proj([wx, wy+GRILLE, 0.5]);
+      if (c0 && c1 && c2 && c3)
+        prims.push({ d: (c0[2]+c2[2])/2, poly: [c0,c1,c2,c3], col: ombreCouleur(hex2rgb(m.couleur), 1), bord: true });
+      continue;
+    }
+    // bloc en volume
+    const h = info.h, rgb = hex2rgb(m.couleur);
+    const P = [
+      [wx,wy,0],[wx+GRILLE,wy,0],[wx+GRILLE,wy+GRILLE,0],[wx,wy+GRILLE,0],
+      [wx,wy,h],[wx+GRILLE,wy,h],[wx+GRILLE,wy+GRILLE,h],[wx,wy+GRILLE,h],
+    ].map(proj);
+    const faces = [
+      { idx:[4,5,6,7], f:1.05 }, // dessus
+      { idx:[0,1,5,4], f:0.78 },
+      { idx:[1,2,6,5], f:0.62 },
+      { idx:[2,3,7,6], f:0.78 },
+      { idx:[3,0,4,7], f:0.62 },
+    ];
+    for (const fa of faces) {
+      const q = fa.idx.map(n => P[n]);
+      if (q.some(v => !v)) continue;
+      let dz = 0; for (const v of q) dz += v[2]; dz /= 4;
+      prims.push({ d: dz, poly: q, col: ombreCouleur(rgb, fa.f), bord: true });
+    }
+  }
+
+  // --- Étages de construction (blocs empilés / plafonds) ---
+  for (const [key, id] of etages) {
+    const [gx, gy, n] = key.split(",").map(Number);
+    const wx = gx * GRILLE, wy = gy * GRILLE;
+    if (!devant(wx + GRILLE/2, wy + GRILLE/2)) continue;
+    if (Math.hypot(wx - joueur.x, wy - joueur.y) > portee) continue;
+    const m = matParId[id];
+    const e0 = n * HAUT_BLOC;
+    if (id === "escalier") { pousserEscalier(gx, gy, e0); continue; } // volée de marches à l'étage
+    if (id.startsWith("toit") || SOLS_PLATS.has(id)) {
+      // dalle horizontale = plafond / plancher d'étage (plafond semi-transparent)
+      const c0 = proj([wx, wy, e0]), c1 = proj([wx+GRILLE, wy, e0]);
+      const c2 = proj([wx+GRILLE, wy+GRILLE, e0]), c3 = proj([wx, wy+GRILLE, e0]);
+      const rgb = hex2rgb(m.couleur);
+      const col = id.startsWith("toit") ? `rgba(${rgb[0]|0},${rgb[1]|0},${rgb[2]|0},0.6)` : ombreCouleur(rgb, 0.95);
+      if (c0 && c1 && c2 && c3) prims.push({ d: (c0[2]+c2[2])/2, poly: [c0,c1,c2,c3], col, bord: true });
+      continue;
+    }
+    if (m.deco) {
+      const b = proj([wx + GRILLE/2, wy + GRILLE/2, e0]);
+      if (b) prims.push({ d: b[2], emoji: m.emoji, sx: b[0], sy: b[1], s: foc/b[2] });
+      continue;
+    }
+    // bloc plein empilé
+    const rgb = hex2rgb(m.couleur);
+    const P = [
+      [wx,wy,e0], [wx+GRILLE,wy,e0], [wx+GRILLE,wy+GRILLE,e0], [wx,wy+GRILLE,e0],
+      [wx,wy,e0+HAUT_BLOC], [wx+GRILLE,wy,e0+HAUT_BLOC], [wx+GRILLE,wy+GRILLE,e0+HAUT_BLOC], [wx,wy+GRILLE,e0+HAUT_BLOC],
+    ].map(proj);
+    const faces = [{ idx:[4,5,6,7], f:1.05 }, { idx:[0,1,5,4], f:0.78 }, { idx:[1,2,6,5], f:0.62 }, { idx:[2,3,7,6], f:0.78 }, { idx:[3,0,4,7], f:0.62 }];
+    for (const fa of faces) {
+      const q = fa.idx.map(nn => P[nn]);
+      if (q.some(v => !v)) continue;
+      let dz = 0; for (const v of q) dz += v[2]; dz /= 4;
+      prims.push({ d: dz, poly: q, col: ombreCouleur(rgb, fa.f), bord: true });
+    }
+  }
+
+  // --- Bâtiments de ville (3D) ---
+  if (MONDES[mondeType].batiments) {
+    const rB = Math.ceil(portee / (TUILE * 6)) + 1;
+    const bcx = Math.floor(joueur.x / (TUILE * 6)), bcy = Math.floor(joueur.y / (TUILE * 6));
+    const palette = ["#c96f4c", "#c8b18a", "#9aa7b0", "#b98a5a"];
+    for (let bj = -rB; bj <= rB; bj++) for (let bi = -rB; bi <= rB; bi++) {
+      const bx = bcx + bi, by = bcy + bj;
+      if (hash(bx * 1.7 + 3, by * 2.9 + 5) > 0.45) continue;
+      const x0b = (bx * 6 + 2) * TUILE, y0b = (by * 6 + 2) * TUILE, w = 2 * TUILE;
+      const cxw = x0b + w / 2, cyw = y0b + w / 2;
+      if (!devant(cxw, cyw) || Math.hypot(cxw - joueur.x, cyw - joueur.y) > portee) continue;
+      const h = 80, rgb = hex2rgb(palette[Math.floor(hash(bx, by) * 4)]);
+      const P = [
+        [x0b, y0b, 0], [x0b + w, y0b, 0], [x0b + w, y0b + w, 0], [x0b, y0b + w, 0],
+        [x0b, y0b, h], [x0b + w, y0b, h], [x0b + w, y0b + w, h], [x0b, y0b + w, h],
+      ].map(proj);
+      const faces = [{ idx: [4,5,6,7], f: 1.05 }, { idx: [0,1,5,4], f: 0.78 }, { idx: [1,2,6,5], f: 0.62 }, { idx: [2,3,7,6], f: 0.78 }, { idx: [3,0,4,7], f: 0.62 }];
+      for (const fa of faces) {
+        const q = fa.idx.map(n => P[n]);
+        if (q.some(v => !v)) continue;
+        let dz = 0; for (const v of q) dz += v[2]; dz /= 4;
+        prims.push({ d: dz, poly: q, col: ombreCouleur(rgb, fa.f), bord: true });
+      }
+    }
+  }
+
+  // --- Objets déco empilés (par-dessus le sol ; enfoncés dans un trou) ---
+  for (const [key, pile] of decors) {
+    const [gx, gy] = key.split(",").map(Number);
+    const wx = gx * GRILLE, wy = gy * GRILLE;
+    if (!devant(wx + GRILLE/2, wy + GRILLE/2)) continue;
+    if (Math.hypot(wx - joueur.x, wy - joueur.y) > portee) continue;
+    const z0 = trous.has(key) ? -26 : 0; // posé au fond du trou
+    for (let n = 0; n < pile.length; n++) {
+      const jx = (hash(gx * 7 + n * 3, gy * 11 + n * 5) - 0.5) * 7;
+      const jy = (hash(gx * 5 + n * 2, gy * 9 + n * 4) - 0.5) * 7;
+      const b = proj([wx + GRILLE/2 + jx, wy + GRILLE/2 + jy, z0 + n * 14]);
+      if (b) prims.push({ d: b[2], emoji: matParId[pile[n]].emoji, sx: b[0], sy: b[1], s: foc/b[2] });
+    }
+  }
+
+  // --- Arbres & fruits (grille TUILE) ---
+  const rT = Math.ceil(portee / TUILE) + 1;
+  const tcx = Math.floor(joueur.x / TUILE), tcy = Math.floor(joueur.y / TUILE);
+  for (let j = -rT; j <= rT; j++) for (let i = -rT; i <= rT; i++) {
+    const cx = tcx + i, cy = tcy + j;
+    const a = arbreCase(cx, cy);
+    if (a && devant(a.wx, a.wy)) {
+      const b = proj([a.wx, a.wy, 0]);
+      if (b) prims.push({ d: b[2], type: "arbre", sx: b[0], sy: b[1], s: foc/b[2] * a.taille });
+    }
+    if (!ramasses.has(cx + "," + cy)) {
+      const fr = fruitCase(cx, cy);
+      if (fr && devant(fr.wx, fr.wy)) {
+        const b = proj([fr.wx, fr.wy, 9]);
+        if (b) prims.push({ d: b[2], type: "fruit", sx: b[0], sy: b[1], s: foc/b[2] });
+      }
+    }
+  }
+
+  // --- Animaux sauvages ---
+  for (const an of animaux) {
+    if (!devant(an.x, an.y)) continue;
+    const b = proj([an.x, an.y, 0]);
+    if (b) prims.push({ d: b[2], type: "animal", esp: an.esp, sx: b[0], sy: b[1], s: foc/b[2] });
+  }
+  // --- Animaux posés (mobiles) ---
+  for (const a of animauxPoses) {
+    if (!devant(a.x, a.y)) continue;
+    if (Math.hypot(a.x - joueur.x, a.y - joueur.y) > portee) continue;
+    const b = proj([a.x, a.y, 0]);
+    if (b) prims.push({ d: b[2], emoji: matParId[a.id].emoji, sx: b[0], sy: b[1], s: foc/b[2] * tailleAnimal(a) * 1.35 });
+  }
+  // --- Ennemis (survie) : loups & serpents ---
+  for (const e of ennemis) {
+    if (e.mort || !devant(e.x, e.y)) continue;
+    if (Math.hypot(e.x - joueur.x, e.y - joueur.y) > portee) continue;
+    const b = proj([e.x, e.y, 0]);
+    if (b) prims.push({ d: b[2], emoji: EMOJI_ENNEMI[e.type], sx: b[0], sy: b[1], s: foc/b[2] * 1.3 });
+  }
+
+  // --- Wagons (petites caisses sur rails) ---
+  for (const w of wagons) {
+    if (!devant(w.x, w.y)) continue;
+    if (Math.hypot(w.x - joueur.x, w.y - joueur.y) > portee) continue;
+    const r = 13, hh = 22, rgb = w.actif ? [231,76,60] : [168,58,48];
+    const P = [
+      [w.x-r,w.y-r,4],[w.x+r,w.y-r,4],[w.x+r,w.y+r,4],[w.x-r,w.y+r,4],
+      [w.x-r,w.y-r,4+hh],[w.x+r,w.y-r,4+hh],[w.x+r,w.y+r,4+hh],[w.x-r,w.y+r,4+hh],
+    ].map(proj);
+    for (const fa of [{idx:[4,5,6,7],f:1.05},{idx:[0,1,5,4],f:0.78},{idx:[1,2,6,5],f:0.62},{idx:[2,3,7,6],f:0.78},{idx:[3,0,4,7],f:0.62}]) {
+      const q = fa.idx.map(n => P[n]);
+      if (q.some(v => !v)) continue;
+      let dz = 0; for (const v of q) dz += v[2]; dz /= 4;
+      prims.push({ d: dz, poly: q, col: ombreCouleur(rgb, fa.f), bord: true });
+    }
+  }
+
+  // --- Joueur (à l'élévation de son étage ; masqué en 1re personne ; enfoncé s'il tombe dans un trou) ---
+  if (montrerJoueur) {
+    const b = proj([joueur.x, joueur.y, elev - (joueur.profTrou || 0) * 30]);
+    if (b) prims.push({ d: b[2], type: "joueur", sx: b[0], sy: b[1], s: foc/b[2] });
+  }
+
+  // --- Rendu trié (peintre : du plus loin au plus près) ---
+  prims.sort((p, q) => q.d - p.d);
+  for (const pr of prims) {
+    if (pr.poly) {
+      ctx.fillStyle = pr.col;
+      ctx.beginPath();
+      ctx.moveTo(pr.poly[0][0], pr.poly[0][1]);
+      for (let n = 1; n < pr.poly.length; n++) ctx.lineTo(pr.poly[n][0], pr.poly[n][1]);
+      ctx.closePath();
+      ctx.fill();
+      if (pr.bord) { ctx.strokeStyle = "rgba(0,0,0,0.18)"; ctx.lineWidth = 1; ctx.stroke(); }
+    } else if (pr.emoji) {
+      const taille = Math.max(6, pr.s * 27);
+      ctx.font = `${taille|0}px serif`;
+      ctx.textAlign = "center"; ctx.textBaseline = "bottom";
+      ctx.globalAlpha = 1; ctx.fillStyle = "#000"; // emoji couleur opaque (sinon il hérite de la couleur/alpha du polygone précédent)
+      ctx.fillText(pr.emoji, pr.sx, pr.sy);
+      ctx.textAlign = "start"; ctx.textBaseline = "alphabetic";
+    } else if (pr.type === "arbre") {
+      dessinerArbre3D(pr.sx, pr.sy, pr.s);
+    } else if (pr.type === "fruit") {
+      const r = Math.max(2, pr.s * 6);
+      ctx.fillStyle = "#e74c3c"; ctx.beginPath(); ctx.arc(pr.sx, pr.sy, r, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "rgba(255,255,255,0.5)"; ctx.beginPath(); ctx.arc(pr.sx - r*0.35, pr.sy - r*0.35, r*0.3, 0, Math.PI*2); ctx.fill();
+    } else if (pr.type === "animal") {
+      dessinerAnimal3D(pr.esp, pr.sx, pr.sy, pr.s);
+    } else if (pr.type === "joueur") {
+      dessinerHumainBillboard(pr.sx, pr.sy, Math.max(0.12, pr.s * 0.8));
+    }
+  }
+
+  // --- Laisses en 3D : corde tendue entre le joueur et l'animal (par-dessus, bien visible) ---
+  for (const a of animauxPoses) {
+    if (!a.enLaisse || !devant(a.x, a.y)) continue;
+    const ba = proj([a.x, a.y, 0]);
+    if (!ba) continue;
+    // taille réellement dessinée de l'animal (emoji) → on vise le milieu de son corps
+    const tailleA = Math.max(6, (foc / ba[2]) * tailleAnimal(a) * 1.35 * 27);
+    const x2 = ba[0], y2 = ba[1] - tailleA * 0.45;
+    let x1, y1;
+    if (montrerJoueur) {
+      const bp = proj([joueur.x, joueur.y, elev]);
+      if (!bp) continue;
+      // même échelle que le billboard du joueur ; la main est à y≈-14 en coords locales
+      const sDraw = Math.max(0.12, (foc / bp[2]) * 0.8);
+      x1 = bp[0] + 8 * sDraw; y1 = bp[1] - 14 * sDraw;         // main (côté, à mi-hauteur du corps)
+    } else {
+      x1 = W / 2; y1 = H * 0.9;                                // 1re personne : la corde part de la main (bas de l'écran)
+    }
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2 + 8;          // léger relâché de la corde
+    ctx.strokeStyle = "rgba(120,80,40,0.9)"; ctx.lineWidth = 2.5; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(x1, y1); ctx.quadraticCurveTo(mx, my, x2, y2); ctx.stroke();
+    ctx.lineCap = "butt";
+  }
+
+  // --- Fantôme de construction (case visée + étage courant) ---
+  if (modeConstruction && souris.dedans) {
+    const c = cibleSol3D(souris.x, souris.y);
+    if (c) {
+      const e0 = (joueur.niveau + niveauCons) * HAUT_BLOC, wx = c.gx * GRILLE, wy = c.gy * GRILLE;
+      const P = [
+        [wx,wy,e0], [wx+GRILLE,wy,e0], [wx+GRILLE,wy+GRILLE,e0], [wx,wy+GRILLE,e0],
+        [wx,wy,e0+HAUT_BLOC], [wx+GRILLE,wy,e0+HAUT_BLOC], [wx+GRILLE,wy+GRILLE,e0+HAUT_BLOC], [wx,wy+GRILLE,e0+HAUT_BLOC],
+      ].map(proj);
+      ctx.strokeStyle = matSel === "gomme" ? "rgba(255,80,80,0.9)" : "rgba(255,255,255,0.85)";
+      ctx.lineWidth = 2;
+      for (const [x, y] of [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]]) {
+        const A = P[x], B = P[y];
+        if (A && B) { ctx.beginPath(); ctx.moveTo(A[0], A[1]); ctx.lineTo(B[0], B[1]); ctx.stroke(); }
+      }
+    }
+  }
+
+  // --- Voile jour/nuit ---
+  let voile;
+  if (soleil > 0.15) {
+    voile = [255, 200, 120, (1 - soleil) * 0.22];
+  } else {
+    const kn = 1 - soleil / 0.15;
+    voile = [20, 30, 70, 0.15 + kn * 0.45];
+  }
+  ctx.fillStyle = `rgba(${voile[0]|0}, ${voile[1]|0}, ${voile[2]|0}, ${voile[3]})`;
+  ctx.fillRect(0, 0, W, H);
+
+  // coordonnées
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.font = "13px system-ui, sans-serif";
+  ctx.fillText(`x: ${Math.round(joueur.x)}  y: ${Math.round(joueur.y)}`, 14, 52);
+}
+
+// --- Boucle de jeu ---
+// pluie / neige / vent en surimpression (écran) — marche en 2D et 3D
+function dessinerMeteo() {
+  if (plafondAuDessus()) return; // sous un toit : ni pluie ni neige
+  const m = meteoJour();
+  if (m === "pluie") {
+    ctx.fillStyle = "rgba(70,85,110,0.2)"; ctx.fillRect(0, 0, W, H); // ciel couvert
+    ctx.strokeStyle = "rgba(170,190,225,0.5)"; ctx.lineWidth = 2;
+    for (let i = 0; i < 130; i++) {
+      const x = ((i * 137 + temps * 620) % (W + 40)) - 20;
+      const y = ((i * 89 + temps * 760) % (H + 40)) - 20;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x - 5, y + 16); ctx.stroke();
+    }
+  } else if (m === "neige") {
+    ctx.fillStyle = "rgba(255,255,255,0.92)";
+    for (let i = 0; i < 100; i++) {
+      const x = ((i * 149 + Math.sin(temps * 1.5 + i) * 22 + temps * 30) % (W + 20)) - 10;
+      const y = ((i * 97 + temps * 55) % (H + 20)) - 10;
+      ctx.beginPath(); ctx.arc(x, y, 2.3, 0, 6.283); ctx.fill();
+    }
+  } else if (m === "vent") {
+    ctx.strokeStyle = "rgba(255,255,255,0.22)"; ctx.lineWidth = 1.5;
+    for (let i = 0; i < 45; i++) {
+      const x = ((i * 173 + temps * 520) % (W + 80)) - 40;
+      const y = (i * 61) % H;
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 22, y + 3); ctx.stroke();
+    }
+  }
+}
+
+let dernier = performance.now();
+function boucle(maintenant) {
+  const dt = Math.min((maintenant - dernier) / 1000, 0.05);
+  dernier = maintenant;
+
+  majAnimaux(dt);       // animaux sauvages (bougent aussi en fond de menu)
+  majAnimauxPoses(dt);  // animaux posés mobiles
+
+  if (enJeu) {
+    horloge += dt;
+    if (horloge >= DUREE_JOUR) { horloge -= DUREE_JOUR; jourTotal++; } // nouveau jour
+    if (!modalOuvert() && wagonJoueur < 0) deplacerJoueur(dt); // pas de déplacement à pied si on est dans un wagon
+    // chute progressive quand on marche sur un trou (0 = au sol, 1 = au fond du trou)
+    const cibleTrou = (wagonJoueur < 0 && estTrou(joueur.x, joueur.y)) ? 1 : 0;
+    joueur.profTrou = (joueur.profTrou || 0) + (cibleTrou - (joueur.profTrou || 0)) * Math.min(1, dt * 7);
+    if (modeJeu === "survie") majEnnemis(dt); // loups & serpents
+    if (invuln > 0) invuln -= dt;
+    if (joueur.swing > 0) joueur.swing -= dt;
+    majWagons(dt); // les wagons avancent sur les rails
+    collecterFruits();
+    faim = Math.max(0, faim - (100 / 600) * dt); // 10 min pour vider la barre
+    autosaveAcc += dt;
+    if (autosaveAcc > 3) { autosaveAcc = 0; sauvegarder(); }
+  }
+  ventForce = (meteoJour() === "vent") ? 2.4 : 1; // vent plus fort les jours de vent
+  // mise à jour de la barre de faim
+  elFaimFill.style.width = faim + "%";
+  elFaimFill.style.background = faim < 25 ? "#c0392b" : (faim < 50 ? "#e67e22" : "linear-gradient(90deg, #e67e22, #f1c40f)");
+
+  camera.x += (joueur.x - camera.x) * Math.min(1, dt * 8);
+  camera.y += (joueur.y - camera.y) * Math.min(1, dt * 8);
+
+  if (mode === "3D") dessiner3D(dt);
+  else dessiner(dt);
+  dessinerMeteo();  // pluie / neige / vent par-dessus (2D et 3D)
+  if (enJeu && !elDlgCarte.classList.contains("cache")) dessinerCarte(); // grande carte vivante (on marche en la regardant)
+
+  // HUD : horloge + saison + météo
+  const h = Math.floor((horloge / DUREE_JOUR) * 24);
+  const m = Math.floor(((horloge / DUREE_JOUR) * 24 * 60) % 60);
+  const { soleil } = ambiance();
+  elHorloge.textContent = `${String(h).padStart(2,"0")}:${String(m).padStart(2,"0")} ${soleil > 0.02 ? "☀️" : "🌙"}`;
+  const sa = SAISONS[saisonActuelle()], me = meteoJour();
+  elSaisonMeteo.textContent = `${sa.emoji} ${sa.nom} · ${METEO_EMOJI[me]} (jour ${jourTotal + 1})`;
+
+  requestAnimationFrame(boucle);
+}
+requestAnimationFrame(boucle);
+
+// Afficher l'écran de démarrage au lancement
+afficherMenu();
+</script>
+</body>
+</html>

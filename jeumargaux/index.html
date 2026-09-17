@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>🎮 Jeu Margaux</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{min-height:100%;font-family:'Segoe UI',system-ui,sans-serif;color:#eef3f8;background:#0b1320}
+body{background:radial-gradient(1200px 700px at 10% -10%,#2a3f6e 0%,transparent 60%),radial-gradient(900px 600px at 110% 20%,#5a2d6e 0%,transparent 55%),linear-gradient(180deg,#0e1a2e 0%,#0b1320 100%);padding:40px 20px 60px}
+header{max-width:1100px;margin:0 auto 34px;text-align:center}
+h1{font-size:44px;letter-spacing:1px;font-weight:700}
+h1 small{display:block;font-size:16px;font-weight:400;opacity:.7;margin-top:8px;letter-spacing:.3px}
+h2{max-width:1100px;margin:36px auto 14px;font-size:15px;text-transform:uppercase;letter-spacing:2px;opacity:.6;font-weight:600}
+.grid{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:16px}
+a.card{display:flex;flex-direction:column;gap:8px;padding:20px 20px 18px;border-radius:18px;text-decoration:none;color:inherit;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);box-shadow:0 10px 30px rgba(0,0,0,.25);transition:transform .18s,background .18s,border-color .18s;position:relative;overflow:hidden}
+a.card:hover{transform:translateY(-4px);background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.25)}
+a.card .ico{font-size:44px;line-height:1;filter:drop-shadow(0 4px 10px rgba(0,0,0,.4))}
+a.card b{font-size:18px;margin-top:4px}
+a.card span{font-size:13.5px;opacity:.75;line-height:1.45}
+a.card .tag{position:absolute;top:14px;right:14px;font-size:11px;padding:3px 9px;border-radius:12px;background:rgba(255,255,255,.12);opacity:.9;letter-spacing:.3px}
+a.card .tag.new{background:linear-gradient(135deg,#ffb347,#ff7b3a);color:#1a1000;font-weight:600;opacity:1}
+a.card .go{margin-top:auto;font-size:13px;opacity:.6;padding-top:8px}
+a.card:hover .go{opacity:1}
+footer{max-width:1100px;margin:50px auto 0;text-align:center;font-size:13px;opacity:.5}
+footer a{color:inherit}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎮 Jeu Margaux<small>Choisis un jeu et clique pour jouer — tout tourne directement dans le navigateur</small></h1>
+</header>
+
+<h2>Mondes en 3D</h2>
+<div class="grid">
+  <a class="card" href="https://yifeng-lin.github.io/BaseDeVacance/"><span class="tag new">Nouveau</span><div class="ico">🏔️</div><b>Base de Vacances</b><span>Ski avec télésiège, circuit 4x4, hors-bord à la plage et acrobranche avec tyroliennes, en vue à la première personne.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="vacances-3d/"><span class="tag">3D</span><div class="ico">🏖️</div><b>Vacances 3D</b><span>Un monde de vacances à explorer librement.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="monde-sauvage/"><span class="tag">3D</span><div class="ico">🐱</div><b>Monde Sauvage</b><span>Une forêt peuplée de chats et d'animaux sauvages.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="monde-creatif/"><span class="tag">3D</span><div class="ico">🧱</div><b>Monde créatif</b><span>Construis et explore ton propre monde.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="monde-2/"><span class="tag">3D</span><div class="ico">🌍</div><b>Monde 2</b><span>Un grand monde, encore plus vaste à parcourir.</span><div class="go">Jouer →</div></a>
+</div>
+
+<h2>Action &amp; arcade</h2>
+<div class="grid">
+  <a class="card" href="https://yifeng-lin.github.io/super-margaux-bros/"><span class="tag">Plateforme</span><div class="ico">🍄</div><b>Super Margaux Bros</b><span>Saute, cours et évite les ennemis dans ce jeu de plateforme.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="https://yifeng-lin.github.io/FishMargaux/"><span class="tag">Aventure</span><div class="ico">🐟</div><b>Poisson Rouge</b><span>Aventure océanique : nage, mange et grandis.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="bomberman/"><span class="tag">Arcade</span><div class="ico">💣</div><b>Constance — Tesla Bomber</b><span>Pose des bombes, détruis les murs, attrape les bonus.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="tetris/"><span class="tag">Puzzle</span><div class="ico">🧩</div><b>Tetris</b><span>Le grand classique des briques qui tombent.</span><div class="go">Jouer →</div></a>
+</div>
+
+<h2>Stratégie &amp; collection</h2>
+<div class="grid">
+  <a class="card" href="fortune-tycoon/"><span class="tag">Plateau</span><div class="ico">🏠</div><b>Fortune Tycoon</b><span>Le jeu de l'immobilier façon jeu vidéo : dés, propriétés, bourse, cartes et enchères contre l'ordinateur.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="ecurie/"><span class="tag">Gestion</span><div class="ico">🐴</div><b>Centre Équestre de Margaux</b><span>Occupe-toi des chevaux et fais vivre ton écurie.</span><div class="go">Jouer →</div></a>
+  <a class="card" href="cartes-collectors/"><span class="tag">Cartes</span><div class="ico">🦁</div><b>Cartes Collectors</b><span>Collection de cartes des animaux terrestres, avec version à imprimer.</span><div class="go">Jouer →</div></a>
+</div>
+
+<h2>Apprendre</h2>
+<div class="grid">
+  <a class="card" href="https://yifeng-lin.github.io/superkeyboard-margaux/"><span class="tag">Éducatif</span><div class="ico">⌨️</div><b>SuperKeyboard Margaux</b><span>Apprends le clavier en t'amusant.</span><div class="go">Jouer →</div></a>
+</div>
+
+<footer>Fait maison avec ❤️ · <a href="https://github.com/Yifeng-LIN">github.com/Yifeng-LIN</a></footer>
+</body>
+</html>

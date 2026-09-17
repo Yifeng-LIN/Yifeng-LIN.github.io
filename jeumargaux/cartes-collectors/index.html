@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cartes Collectors — Animaux terrestres</title>
+<style>
+  :root {
+    --bg: #0e1216;
+    --bg-soft: #161c23;
+    --ink: #eef3f8;
+    --ink-dim: #93a3b3;
+    --line: rgba(255,255,255,.10);
+    --commune: #7f9aa8;
+    --rare: #3fa9f5;
+    --epique: #a56bf0;
+    --legendaire: #f2a33c;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    padding: 40px 24px 80px;
+    background:
+      radial-gradient(900px 500px at 15% -10%, #1d2733 0%, transparent 60%),
+      radial-gradient(700px 400px at 95% 0%, #241d33 0%, transparent 55%),
+      var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  header {
+    max-width: 1180px;
+    margin: 0 auto 32px;
+    text-align: center;
+  }
+  h1 {
+    margin: 0 0 8px;
+    font-size: clamp(28px, 5vw, 46px);
+    letter-spacing: -.02em;
+  }
+  .sous-titre { margin: 0 0 24px; color: var(--ink-dim); font-size: 16px; }
+
+  .filtres {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+  }
+  .filtres + .filtres { margin-top: 10px; }
+  .filtres button {
+    padding: 8px 16px;
+    border-radius: 999px;
+    border: 1px solid var(--line);
+    background: rgba(255,255,255,.04);
+    color: var(--ink-dim);
+    font: inherit;
+    font-size: 14px;
+    cursor: pointer;
+    transition: .15s;
+  }
+  .filtres button:hover { color: var(--ink); border-color: rgba(255,255,255,.28); }
+  .filtres button[aria-pressed="true"] {
+    background: var(--ink);
+    color: #0e1216;
+    border-color: var(--ink);
+    font-weight: 600;
+  }
+
+  .grille {
+    max-width: 1180px;
+    margin: 32px auto 0;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 22px;
+  }
+
+  /* ---------- carte ---------- */
+  .carte {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    border-radius: 16px;
+    padding: 2px;                      /* liseré « foil » */
+    background: var(--foil);
+    box-shadow: 0 10px 30px rgba(0,0,0,.45);
+    transition: transform .18s ease, box-shadow .18s ease;
+  }
+  .carte:hover {
+    transform: translateY(-6px);
+    box-shadow: 0 18px 40px rgba(0,0,0,.55);
+  }
+  .carte-inner {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    border-radius: 14px;
+    background: linear-gradient(180deg, var(--bg-soft), #10151b);
+    overflow: hidden;
+  }
+
+  .carte[data-rarete="commune"]    { --foil: linear-gradient(150deg, #55636e, #2a333b); --accent: var(--commune); }
+  .carte[data-rarete="rare"]       { --foil: linear-gradient(150deg, #3fa9f5, #14486f); --accent: var(--rare); }
+  .carte[data-rarete="epique"]     { --foil: linear-gradient(150deg, #c48bff, #5a2ea6); --accent: var(--epique); }
+  .carte[data-rarete="legendaire"] { --foil: linear-gradient(150deg, #ffd479, #f2a33c 45%, #b4610d); --accent: var(--legendaire); }
+
+  .vignette {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 190px;
+    overflow: hidden;
+    background:
+      radial-gradient(120px 90px at 50% 60%, color-mix(in srgb, var(--accent) 28%, transparent), transparent 70%),
+      repeating-linear-gradient(135deg, rgba(255,255,255,.03) 0 8px, transparent 8px 16px);
+    border-bottom: 1px solid var(--line);
+  }
+  .vignette img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  /* Voile sombre en haut et en bas pour que les badges restent lisibles sur la photo */
+  .vignette::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(180deg, rgba(0,0,0,.55), transparent 32%, transparent 78%, rgba(0,0,0,.45));
+  }
+  /* Repli emoji si la photo est absente */
+  .vignette .repli { font-size: 76px; line-height: 1; }
+
+  .numero {
+    position: absolute;
+    z-index: 1;
+    top: 10px;
+    left: 12px;
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .08em;
+    color: rgba(255,255,255,.85);
+    text-shadow: 0 1px 3px rgba(0,0,0,.8);
+  }
+  .rarete {
+    position: absolute;
+    z-index: 1;
+    top: 10px;
+    right: 10px;
+    padding: 3px 9px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .1em;
+    color: #0e1216;
+    background: var(--accent);
+    box-shadow: 0 2px 8px rgba(0,0,0,.5);
+  }
+  .credit {
+    position: absolute;
+    z-index: 1;
+    bottom: 7px;
+    right: 10px;
+    left: 10px;
+    text-align: right;
+    font-size: 9px;
+    color: rgba(255,255,255,.62);
+    text-shadow: 0 1px 3px rgba(0,0,0,.9);
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .corps { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 12px; flex: 1; }
+
+  .nom { margin: 0; font-size: 18px; line-height: 1.2; letter-spacing: -.01em; }
+  .latin { margin: 2px 0 0; font-size: 12px; font-style: italic; color: var(--ink-dim); }
+
+  .fiche { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 12px; }
+  .fiche div { font-size: 12px; }
+  .fiche dt { color: var(--ink-dim); font-size: 10px; text-transform: uppercase; letter-spacing: .06em; }
+  .fiche dd { margin: 1px 0 0; font-weight: 600; }
+
+  .stats { display: grid; gap: 6px; }
+  .stat { display: grid; grid-template-columns: 62px 1fr 28px; align-items: center; gap: 8px; }
+  .stat span:first-child { font-size: 10px; text-transform: uppercase; letter-spacing: .06em; color: var(--ink-dim); }
+  .jauge { height: 6px; border-radius: 999px; background: rgba(255,255,255,.09); overflow: hidden; }
+  .jauge i { display: block; height: 100%; border-radius: 999px; background: var(--accent); }
+  .stat b { font-size: 11px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  .fait {
+    margin: auto 0 0;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--ink-dim);
+  }
+
+  .statut { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; }
+  .puce { width: 7px; height: 7px; border-radius: 50%; background: var(--accent); flex: none; }
+
+  footer { max-width: 1180px; margin: 48px auto 0; text-align: center; color: var(--ink-dim); font-size: 13px; }
+
+  /* ---------- impression : 3 cartes par ligne, fond blanc ---------- */
+  @media print {
+    body { background: #fff; color: #111; padding: 0; }
+    header .filtres, footer { display: none; }
+    .grille { grid-template-columns: repeat(3, 1fr); gap: 8mm; }
+    .carte { break-inside: avoid; box-shadow: none; }
+    .carte-inner { background: #fff; }
+    /* sans cela, la plupart des navigateurs n'impriment ni les photos ni les aplats de couleur */
+    .vignette, .rarete, .jauge i, .puce { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .vignette { height: 45mm; }
+    .nom, .fiche dd, .stat b { color: #111; }
+    .fiche dt, .latin, .fait, .numero { color: #555; }
+    .jauge { background: #e4e8ec; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Cartes Collectors</h1>
+  <p class="sous-titre">120 animaux du monde entier — séries n° 1 à n° 4</p>
+  <div class="filtres" id="filtres-groupe"></div>
+  <div class="filtres" id="filtres-rarete"></div>
+</header>
+
+<main class="grille" id="grille"></main>
+
+<footer>
+  Pour imprimer : ouvre <a href="cartes-collectors.pdf" style="color:inherit">cartes-collectors.pdf</a>
+  (14 planches A4, 9 cartes de 63 × 88 mm par page) ou la page
+  <a href="impression.html" style="color:inherit">impression.html</a>.
+</footer>
+
+<!-- ?v= : à incrémenter après modification des données, sinon le navigateur sert son cache -->
+<script src="data/animaux.js?v=5"></script>
+<script>
+  const LIBELLE_RARETE = {
+    commune: "Commune",
+    rare: "Rare",
+    epique: "Épique",
+    legendaire: "Légendaire"
+  };
+
+  const LIBELLE_GROUPE = {
+    terrestre: "Terre",
+    marin: "Océan",
+    oiseau: "Oiseaux",
+    reptile: "Reptiles & amphibiens",
+    insecte: "Insectes & araignées",
+    domestique: "Domestiques"
+  };
+
+  // Intitulés de la fiche. Une carte peut les redéfinir via sa propriété
+  // `libelles` — par exemple « Envergure » au lieu de « Pointe » pour un
+  // albatros, ou « Origine » et « Rôle » pour les animaux domestiques.
+  const LIBELLES_DEFAUT = {
+    habitat: "Habitat", regime: "Régime", poids: "Poids",
+    vitesse: "Pointe", longevite: "Longévité", statut: "Statut"
+  };
+
+  const grille = document.getElementById("grille");
+
+  const TOTAL = ANIMAUX.length;
+
+  function carteHTML(animal, index) {
+    const numero = String(index + 1).padStart(2, "0");
+    const lib = Object.assign({}, LIBELLES_DEFAUT, animal.libelles || {});
+    const stats = [
+      ["Force", animal.stats.force],
+      ["Vitesse", animal.stats.vitesse],
+      ["Endurance", animal.stats.endurance]
+    ];
+
+    return `
+      <article class="carte" data-rarete="${animal.rarete}" data-groupe="${animal.groupe}" data-continent="${animal.continent}">
+        <div class="carte-inner">
+          <div class="vignette">
+            <span class="numero">${numero} / ${TOTAL}</span>
+            <span class="rarete">${LIBELLE_RARETE[animal.rarete]}</span>
+            <img src="${animal.image}" alt="${animal.nom}" loading="lazy"
+                 onerror="this.replaceWith(Object.assign(document.createElement('span'),{className:'repli',textContent:'${animal.emoji}'}))">
+            <span class="credit">Photo : ${animal.credit}</span>
+          </div>
+          <div class="corps">
+            <div>
+              <h2 class="nom">${animal.nom}</h2>
+              <p class="latin">${animal.latin}</p>
+            </div>
+
+            <dl class="fiche">
+              <div><dt>${lib.habitat}</dt><dd>${animal.habitat}</dd></div>
+              <div><dt>${lib.regime}</dt><dd>${animal.regime}</dd></div>
+              <div><dt>${lib.poids}</dt><dd>${animal.poids}</dd></div>
+              <div><dt>${lib.vitesse}</dt><dd>${animal.vitesse}</dd></div>
+              <div><dt>${lib.longevite}</dt><dd>${animal.longevite}</dd></div>
+              <div><dt>${lib.statut}</dt><dd class="statut"><i class="puce"></i>${animal.statut}</dd></div>
+            </dl>
+
+            <div class="stats">
+              ${stats.map(([nom, valeur]) => `
+                <div class="stat">
+                  <span>${nom}</span>
+                  <span class="jauge"><i style="width:${valeur}%"></i></span>
+                  <b>${valeur}</b>
+                </div>`).join("")}
+            </div>
+
+            <p class="fait">${animal.fait}</p>
+          </div>
+        </div>
+      </article>`;
+  }
+
+  grille.innerHTML = ANIMAUX.map(carteHTML).join("");
+
+  // Deux filtres combinables : famille d'animaux et rareté
+  const actif = { groupe: "tous", rarete: "toutes" };
+
+  function construire(conteneur, champ, valeurTout, libelleTout, valeurs, libelles) {
+    conteneur.innerHTML = [valeurTout, ...valeurs].map(v => {
+      const nb = v === valeurTout ? TOTAL : ANIMAUX.filter(a => a[champ] === v).length;
+      const libelle = v === valeurTout ? libelleTout : libelles[v];
+      return `<button data-champ="${champ}" data-valeur="${v}" aria-pressed="${v === valeurTout}">${libelle} · ${nb}</button>`;
+    }).join("");
+
+    conteneur.addEventListener("click", (e) => {
+      const bouton = e.target.closest("button");
+      if (!bouton) return;
+      actif[champ] = bouton.dataset.valeur;
+      conteneur.querySelectorAll("button").forEach(b =>
+        b.setAttribute("aria-pressed", b === bouton)
+      );
+      appliquer();
+    });
+  }
+
+  function appliquer() {
+    grille.querySelectorAll(".carte").forEach(carte => {
+      const okGroupe = actif.groupe === "tous" || carte.dataset.groupe === actif.groupe;
+      const okRarete = actif.rarete === "toutes" || carte.dataset.rarete === actif.rarete;
+      carte.style.display = okGroupe && okRarete ? "" : "none";
+    });
+  }
+
+  construire(
+    document.getElementById("filtres-groupe"), "groupe", "tous", "Tous les animaux",
+    ["terrestre", "marin", "oiseau", "reptile", "insecte", "domestique"], LIBELLE_GROUPE
+  );
+  construire(
+    document.getElementById("filtres-rarete"), "rarete", "toutes", "Toutes raretés",
+    ["commune", "rare", "epique", "legendaire"], LIBELLE_RARETE
+  );
+</script>
+</body>
+</html>

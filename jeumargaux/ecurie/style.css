@@ -1,0 +1,258 @@
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: "Comic Sans MS", "Segoe UI", Verdana, sans-serif;
+  background: linear-gradient(180deg, #aee6ff 0%, #d7f5d0 100%);
+  color: #4a3a2a;
+  min-height: 100vh;
+  padding-bottom: 24px;
+}
+
+.topbar {
+  text-align: center;
+  padding: 12px 10px;
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom: 4px dashed #c98e5a;
+}
+.topbar h1 { font-size: 1.7rem; color: #7a4a1e; }
+.entete-ligne {
+  display: flex; flex-wrap: wrap; align-items: center;
+  justify-content: center; gap: 12px; margin-top: 8px;
+}
+.entete-ligne label { font-weight: bold; }
+.entete-ligne input {
+  font-size: 1rem; padding: 4px 8px; border: 2px solid #e0b483;
+  border-radius: 8px; font-family: inherit;
+}
+.score {
+  background: #fff; padding: 6px 12px; border-radius: 12px;
+  border: 2px solid #e0b483;
+}
+
+/* Disposition jeu + panneau */
+.jeu {
+  display: flex; flex-wrap: wrap; gap: 16px;
+  justify-content: center; align-items: flex-start;
+  padding: 16px; max-width: 1400px; margin: 0 auto;
+}
+
+/* ===== La carte (scène) ===== */
+.scene {
+  position: relative;
+  width: 1000px; height: 700px;
+  border: 8px solid #7a4a1e; border-radius: 16px;
+  outline: none; overflow: hidden;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.25);
+  background: #cde7a4;
+  flex-shrink: 0;
+}
+.scene:focus { border-color: #c98e5a; }
+
+/* Les lieux */
+.zone { position: absolute; overflow: hidden; }
+.zone-nom {
+  position: absolute; top: 6px; left: 8px;
+  background: rgba(255,255,255,0.8); padding: 2px 8px;
+  border-radius: 8px; font-size: 0.85rem; font-weight: bold;
+}
+.foret {
+  left: 8px; top: 8px; width: 322px; height: 292px;
+  background:
+    radial-gradient(circle at 20% 40%, #2f7d32 0 26px, transparent 27px),
+    radial-gradient(circle at 55% 25%, #2f7d32 0 30px, transparent 31px),
+    radial-gradient(circle at 80% 55%, #2f7d32 0 26px, transparent 27px),
+    radial-gradient(circle at 35% 75%, #2f7d32 0 30px, transparent 31px),
+    radial-gradient(circle at 72% 82%, #2f7d32 0 24px, transparent 25px),
+    #3f9142;
+  border-radius: 10px;
+}
+.terrain {
+  left: 338px; top: 8px; width: 324px; height: 292px;
+  background:
+    repeating-linear-gradient(45deg, #f0d9a8 0 18px, #ecd29c 18px 36px);
+  border: 4px dashed #b98a4a; border-radius: 10px;
+}
+.pre {
+  left: 670px; top: 8px; width: 322px; height: 292px;
+  background:
+    repeating-linear-gradient(0deg, #9fdc6c 0 16px, #94d661 16px 32px);
+  border: 4px solid #6fa337; border-radius: 10px;
+}
+.cour {
+  left: 8px; top: 308px; width: 984px; height: 168px;
+  background: repeating-linear-gradient(90deg, #d9c19a 0 26px, #d2b78e 26px 52px);
+  border-radius: 8px;
+}
+.cour .zone-nom { background: rgba(255,255,255,0.55); }
+
+/* décor emoji des zones */
+.foret::after { content: "🌲🌳🌲🍄🌳🦌"; position: absolute; bottom: 8px; left: 10px; font-size: 1.4rem; letter-spacing: 8px; }
+.terrain::after { content: "🚧  🏇  🚧"; position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 1.6rem; }
+.pre::after { content: "🌼 🌿 🌸 🌿 🌼"; position: absolute; bottom: 10px; left: 10px; font-size: 1.3rem; }
+
+/* ===== L'écurie ===== */
+.ecurie {
+  position: absolute; left: 8px; top: 484px;
+  width: 984px; height: 208px;
+  background: linear-gradient(180deg, #8a5a2e, #6e451f);
+  border: 5px solid #5a3714; border-radius: 12px;
+  display: flex; gap: 6px; padding: 10px;
+}
+.box {
+  flex: 1; display: flex; flex-direction: column;
+  align-items: center; justify-content: flex-start;
+  background: repeating-linear-gradient(90deg, #c9a06a 0 8px, #bb9058 8px 16px);
+  border: 3px solid #4a2f12; border-radius: 8px; padding: 4px;
+  position: relative;
+}
+.box .cheval-emoji {
+  font-size: 2.2rem; cursor: pointer; transition: transform 0.2s;
+  min-height: 40px;
+}
+.box .cheval-emoji:hover { transform: scale(1.15); }
+.box .cheval-emoji.galope { animation: galope 0.6s ease; }
+@keyframes galope {
+  0% { transform: translateX(0); } 25% { transform: translateX(8px) rotate(4deg); }
+  50% { transform: translateX(-6px) rotate(-4deg); } 75% { transform: translateX(4px) rotate(3deg); }
+  100% { transform: translateX(0); }
+}
+.box .nom {
+  font-size: 0.72rem; font-weight: bold; color: #fff8e8;
+  text-align: center; line-height: 1.05; margin-top: 2px;
+}
+.box .badge {
+  position: absolute; top: 2px; right: 3px; font-size: 0.8rem;
+}
+.box.actif {
+  box-shadow: 0 0 0 3px #ffd873, 0 0 14px #ffb43c;
+  border-color: #ffb43c;
+}
+.box.vide { opacity: 0.55; }
+
+/* Obstacles à sauter */
+.obstacle {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 1.9rem;
+  z-index: 6;
+  pointer-events: none;
+  filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+}
+.obstacle.saute-ok {
+  animation: obsSaut 0.6s ease;
+}
+@keyframes obsSaut {
+  0% { transform: translate(-50%, -50%) scale(1); }
+  40% { transform: translate(-50%, -50%) scale(1.5) rotate(-12deg); filter: drop-shadow(0 0 10px gold); }
+  100% { transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Poteaux d'attache */
+.poteau {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  z-index: 4;
+  width: 16px; height: 46px;
+  background: linear-gradient(90deg, #8a5a2e, #6e451f);
+  border: 2px solid #4a2f12; border-radius: 4px;
+}
+.poteau-tete {
+  position: absolute; top: -22px; left: 50%;
+  transform: translateX(-50%); font-size: 1.1rem;
+}
+
+/* Chevaux hors du box (au poteau, au pré) */
+.cheval-libre {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-size: 2rem; z-index: 8; cursor: pointer;
+  filter: drop-shadow(0 3px 2px rgba(0,0,0,0.3));
+}
+.cheval-libre.attache { animation: brouter 2.2s ease-in-out infinite; }
+@keyframes brouter {
+  0%,100% { transform: translate(-50%, -50%) rotate(0deg); }
+  50% { transform: translate(-50%, -46%) rotate(-4deg); }
+}
+
+/* Petit texte du caractère */
+.box .nom small { font-weight: normal; font-size: 0.62rem; opacity: 0.9; }
+#hudCheval small { font-weight: normal; font-size: 0.8rem; color: #8a6a4a; }
+
+/* Rivières dans la forêt */
+.riviere {
+  position: absolute;
+  z-index: 3;
+  background:
+    repeating-linear-gradient(90deg, #5db6e8 0 14px, #4aa6df 14px 28px);
+  border-top: 3px solid #bfe8ff;
+  border-bottom: 3px solid #2f88c0;
+  border-radius: 4px;
+  opacity: 0.92;
+}
+.riviere::after {
+  content: "💧   💦   💧   💦   💧";
+  position: absolute; top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 0.9rem; letter-spacing: 10px; opacity: 0.7;
+}
+
+/* Bouton du parcours */
+.btn-parcours {
+  margin-top: 8px; width: 100%;
+  font-family: inherit; font-size: 0.95rem;
+  padding: 8px; border: none; border-radius: 10px;
+  background: #ffcf6b; box-shadow: 0 3px 0 #d9a63c;
+  cursor: pointer;
+}
+.btn-parcours:active { transform: translateY(2px); box-shadow: 0 1px 0 #d9a63c; }
+#parcoursInfo { font-size: 0.85rem; margin: 4px 0; }
+
+/* ===== La cavalière ===== */
+.perso {
+  position: absolute; left: 100px; top: 380px;
+  font-size: 2.6rem; z-index: 20;
+  transform: translate(-50%, -50%);
+  filter: drop-shadow(0 4px 3px rgba(0,0,0,0.35));
+  pointer-events: none; white-space: nowrap;
+}
+.perso.saute { animation: saute 0.4s ease; }
+@keyframes saute {
+  0%,100% { transform: translate(-50%, -50%); }
+  40% { transform: translate(-50%, -78%) rotate(-6deg); }
+}
+
+/* ===== HUD ===== */
+.hud {
+  width: 300px; display: flex; flex-direction: column; gap: 12px;
+}
+.bulle {
+  background: #eaffea; border: 2px solid #9dd88a; border-radius: 12px;
+  padding: 8px 12px; font-size: 0.95rem;
+}
+.hud-carte {
+  background: #fffdf3; border: 3px solid #d7a86e;
+  border-radius: 12px; padding: 10px 12px;
+}
+.hud-carte h3 { color: #7a4a1e; font-size: 1rem; margin-bottom: 6px; }
+#hudCheval { font-size: 1.15rem; font-weight: bold; color: #7a4a1e; }
+.etat { margin-top: 6px; font-size: 0.9rem; min-height: 1.2em; }
+.touches { list-style: none; font-size: 0.85rem; line-height: 1.7; }
+.touches b {
+  display: inline-block; min-width: 58px;
+  background: #ffe6b0; border-radius: 6px; padding: 0 4px; text-align: center;
+}
+
+/* Jauges */
+.jauges { margin: 8px 0 2px; }
+.jauge-ligne { display: flex; align-items: center; gap: 6px; margin: 3px 0; font-size: 0.8rem; }
+.jauge-fond { flex: 1; height: 11px; background: #eee; border-radius: 6px; overflow: hidden; }
+.jauge-remplissage { height: 100%; border-radius: 6px; transition: width 0.3s ease; }
+.faim .jauge-remplissage { background: #ff9d5c; }
+.energie .jauge-remplissage { background: #6bc36b; }
+.bonheur .jauge-remplissage { background: #ff7aa8; }
+
+.pied { text-align: center; margin-top: 8px; font-size: 0.9rem; color: #7a5a3a; }
+
+@media (max-width: 1360px) {
+  .scene { transform-origin: top center; }
+}

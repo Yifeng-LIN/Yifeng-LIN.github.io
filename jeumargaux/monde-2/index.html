@@ -1,0 +1,3513 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monde 2 — Un grand monde</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; height: 100%; overflow: hidden;
+    background: #6ab04c;
+    font-family: system-ui, "Segoe UI", sans-serif;
+    user-select: none;
+  }
+  #jeu { display: block; width: 100vw; height: 100vh; touch-action: none; cursor: default; }
+  #jeu.pivote { cursor: grabbing; }
+
+  /* ---------- Interface du monde ---------- */
+  #aide {
+    position: fixed; left: 12px; bottom: 12px; z-index: 5;
+    color: rgba(255,255,255,0.94); background: rgba(0,0,0,0.34);
+    padding: 8px 12px; border-radius: 10px; font-size: 13.5px; line-height: 1.5;
+    pointer-events: none;
+  }
+  #aide b { color: #f9ca24; }
+
+  #hud {
+    position: fixed; left: 12px; top: 12px; z-index: 5;
+    color: #fff; background: rgba(0,0,0,0.34);
+    padding: 8px 12px; border-radius: 10px; font-size: 13.5px; line-height: 1.55;
+    pointer-events: none; min-width: 150px;
+  }
+  #hud b { color: #f9ca24; font-variant-numeric: tabular-nums; }
+  #hud .bio { color: #7bed9f; font-weight: 600; }
+
+  #invite {
+    position: fixed; left: 50%; bottom: 84px; transform: translateX(-50%) scale(0.9);
+    z-index: 5; opacity: 0; transition: opacity .18s, transform .18s;
+    background: rgba(0,0,0,0.55); color: #fff; padding: 9px 16px;
+    border-radius: 999px; font-size: 15px; pointer-events: none;
+    border: 1px solid rgba(255,255,255,0.25);
+  }
+  #invite.on { opacity: 1; transform: translateX(-50%) scale(1); }
+  #invite b { color: #f9ca24; }
+
+  #boutons {
+    position: fixed; right: 16px; top: 16px; z-index: 6;
+    display: flex; flex-direction: column; gap: 10px; align-items: center;
+  }
+  #boutons button {
+    width: 62px; height: 62px; border: none; border-radius: 18px;
+    color: #fff; font-size: 26px; font-weight: 700; cursor: pointer;
+    box-shadow: 0 6px 16px rgba(0,0,0,0.35);
+    transition: transform .12s, background .15s;
+    font-family: inherit;
+  }
+  #boutons button:hover { transform: scale(1.07); }
+  #btnGarde { background: #e84393; font-size: 30px; }
+  #btnGarde:hover { background: #fd79a8; }
+  #btnVue { background: #0984e3; }
+  #btnVue:hover { background: #38a3f1; }
+  #btnCarte { background: #00b894; font-size: 28px; }
+  #btnCarte:hover { background: #14d3ad; }
+  #btnCarte.on { background: #f9ca24; }
+  #btnBatir { background: #e17055; font-size: 28px; }
+  #btnBatir:hover { background: #f0876a; }
+  #btnBatir.on { background: #f9ca24; }
+  #btnMondes { background: #6c5ce7; font-size: 28px; }
+  #btnMondes:hover { background: #8577f0; }
+  #btnPlein { background: #2d3436; font-size: 26px; }
+  #btnPlein:hover { background: #4a5456; }
+
+  /* ---------- Panneau des mondes ---------- */
+  #mondes {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 22;
+    width: 400px; max-width: 100vw;
+    background: linear-gradient(180deg, #23283a 0%, #171b28 100%);
+    color: #eef1f8; display: flex; flex-direction: column;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.45);
+    transform: translateX(102%); transition: transform .28s cubic-bezier(.2,.8,.3,1);
+  }
+  #mondes.ouvert { transform: translateX(0); }
+  #mondes header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  #mondes header h1 { margin: 0; font-size: 19px; flex: 1; }
+  #mondes header h1 span { color: #a29bfe; }
+  #fermerMondes {
+    border: none; background: rgba(255,255,255,0.1); color: #fff;
+    width: 34px; height: 34px; border-radius: 10px; font-size: 17px; cursor: pointer;
+  }
+  #fermerMondes:hover { background: rgba(255,255,255,0.22); }
+
+  #mondesHaut { display: flex; gap: 8px; padding: 12px 14px; }
+  #nomMonde {
+    flex: 1; min-width: 0; background: rgba(255,255,255,0.09);
+    border: 1px solid rgba(255,255,255,0.15); border-radius: 9px;
+    color: #fff; padding: 9px; font-size: 14px; font-family: inherit;
+  }
+  #nomMonde:focus { outline: 2px solid #6c5ce7; }
+  #btnEnregistrer { background: #6c5ce7; }
+  #btnEnregistrer:hover { background: #8577f0; }
+
+  #listeMondes { flex: 1; overflow-y: auto; padding: 0 14px 8px; }
+  #listeMondes::-webkit-scrollbar { width: 8px; }
+  #listeMondes::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; }
+  .mondeCarte {
+    display: flex; gap: 10px; align-items: center;
+    background: rgba(255,255,255,0.06); border: 2px solid transparent;
+    border-radius: 12px; padding: 8px; margin-bottom: 9px;
+  }
+  .mondeCarte.actif { border-color: #a29bfe; background: rgba(162,155,254,0.14); }
+  .mondeCarte img {
+    width: 62px; height: 62px; border-radius: 8px; flex: none;
+    image-rendering: pixelated; background: #1b5e8c;
+  }
+  .mondeInfo { flex: 1; min-width: 0; }
+  .mondeInfo b { display: block; font-size: 14px; margin-bottom: 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .mondeInfo span { font-size: 11.5px; color: #9aa3bd; }
+  .mondeBtns { display: flex; flex-direction: column; gap: 5px; }
+  .mondeBtns button {
+    border: none; border-radius: 8px; background: rgba(255,255,255,0.13);
+    color: #fff; padding: 6px 9px; font-size: 12px; cursor: pointer; font-family: inherit;
+  }
+  .mondeBtns button:hover { background: rgba(255,255,255,0.26); }
+  .mondeBtns .sup:hover { background: #c0392b; }
+  #mondesVide { color: #8b93ab; font-size: 13px; text-align: center; padding: 24px 10px; line-height: 1.5; }
+  #mondesBas { padding: 10px 14px; border-top: 1px solid rgba(255,255,255,0.1); }
+  #mondesBas button { width: 100%; padding: 11px; font-size: 14px; background: #00b894; }
+  #mondesBas button:hover { background: #14d3ad; }
+
+  /* ---------- Palette de construction ---------- */
+  #palette {
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 12;
+    display: none; flex-direction: column; gap: 6px;
+    padding: 8px 10px 10px;
+    background: linear-gradient(180deg, rgba(20,16,26,0.72), rgba(20,16,26,0.94));
+    color: #f2ecf7; border-top: 1px solid rgba(255,255,255,0.14);
+  }
+  #palette.ouvert { display: flex; }
+  #palOnglets { display: flex; gap: 6px; flex-wrap: wrap; }
+  #palOnglets button {
+    border: none; border-radius: 9px; background: rgba(255,255,255,0.09);
+    color: #cfc6da; padding: 6px 11px; font-size: 12.5px; cursor: pointer; font-family: inherit;
+  }
+  #palOnglets button:hover { background: rgba(255,255,255,0.2); color: #fff; }
+  #palOnglets button.actif { background: #e17055; color: #fff; }
+
+  #palItems { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  #palItems::-webkit-scrollbar { height: 7px; }
+  #palItems::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 4px; }
+  .palItem {
+    flex: none; width: 74px; border: 2px solid transparent; border-radius: 11px;
+    background: rgba(255,255,255,0.08); color: #ded6e8; cursor: pointer;
+    padding: 4px 2px 5px; font-size: 11px; font-family: inherit; text-align: center;
+  }
+  .palItem:hover { background: rgba(255,255,255,0.17); color: #fff; }
+  .palItem.actif { border-color: #f9ca24; background: rgba(249,202,36,0.16); color: #fff; }
+  .palItem canvas { display: block; margin: 0 auto 2px; }
+
+  #palBas { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  #palBas button {
+    border: none; border-radius: 9px; background: rgba(255,255,255,0.12);
+    color: #fff; padding: 8px 12px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  #palBas button:hover { background: rgba(255,255,255,0.24); }
+  #palBas button.actif { background: #e74c3c; }
+  #palNiv { font-size: 13px; min-width: 74px; text-align: center; color: #f9ca24; font-weight: 600; }
+  #palAide { font-size: 11.5px; color: #a99cba; margin-left: auto; }
+
+  /* ---------- Panneau garde-robe ---------- */
+  #panneau {
+    position: fixed; top: 0; right: 0; bottom: 0; z-index: 20;
+    width: 470px; max-width: 100vw;
+    background: linear-gradient(180deg, #2b2233 0%, #1d1826 100%);
+    color: #f2ecf7; display: flex; flex-direction: column;
+    box-shadow: -10px 0 30px rgba(0,0,0,0.45);
+    transform: translateX(102%); transition: transform .28s cubic-bezier(.2,.8,.3,1);
+  }
+  #panneau.ouvert { transform: translateX(0); }
+
+  #panneau header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.1);
+  }
+  #panneau header h1 { margin: 0; font-size: 19px; letter-spacing: .5px; flex: 1; }
+  #panneau header h1 span { color: #f9ca24; }
+  #fermer {
+    border: none; background: rgba(255,255,255,0.1); color: #fff;
+    width: 34px; height: 34px; border-radius: 10px; font-size: 17px; cursor: pointer;
+  }
+  #fermer:hover { background: rgba(255,255,255,0.22); }
+
+  #corps { flex: 1; display: flex; min-height: 0; }
+
+  #colGauche {
+    width: 178px; flex: none; padding: 12px 10px;
+    display: flex; flex-direction: column; align-items: center; gap: 10px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    background: rgba(0,0,0,0.18);
+  }
+  #apercu {
+    width: 156px; height: 240px; border-radius: 14px;
+    background: radial-gradient(circle at 50% 38%, #4c4260 0%, #2a2436 70%);
+    border: 1px solid rgba(255,255,255,0.12);
+  }
+  #apercuBtns { display: flex; gap: 6px; }
+  #apercuBtns button, .btnPlat {
+    border: none; border-radius: 9px; background: rgba(255,255,255,0.12);
+    color: #fff; padding: 7px 10px; font-size: 13px; cursor: pointer; font-family: inherit;
+  }
+  #apercuBtns button:hover, .btnPlat:hover { background: rgba(255,255,255,0.24); }
+  #btnMarche.on { background: #27ae60; }
+  #nom {
+    width: 100%; box-sizing: border-box; text-align: center;
+    background: rgba(255,255,255,0.09); border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 9px; color: #fff; padding: 7px; font-size: 14px; font-family: inherit;
+  }
+  #nom:focus { outline: 2px solid #e84393; }
+
+  #colDroite { flex: 1; display: flex; flex-direction: column; min-width: 0; }
+
+  #onglets {
+    display: flex; flex-wrap: wrap; gap: 5px; padding: 10px 12px 6px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+  }
+  #onglets button {
+    border: none; border-radius: 9px; background: rgba(255,255,255,0.08);
+    color: #cfc6da; padding: 7px 9px; font-size: 12.5px; cursor: pointer;
+    display: flex; align-items: center; gap: 5px; font-family: inherit;
+  }
+  #onglets button:hover { background: rgba(255,255,255,0.18); color: #fff; }
+  #onglets button.actif { background: #e84393; color: #fff; }
+
+  #contenu { flex: 1; overflow-y: auto; padding: 12px 14px 4px; }
+  #contenu::-webkit-scrollbar { width: 8px; }
+  #contenu::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.18); border-radius: 4px; }
+
+  .titreSection {
+    font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+    color: #a99cba; margin: 4px 0 8px;
+  }
+  .grilleStyles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 16px; }
+  .grilleStyles button {
+    border: 2px solid transparent; border-radius: 11px; cursor: pointer;
+    background: rgba(255,255,255,0.08); color: #ded6e8;
+    padding: 8px 4px; font-size: 12.5px; line-height: 1.3; font-family: inherit;
+  }
+  .grilleStyles button:hover { background: rgba(255,255,255,0.16); color: #fff; }
+  .grilleStyles button.actif { border-color: #f9ca24; background: rgba(249,202,36,0.15); color: #fff; }
+
+  .grilleCouleurs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+  .pastille {
+    width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+    border: 3px solid rgba(255,255,255,0.18); padding: 0;
+    transition: transform .1s;
+  }
+  .pastille:hover { transform: scale(1.12); }
+  .pastille.actif { border-color: #fff; box-shadow: 0 0 0 3px #e84393; }
+
+  #basPanneau {
+    display: flex; gap: 8px; padding: 10px 14px;
+    border-top: 1px solid rgba(255,255,255,0.1);
+  }
+  #basPanneau button { flex: 1; padding: 10px; font-size: 13.5px; }
+  #btnAlea { background: #6c5ce7; }
+  #btnAlea:hover { background: #8577f0; }
+
+  @media (max-width: 620px) {
+    #panneau { width: 100vw; }
+    #colGauche { width: 132px; }
+    #apercu { width: 112px; height: 176px; }
+  }
+</style>
+</head>
+<body>
+<canvas id="jeu"></canvas>
+
+<div id="hud">
+  Vue <b id="hudVue">2D</b><br>
+  X <b id="hudX">0</b> &nbsp; Y <b id="hudY">0</b><br>
+  <span class="bio" id="hudBiome">Prairie</span>
+</div>
+
+<div id="aide">
+  <b>Flèches</b> / <b>ZQSD</b> : marcher &nbsp;·&nbsp; <b>Maj</b> : courir<br>
+  <b>V</b> : vue 2D / 3D &nbsp;·&nbsp; en 3D, <b>glisser</b> pour tourner, <b>molette</b> pour zoomer<br>
+  <b>M</b> : carte &nbsp;·&nbsp; <b>B</b> : construire &nbsp;·&nbsp; <b>E</b> devant l'armoire ou <b>C</b> : se changer<br>
+  <b>G</b> : mes mondes &nbsp;·&nbsp; <b>F</b> : plein écran
+</div>
+
+<div id="invite"><b>E</b> — Se changer devant le miroir</div>
+
+<div id="boutons">
+  <button id="btnGarde" title="Garde-robe (C)">👗</button>
+  <button id="btnVue" title="Basculer 2D / 3D (V)">3D</button>
+  <button id="btnCarte" title="Carte du monde (M)">🗺️</button>
+  <button id="btnBatir" title="Construire (B)">🔨</button>
+  <button id="btnMondes" title="Mes mondes (G)">🌍</button>
+  <button id="btnPlein" title="Plein écran (F)">⛶</button>
+</div>
+
+<aside id="mondes">
+  <header>
+    <h1>Mes <span>mondes</span></h1>
+    <button id="fermerMondes" title="Fermer (Échap)">✕</button>
+  </header>
+  <div id="mondesHaut">
+    <input id="nomMonde" maxlength="24" placeholder="Nom du monde">
+    <button class="btnPlat" id="btnEnregistrer">💾 Enregistrer</button>
+  </div>
+  <div id="listeMondes"></div>
+  <div id="mondesBas">
+    <button class="btnPlat" id="btnNouveau">✨ Nouveau monde</button>
+  </div>
+</aside>
+
+<div id="palette">
+  <div id="palOnglets"></div>
+  <div id="palItems"></div>
+  <div id="palBas">
+    <button id="palNivMoins" title="Étage inférieur">▼</button>
+    <span id="palNiv">Rez-de-chaussée</span>
+    <button id="palNivPlus" title="Étage supérieur">▲</button>
+    <button id="palGomme" title="Effacer (ou clic droit)">🧽 Gomme</button>
+    <button id="palMaison" title="Poser une maison toute faite">🏠 Maison</button>
+    <button id="palVider" title="Tout démolir">🗑️ Vider</button>
+    <span id="palAide">Clic : poser · glisser : peindre · clic droit : effacer · en 3D, <b>Alt</b>+glisser pivote la caméra</span>
+  </div>
+</div>
+
+<aside id="panneau">
+  <header>
+    <h1>Garde-<span>robe</span></h1>
+    <button id="fermer" title="Fermer (Échap)">✕</button>
+  </header>
+  <div id="corps">
+    <div id="colGauche">
+      <canvas id="apercu"></canvas>
+      <div id="apercuBtns">
+        <button data-tourne="-1" title="Tourner à gauche">◀</button>
+        <button id="btnMarche" class="on" title="Animer">🚶</button>
+        <button data-tourne="1" title="Tourner à droite">▶</button>
+      </div>
+      <input id="nom" maxlength="14" placeholder="Prénom">
+    </div>
+    <div id="colDroite">
+      <nav id="onglets"></nav>
+      <div id="contenu"></div>
+      <div id="basPanneau">
+        <button class="btnPlat" id="btnAlea">🎲 Au hasard</button>
+        <button class="btnPlat" id="btnDefaut">↺ Défaut</button>
+      </div>
+    </div>
+  </div>
+</aside>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   MONDE 2
+   Un grand monde fini (2000 x 2000 cases), fabriqué morceau par morceau au
+   fur et à mesure des déplacements, que l'on parcourt en 2D (vue de dessus)
+   ou en 3D (caméra derrière le personnage). Les terres se terminent par un
+   océan : pas de mur invisible, mais une limite bien réelle.
+   Le personnage est dessiné pièce par pièce et se change devant une armoire.
+   ========================================================================= */
+
+const canvas = document.getElementById("jeu");
+const ctx = canvas.getContext("2d");
+let W = 0, H = 0;
+
+function redimensionner() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  W = window.innerWidth || W || 960;
+  H = window.innerHeight || H || 540;
+  canvas.width = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", redimensionner);
+redimensionner();
+
+/* ------------------------------------------------------------------ outils */
+
+const clamp = (v, a, b) => v < a ? a : (v > b ? b : v);
+const lerp = (a, b, t) => a + (b - a) * t;
+
+// La graine du monde courant : la changer, c'est fabriquer un autre monde.
+let GRAINE = 20260812;
+
+// Aléa stable lié à une coordonnée : à graine égale, le monde est toujours le même.
+function aleaCase(x, y, sel) {
+  let h = (Math.imul(x | 0, 374761393) + Math.imul(y | 0, 668265263) +
+           Math.imul((sel + GRAINE) | 0, 2246822519)) >>> 0;
+  h = Math.imul(h ^ (h >>> 13), 1274126177) >>> 0;
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967296;
+}
+
+// Bruit lissé, puis fractal (plusieurs octaves) : collines, lacs, biomes.
+function bruit(x, y, sel) {
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const fx = x - x0, fy = y - y0;
+  const u = fx * fx * (3 - 2 * fx), v = fy * fy * (3 - 2 * fy);
+  return lerp(lerp(aleaCase(x0, y0, sel), aleaCase(x0 + 1, y0, sel), u),
+              lerp(aleaCase(x0, y0 + 1, sel), aleaCase(x0 + 1, y0 + 1, sel), u), v);
+}
+function fractal(x, y, sel, octaves) {
+  let v = 0, amp = 0.5, tot = 0, f = 1;
+  for (let i = 0; i < octaves; i++) {
+    v += bruit(x * f, y * f, sel + i * 31) * amp;
+    tot += amp; amp *= 0.5; f *= 2;
+  }
+  return v / tot;
+}
+
+// Couleurs — accepte "#rrggbb" comme "rgb(r,g,b)" pour enchaîner les mélanges.
+// Le décodage est mémorisé : le rendu 3D en fait des milliers par image.
+const memoRVB = new Map();
+function versRVB(col) {
+  let v = memoRVB.get(col);
+  if (v) return v;
+  if (col[0] === "#") {
+    const n = parseInt(col.slice(1), 16);
+    v = [(n >> 16) & 255, (n >> 8) & 255, n & 255];
+  } else {
+    const m = col.match(/-?\d+/g);
+    v = [Number(m[0]), Number(m[1]), Number(m[2])];
+  }
+  if (memoRVB.size > 4000) memoRVB.clear();
+  memoRVB.set(col, v);
+  return v;
+}
+function melange(a, b, t) {
+  const c1 = versRVB(a), c2 = versRVB(b);
+  return "rgb(" + Math.round(lerp(c1[0], c2[0], t)) + "," +
+                  Math.round(lerp(c1[1], c2[1], t)) + "," +
+                  Math.round(lerp(c1[2], c2[2], t)) + ")";
+}
+const foncer = (c, t) => melange(c, "#000000", t);
+const clair = (c, t) => melange(c, "#ffffff", t);
+
+/* ==========================================================================
+   1. LE PERSONNAGE — garde-robe et dessin
+   ========================================================================== */
+
+const DEFAUT = {
+  nom: "Margaux",
+  peau: "#f1c27d",
+  cheveux: "#4a2c1a", styleCheveux: "long",
+  yeux: "#3b6ea5",
+  haut: "#e84393", styleHaut: "tshirt",
+  bas: "#3d5a80", styleBas: "pantalon",
+  chaussures: "#2d3436", styleChaussures: "baskets",
+  chapeau: "aucun",
+  accessoire: "aucun"
+};
+let perso = Object.assign({}, DEFAUT);
+
+const PAL_PEAU = ["#ffe0c4", "#f8d5b0", "#f1c27d", "#e0ac69", "#c68642", "#a1663a", "#7a4a25", "#5a3418"];
+const PAL_CHEVEUX = ["#1c1210", "#3b2418", "#6b4423", "#a9743a", "#d9b382", "#f0dfae",
+                     "#b03a2e", "#e17055", "#7d3c98", "#2980b9", "#16a085", "#e84393", "#ecf0f1", "#95a5a6"];
+const PAL_YEUX = ["#3b6ea5", "#2e7d32", "#6d4c41", "#8e44ad", "#00838f", "#455a64", "#c0392b", "#f39c12"];
+const PAL_TISSU = ["#e84393", "#e74c3c", "#e67e22", "#f1c40f", "#2ecc71", "#16a085", "#3498db",
+                   "#3d5a80", "#6c5ce7", "#8e44ad", "#ffffff", "#bdc3c7", "#636e72", "#2d3436", "#7f5539", "#000000"];
+
+const CATEGORIES = [
+  { id: "peau", icone: "🧑", nom: "Peau", couleurs: PAL_PEAU, champCouleur: "peau", titreCouleur: "Teint" },
+  { id: "cheveux", icone: "💇", nom: "Cheveux", champStyle: "styleCheveux", couleurs: PAL_CHEVEUX, champCouleur: "cheveux",
+    styles: [ ["court","Court"], ["milong","Mi-long"], ["long","Long"], ["queue","Queue"],
+              ["couettes","Couettes"], ["tresses","Tresses"], ["boucles","Bouclés"], ["chignon","Chignon"], ["chauve","Rasé"] ] },
+  { id: "yeux", icone: "👁️", nom: "Yeux", couleurs: PAL_YEUX, champCouleur: "yeux", titreCouleur: "Couleur des yeux" },
+  { id: "haut", icone: "👕", nom: "Haut", champStyle: "styleHaut", couleurs: PAL_TISSU, champCouleur: "haut",
+    styles: [ ["tshirt","T-shirt"], ["pull","Pull"], ["veste","Veste"], ["debardeur","Débardeur"],
+              ["mariniere","Marinière"], ["robe","Robe"] ] },
+  { id: "bas", icone: "👖", nom: "Bas", champStyle: "styleBas", couleurs: PAL_TISSU, champCouleur: "bas",
+    styles: [ ["pantalon","Pantalon"], ["short","Short"], ["jupe","Jupe"], ["salopette","Salopette"] ] },
+  { id: "chaussures", icone: "👟", nom: "Chaussures", champStyle: "styleChaussures", couleurs: PAL_TISSU, champCouleur: "chaussures",
+    styles: [ ["baskets","Baskets"], ["bottes","Bottes"], ["ballerines","Ballerines"], ["pieds","Pieds nus"] ] },
+  { id: "chapeau", icone: "🎩", nom: "Chapeau", champStyle: "chapeau",
+    styles: [ ["aucun","Aucun"], ["casquette","Casquette"], ["bonnet","Bonnet"], ["paille","Paille"],
+              ["couronne","Couronne"], ["noeud","Nœud"] ] },
+  { id: "accessoire", icone: "🎒", nom: "Accessoires", champStyle: "accessoire",
+    styles: [ ["aucun","Aucun"], ["lunettes","Lunettes"], ["soleil","Solaires"], ["echarpe","Écharpe"],
+              ["collier","Collier"], ["sac","Sac à dos"], ["cape","Cape"], ["ailes","Ailes"] ] }
+];
+
+function sauverPerso() {
+  try { localStorage.setItem("monde2-perso", JSON.stringify(perso)); } catch (e) {}
+}
+function chargerPerso() {
+  try {
+    const brut = localStorage.getItem("monde2-perso");
+    if (brut) perso = Object.assign({}, DEFAUT, JSON.parse(brut));
+  } catch (e) {}
+}
+chargerPerso();
+
+/* --------------------------------------------------------------------------
+   Dessin du personnage. Repère : pieds en (0, 0), sommet du crâne vers -72.
+   Le même dessin sert en 2D, en 3D (panneau orienté) et dans l'aperçu.
+   -------------------------------------------------------------------------- */
+
+function dessinerPerso(c, p, e) {
+  const pas = e.pas || 0, dos = !!e.dos, t = e.temps || 0;
+  const marche = pas > 0;
+  const ph = pas * 9;
+  const swing = marche ? Math.sin(ph) * 8 : 0;
+  const bras = marche ? Math.sin(ph) * 9 : Math.sin(t * 1.6) * 0.8;
+  const bob = marche ? Math.abs(Math.sin(ph)) * 2.6 : Math.sin(t * 1.8) * 0.8;
+  const inclin = marche ? Math.sin(ph) * 0.028 : 0;
+
+  const assis = e.assis || 0;                 // hauteur du siège, 0 = debout
+  const styleHaut = p.styleHaut, robe = styleHaut === "robe";
+  const styleBas = robe ? "robe" : p.styleBas;
+  const sansManches = (styleHaut === "debardeur" || robe);
+  const manchesCourtes = (styleHaut === "tshirt" || styleHaut === "mariniere");
+  const peau = p.peau, peauF = foncer(peau, 0.14);
+
+  c.save();
+  c.lineCap = "round";
+  c.lineJoin = "round";
+  c.translate(0, -bob);
+
+  if (p.accessoire === "ailes") dessinerAiles(c, t);
+  if (p.accessoire === "cape" && !dos) dessinerCape(c, swing);
+  if (p.accessoire === "sac" && dos) dessinerSac(c);
+
+  dessinerCheveuxArriere(c, p, swing);
+  if (assis) dessinerJambesAssises(c, p, styleBas, assis, peau);
+  else dessinerJambes(c, p, styleBas, swing, peau);
+
+  c.save();
+  // assis, tout le haut du corps descend à la hauteur du siège
+  if (assis) c.translate(0, 19 - assis);
+  c.translate(0, -24); c.rotate(inclin); c.translate(0, 24);
+
+  dessinerBras(c, p, -1, -bras, sansManches, manchesCourtes, peau);
+  dessinerTorse(c, p, styleHaut, styleBas);
+  dessinerBras(c, p, 1, bras, sansManches, manchesCourtes, peau);
+
+  if (p.accessoire === "sac" && !dos) dessinerBretelles(c);
+  if (p.accessoire === "cape" && dos) dessinerCape(c, swing);
+
+  c.fillStyle = peauF;
+  c.beginPath(); c.roundRect(-3.4, -53, 6.8, 8, 2); c.fill();
+
+  dessinerTete(c, p, dos, t);
+
+  if (p.accessoire === "echarpe") dessinerEcharpe(c, p);
+  if (p.accessoire === "collier" && !dos) dessinerCollier(c);
+  if (!dos && (p.accessoire === "lunettes" || p.accessoire === "soleil")) dessinerLunettes(c, p.accessoire === "soleil");
+  if (p.chapeau !== "aucun") dessinerChapeau(c, p, dos);
+
+  c.restore();
+  c.restore();
+}
+
+function dessinerJambes(c, p, style, swing, peau) {
+  const hanche = -24;
+  for (const [x0, sw] of [[-4, swing], [4, -swing]]) {
+    const xPied = x0 + sw;
+    let hautCol, basNu = false, hBas = -3;
+    if (style === "robe" || style === "jupe") { hautCol = null; basNu = true; }
+    else if (style === "short") { hautCol = p.bas; hBas = -13; basNu = true; }
+    else { hautCol = p.bas; }
+
+    if (hautCol) {
+      c.strokeStyle = hautCol; c.lineWidth = 7.5;
+      c.beginPath(); c.moveTo(x0, hanche); c.lineTo(lerp(x0, xPied, 0.6), (hanche + hBas) / 2); c.lineTo(xPied, hBas); c.stroke();
+      c.strokeStyle = foncer(hautCol, 0.22); c.lineWidth = 1.2;
+      c.beginPath(); c.moveTo(x0, hanche + 3); c.lineTo(xPied, hBas + 1); c.stroke();
+    }
+    if (basNu) {
+      c.strokeStyle = peau; c.lineWidth = 6;
+      const yh = (style === "short") ? -13 : hanche + 1;
+      c.beginPath(); c.moveTo(lerp(x0, xPied, 0.4), yh); c.lineTo(xPied, -3); c.stroke();
+    }
+    dessinerChaussure(c, p, xPied);
+  }
+}
+
+// Assis : cuisses à l'horizontale à hauteur du siège, tibias vers le sol.
+function dessinerJambesAssises(c, p, style, h, peau) {
+  const hanche = -(h + 4);
+  const nu = (style === "robe" || style === "jupe");
+  const colCuisse = nu ? peau : p.bas;
+  const colTibia = (nu || style === "short") ? peau : p.bas;
+
+  for (const [dz, dx] of [[-1.4, -1.5], [0, 0]]) {      // jambe éloignée, puis jambe proche
+    c.strokeStyle = colCuisse; c.lineWidth = 7.5;
+    c.beginPath();
+    c.moveTo(dx - 2, hanche + dz); c.lineTo(11 + dx, hanche + 1 + dz); c.stroke();
+    c.strokeStyle = colTibia; c.lineWidth = 6.5;
+    c.beginPath();
+    c.moveTo(11 + dx, hanche + 1 + dz); c.lineTo(12 + dx, hanche + 17 + dz); c.stroke();
+    c.save();
+    c.translate(dx, hanche + 19 + dz);
+    dessinerChaussure(c, p, 12);
+    c.restore();
+  }
+  if (nu) {                                             // le tissu retombe sur les cuisses
+    c.fillStyle = p.styleHaut === "robe" ? p.haut : p.bas;
+    c.beginPath(); c.roundRect(-6, hanche - 4, 15, 9, 3); c.fill();
+  }
+}
+
+function dessinerChaussure(c, p, x) {
+  const s = p.styleChaussures;
+  if (s === "pieds") {
+    c.fillStyle = p.peau;
+    c.beginPath(); c.ellipse(x + 1.5, -2, 4.4, 2.6, 0, 0, 6.3); c.fill();
+    return;
+  }
+  const col = p.chaussures;
+  if (s === "bottes") {
+    c.fillStyle = col;
+    c.beginPath(); c.roundRect(x - 3.6, -12, 7.2, 10, 2); c.fill();
+    c.beginPath(); c.roundRect(x - 3.6, -3.5, 9.5, 3.8, 1.8); c.fill();
+    c.fillStyle = foncer(col, 0.35);
+    c.fillRect(x - 3.6, -11.5, 9.2, 1.4);
+  } else if (s === "ballerines") {
+    c.fillStyle = col;
+    c.beginPath(); c.ellipse(x + 1, -2, 5, 2.6, 0, 0, 6.3); c.fill();
+    c.fillStyle = clair(col, 0.5);
+    c.beginPath(); c.arc(x + 1.5, -3.4, 1.1, 0, 6.3); c.fill();
+  } else {
+    c.fillStyle = col;
+    c.beginPath(); c.roundRect(x - 3.4, -4.6, 9, 4.4, 2); c.fill();
+    c.fillStyle = "#ffffff";
+    c.fillRect(x - 3.4, -1.1, 9, 1.3);
+    c.strokeStyle = clair(col, 0.65); c.lineWidth = 0.9;
+    c.beginPath(); c.moveTo(x - 1, -4.2); c.lineTo(x + 1.5, -2.6); c.stroke();
+  }
+}
+
+function dessinerTorse(c, p, style, styleBas) {
+  const col = p.haut, f = foncer(col, 0.24);
+  const ep = -50, taille = -23;
+
+  if (style === "robe") {
+    c.fillStyle = col;
+    c.beginPath();
+    c.moveTo(-8.5, ep); c.lineTo(8.5, ep);
+    c.lineTo(6.5, -30); c.lineTo(-6.5, -30); c.closePath(); c.fill();
+    c.beginPath();
+    c.moveTo(-6.8, -31); c.lineTo(6.8, -31);
+    c.lineTo(13.5, -6); c.quadraticCurveTo(0, -3, -13.5, -6); c.closePath(); c.fill();
+    c.fillStyle = clair(col, 0.28);
+    c.fillRect(-7, -31.5, 14, 2.2);
+    c.strokeStyle = f; c.lineWidth = 1;
+    for (const x of [-6, 0, 6]) { c.beginPath(); c.moveTo(x * 0.5, -29); c.lineTo(x, -7); c.stroke(); }
+    return;
+  }
+
+  // jupe : dessinée avant le torse, le haut retombe par-dessus
+  if (styleBas === "jupe") {
+    const cb = p.bas;
+    c.fillStyle = cb;
+    c.beginPath();
+    c.moveTo(-7.6, -27); c.lineTo(7.6, -27);
+    c.lineTo(13, -10); c.quadraticCurveTo(0, -7, -13, -10);
+    c.closePath(); c.fill();
+    c.strokeStyle = foncer(cb, 0.25); c.lineWidth = 1;
+    for (const x of [-6, 0, 6]) { c.beginPath(); c.moveTo(x * 0.55, -25); c.lineTo(x, -10.5); c.stroke(); }
+    c.fillStyle = clair(cb, 0.3);
+    c.fillRect(-7.8, -27.6, 15.6, 2);
+  }
+
+  c.fillStyle = col;
+  c.beginPath();
+  c.moveTo(-8.8, ep); c.lineTo(8.8, ep);
+  c.lineTo(7.4, taille); c.lineTo(-7.4, taille); c.closePath(); c.fill();
+
+  if (style === "pull") {
+    c.fillStyle = f;
+    c.fillRect(-7.6, taille - 2.6, 15.2, 2.8);
+    c.beginPath(); c.moveTo(-3.6, ep); c.lineTo(3.6, ep);
+    c.lineTo(2.4, ep + 3.6); c.lineTo(-2.4, ep + 3.6); c.closePath(); c.fill();
+  } else if (style === "veste") {
+    c.strokeStyle = f; c.lineWidth = 1.6;
+    c.beginPath(); c.moveTo(0, ep + 1); c.lineTo(0, taille); c.stroke();
+    c.fillStyle = f;
+    c.beginPath(); c.moveTo(-4, ep); c.lineTo(0, ep + 5); c.lineTo(-2, ep + 8); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(4, ep); c.lineTo(0, ep + 5); c.lineTo(2, ep + 8); c.closePath(); c.fill();
+    c.fillStyle = clair(col, 0.4);
+    c.beginPath(); c.arc(-4.5, -30, 1.1, 0, 6.3); c.fill();
+    c.beginPath(); c.arc(4.5, -30, 1.1, 0, 6.3); c.fill();
+  } else if (style === "mariniere") {
+    c.save();
+    c.beginPath();
+    c.moveTo(-8.8, ep); c.lineTo(8.8, ep); c.lineTo(7.4, taille); c.lineTo(-7.4, taille); c.closePath();
+    c.clip();
+    c.fillStyle = foncer(col, 0.55);
+    for (let y = ep + 3; y < taille; y += 5) c.fillRect(-9, y, 18, 2.4);
+    c.restore();
+  } else if (style === "debardeur") {
+    c.fillStyle = p.peau;
+    c.beginPath(); c.moveTo(-8.8, ep); c.lineTo(-4.6, ep); c.lineTo(-6.4, ep + 5); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(8.8, ep); c.lineTo(4.6, ep); c.lineTo(6.4, ep + 5); c.closePath(); c.fill();
+    c.beginPath(); c.moveTo(-3.2, ep); c.lineTo(3.2, ep); c.lineTo(0, ep + 4.5); c.closePath(); c.fill();
+  } else {
+    c.fillStyle = f;
+    c.beginPath(); c.moveTo(-3.2, ep); c.lineTo(3.2, ep); c.lineTo(0, ep + 4); c.closePath(); c.fill();
+  }
+
+  if (styleBas === "salopette") {
+    const cb = p.bas;
+    c.fillStyle = cb;
+    c.beginPath(); c.roundRect(-6.6, ep + 1, 3, 20, 1.2); c.fill();
+    c.beginPath(); c.roundRect(3.6, ep + 1, 3, 20, 1.2); c.fill();
+    c.beginPath(); c.roundRect(-6, -34, 12, 12, 2); c.fill();
+    c.fillStyle = clair(cb, 0.35);
+    c.beginPath(); c.arc(-5, -30, 1.1, 0, 6.3); c.fill();
+    c.beginPath(); c.arc(5, -30, 1.1, 0, 6.3); c.fill();
+  }
+}
+
+function dessinerBras(c, p, cote, decal, sansManches, manchesCourtes, peau) {
+  const xe = cote * 7.6, ye = -47;
+  const xc = cote * 10 + decal * 0.45, yc = -37;
+  const xm = cote * 10.5 + decal, ym = -26;
+  const colManche = foncer(p.haut, 0.12);
+
+  if (sansManches) {
+    c.strokeStyle = peau; c.lineWidth = 4.6;
+    c.beginPath(); c.moveTo(xe, ye); c.lineTo(xc, yc); c.lineTo(xm, ym); c.stroke();
+  } else if (manchesCourtes) {
+    c.strokeStyle = colManche; c.lineWidth = 5.2;
+    c.beginPath(); c.moveTo(xe, ye); c.lineTo(xc, yc - 1); c.stroke();
+    c.strokeStyle = peau; c.lineWidth = 4.4;
+    c.beginPath(); c.moveTo(xc, yc - 1); c.lineTo(xm, ym); c.stroke();
+  } else {
+    c.strokeStyle = colManche; c.lineWidth = 5.2;
+    c.beginPath(); c.moveTo(xe, ye); c.lineTo(xc, yc); c.lineTo(xm, ym + 1); c.stroke();
+  }
+  c.fillStyle = peau;
+  c.beginPath(); c.arc(xm, ym, 2.3, 0, 6.3); c.fill();
+}
+
+function dessinerTete(c, p, dos, t) {
+  const cy = -62, r = 9.4;
+  const H = p.styleCheveux, col = p.cheveux;
+
+  if (!dos) {
+    c.fillStyle = p.peau;
+    c.beginPath(); c.ellipse(-r + 0.6, cy + 1, 2, 2.6, 0, 0, 6.3); c.fill();
+    c.beginPath(); c.ellipse(r - 0.6, cy + 1, 2, 2.6, 0, 0, 6.3); c.fill();
+  }
+
+  c.fillStyle = p.peau;
+  c.beginPath(); c.ellipse(0, cy, r, r * 1.06, 0, 0, 6.3); c.fill();
+  c.fillStyle = "rgba(0,0,0,0.06)";
+  c.beginPath(); c.ellipse(0, cy + 6, r * 0.7, 2.4, 0, 0, 6.3); c.fill();
+
+  if (dos) {
+    if (H !== "chauve") {
+      c.fillStyle = col;
+      c.beginPath(); c.ellipse(0, cy - 0.6, r + 0.7, r * 1.06, 0, 0, 6.3); c.fill();
+    }
+    dessinerCheveuxDessus(c, p, true);
+    return;
+  }
+
+  const clin = (t % 4.2) < 0.13;
+  const oeil = (x) => {
+    if (clin) {
+      c.strokeStyle = foncer(p.peau, 0.55); c.lineWidth = 1.1;
+      c.beginPath(); c.moveTo(x - 1.8, cy - 0.5); c.lineTo(x + 1.8, cy - 0.5); c.stroke();
+      return;
+    }
+    c.fillStyle = "#ffffff";
+    c.beginPath(); c.ellipse(x, cy - 0.6, 2.2, 2.5, 0, 0, 6.3); c.fill();
+    c.fillStyle = p.yeux;
+    c.beginPath(); c.arc(x + 0.2, cy - 0.4, 1.5, 0, 6.3); c.fill();
+    c.fillStyle = "#111";
+    c.beginPath(); c.arc(x + 0.2, cy - 0.4, 0.75, 0, 6.3); c.fill();
+    c.fillStyle = "rgba(255,255,255,0.9)";
+    c.beginPath(); c.arc(x - 0.4, cy - 1.3, 0.55, 0, 6.3); c.fill();
+  };
+  oeil(-3.4); oeil(3.4);
+
+  c.strokeStyle = foncer(col, 0.25); c.lineWidth = 1.2;
+  c.beginPath(); c.moveTo(-5, cy - 4.2); c.quadraticCurveTo(-3.4, cy - 5.2, -1.8, cy - 4.4); c.stroke();
+  c.beginPath(); c.moveTo(1.8, cy - 4.4); c.quadraticCurveTo(3.4, cy - 5.2, 5, cy - 4.2); c.stroke();
+
+  c.strokeStyle = foncer(p.peau, 0.32); c.lineWidth = 1;
+  c.beginPath(); c.moveTo(0.2, cy + 1.4); c.lineTo(0.9, cy + 3); c.stroke();
+  c.fillStyle = "rgba(232,67,147,0.16)";
+  c.beginPath(); c.ellipse(-5.4, cy + 3, 2.2, 1.4, 0, 0, 6.3); c.fill();
+  c.beginPath(); c.ellipse(5.4, cy + 3, 2.2, 1.4, 0, 0, 6.3); c.fill();
+  c.strokeStyle = "#a8322f"; c.lineWidth = 1.2;
+  c.beginPath(); c.arc(0, cy + 3.6, 2.6, 0.18 * Math.PI, 0.82 * Math.PI); c.stroke();
+
+  dessinerCheveuxDessus(c, p, false);
+}
+
+function dessinerCheveuxDessus(c, p, dos) {
+  const H = p.styleCheveux, col = p.cheveux, cy = -62, r = 9.4;
+  if (H === "chauve") {
+    c.fillStyle = "rgba(255,255,255,0.10)";
+    c.beginPath(); c.ellipse(-2.5, cy - 5, 3, 1.6, -0.4, 0, 6.3); c.fill();
+    return;
+  }
+  c.fillStyle = col;
+  c.beginPath(); c.ellipse(0, cy - 1.4, r + 0.6, r * 0.95, 0, Math.PI * 1.02, Math.PI * 2.02); c.fill();
+  c.fillRect(-r - 0.6, cy - 3.5, (r + 0.6) * 2, 2.6);
+  if (dos) return;
+
+  if (H === "boucles") {
+    for (let i = 0; i < 8; i++) {
+      const a = Math.PI * (1.0 + i / 7);
+      c.beginPath(); c.arc(Math.cos(a) * (r - 0.6), cy - 2 + Math.sin(a) * (r * 0.75), 3, 0, 6.3); c.fill();
+    }
+  } else if (H === "chignon") {
+    c.beginPath(); c.arc(0, cy - r - 2.6, 4.4, 0, 6.3); c.fill();
+    c.strokeStyle = foncer(col, 0.3); c.lineWidth = 1;
+    c.beginPath(); c.arc(0, cy - r - 2.6, 2.4, 0, 6.3); c.stroke();
+  } else {
+    c.beginPath();
+    c.moveTo(-r - 0.4, cy - 3);
+    c.quadraticCurveTo(-2, cy - 1.5, 4.5, cy - 6.5);
+    c.lineTo(r + 0.2, cy - 4.5);
+    c.quadraticCurveTo(2, cy - 11, -r, cy - 8);
+    c.closePath(); c.fill();
+  }
+  c.fillStyle = "rgba(255,255,255,0.16)";
+  c.beginPath(); c.ellipse(-3.5, cy - 7, 3.4, 1.5, -0.5, 0, 6.3); c.fill();
+}
+
+function dessinerCheveuxArriere(c, p, swing) {
+  const H = p.styleCheveux, col = p.cheveux, cy = -62;
+  if (H === "chauve" || H === "court") return;
+  const bal = swing * 0.16;
+  c.fillStyle = col;
+
+  if (H === "milong") {
+    c.beginPath();
+    c.moveTo(-9.5, cy - 2); c.quadraticCurveTo(-12, cy + 8, -8, cy + 12 + bal);
+    c.lineTo(8, cy + 12 - bal); c.quadraticCurveTo(12, cy + 8, 9.5, cy - 2);
+    c.closePath(); c.fill();
+  } else if (H === "long") {
+    c.beginPath();
+    c.moveTo(-9.5, cy - 3); c.quadraticCurveTo(-14, cy + 12, -9 + bal, cy + 28);
+    c.quadraticCurveTo(0, cy + 32, 9 - bal, cy + 28);
+    c.quadraticCurveTo(14, cy + 12, 9.5, cy - 3);
+    c.closePath(); c.fill();
+    c.strokeStyle = foncer(col, 0.22); c.lineWidth = 1;
+    c.beginPath(); c.moveTo(-4, cy + 4); c.lineTo(-3 + bal, cy + 26); c.stroke();
+    c.beginPath(); c.moveTo(4, cy + 4); c.lineTo(3 - bal, cy + 26); c.stroke();
+  } else if (H === "queue") {
+    c.beginPath();
+    c.moveTo(-8, cy - 4);
+    c.quadraticCurveTo(-16 - bal, cy + 4, -12 - bal * 1.6, cy + 20);
+    c.quadraticCurveTo(-8, cy + 12, -6, cy + 2);
+    c.closePath(); c.fill();
+    c.fillStyle = "#e84393";
+    c.beginPath(); c.arc(-8.4, cy - 3.5, 1.7, 0, 6.3); c.fill();
+  } else if (H === "couettes") {
+    for (const s of [-1, 1]) {
+      c.fillStyle = col;
+      c.beginPath(); c.ellipse(s * 12, cy + 2 + Math.abs(bal), 4, 6.4, s * 0.35, 0, 6.3); c.fill();
+      c.fillStyle = "#f9ca24";
+      c.beginPath(); c.arc(s * 9.6, cy - 3, 1.6, 0, 6.3); c.fill();
+    }
+  } else if (H === "tresses") {
+    for (const s of [-1, 1]) {
+      c.fillStyle = col;
+      for (let k = 0; k < 4; k++) {
+        c.beginPath(); c.arc(s * (10 + k * 0.5), cy + 1 + k * 5 + bal * (k / 3), 3 - k * 0.25, 0, 6.3); c.fill();
+      }
+      c.fillStyle = "#e84393";
+      c.beginPath(); c.arc(s * 11.5, cy + 18 + bal, 1.5, 0, 6.3); c.fill();
+    }
+  } else if (H === "boucles") {
+    c.fillStyle = col;
+    for (let i = 0; i < 7; i++) {
+      const a = Math.PI * (0.05 + i / 7.5);
+      c.beginPath(); c.arc(Math.cos(a) * 11, cy + 2 + Math.sin(a) * 7, 3.4, 0, 6.3); c.fill();
+    }
+  }
+}
+
+function dessinerChapeau(c, p, dos) {
+  const cy = -62, r = 9.4, ch = p.chapeau;
+  if (ch === "casquette") {
+    c.fillStyle = "#e74c3c";
+    c.beginPath(); c.arc(0, cy - 3, r + 1, Math.PI, 2 * Math.PI); c.fill();
+    c.fillRect(-r - 1, cy - 3.6, (r + 1) * 2, 2);
+    if (!dos) {
+      c.fillStyle = foncer("#e74c3c", 0.25);
+      c.beginPath(); c.ellipse(4, cy - 2.6, 9, 2.2, 0, 0, 6.3); c.fill();
+    }
+    c.fillStyle = "#c0392b";
+    c.beginPath(); c.arc(0, cy - r - 2.6, 1.4, 0, 6.3); c.fill();
+  } else if (ch === "bonnet") {
+    c.fillStyle = "#2980b9";
+    c.beginPath(); c.arc(0, cy - 3, r + 1.4, Math.PI, 2 * Math.PI); c.fill();
+    c.fillRect(-r - 1.4, cy - 4.5, (r + 1.4) * 2, 4);
+    c.fillStyle = clair("#2980b9", 0.28);
+    c.fillRect(-r - 1.4, cy - 2, (r + 1.4) * 2, 2.6);
+    c.fillStyle = "#ecf0f1";
+    c.beginPath(); c.arc(0, cy - r - 5, 2.8, 0, 6.3); c.fill();
+  } else if (ch === "paille") {
+    c.fillStyle = "#f0c674";
+    c.beginPath(); c.ellipse(0, cy - 4, r + 8, 3.2, 0, 0, 6.3); c.fill();
+    c.beginPath(); c.arc(0, cy - 4.5, r - 0.5, Math.PI, 2 * Math.PI); c.fill();
+    c.fillStyle = "#c8964f";
+    c.fillRect(-r + 0.5, cy - 6, (r - 0.5) * 2, 2);
+  } else if (ch === "couronne") {
+    c.fillStyle = "#f9ca24";
+    c.beginPath();
+    c.moveTo(-7, cy - 8);
+    c.lineTo(-7, cy - 14); c.lineTo(-3.5, cy - 10.5); c.lineTo(0, cy - 15.5);
+    c.lineTo(3.5, cy - 10.5); c.lineTo(7, cy - 14); c.lineTo(7, cy - 8);
+    c.closePath(); c.fill();
+    c.fillStyle = "#e84393";
+    for (const x of [-4.5, 0, 4.5]) { c.beginPath(); c.arc(x, cy - 9.4, 1, 0, 6.3); c.fill(); }
+  } else if (ch === "noeud") {
+    c.fillStyle = "#e84393";
+    c.beginPath(); c.ellipse(-4.4, cy - 9, 3.2, 2.2, -0.4, 0, 6.3); c.fill();
+    c.beginPath(); c.ellipse(1.4, cy - 9.6, 3.2, 2.2, 0.4, 0, 6.3); c.fill();
+    c.fillStyle = foncer("#e84393", 0.3);
+    c.beginPath(); c.arc(-1.5, cy - 9.3, 1.3, 0, 6.3); c.fill();
+  }
+}
+
+function dessinerLunettes(c, soleil) {
+  const cy = -62;
+  if (soleil) {
+    c.fillStyle = "rgba(20,20,30,0.85)";
+    c.beginPath(); c.roundRect(-6.4, cy - 3, 5.6, 4.4, 1.6); c.fill();
+    c.beginPath(); c.roundRect(0.8, cy - 3, 5.6, 4.4, 1.6); c.fill();
+  } else {
+    c.strokeStyle = "#34495e"; c.lineWidth = 1.1;
+    c.beginPath(); c.ellipse(-3.5, cy - 0.6, 3.1, 2.9, 0, 0, 6.3); c.stroke();
+    c.beginPath(); c.ellipse(3.5, cy - 0.6, 3.1, 2.9, 0, 0, 6.3); c.stroke();
+    c.fillStyle = "rgba(255,255,255,0.22)";
+    c.beginPath(); c.ellipse(-3.5, cy - 0.6, 3.1, 2.9, 0, 0, 6.3); c.fill();
+    c.beginPath(); c.ellipse(3.5, cy - 0.6, 3.1, 2.9, 0, 0, 6.3); c.fill();
+  }
+  c.strokeStyle = "#34495e"; c.lineWidth = 1.1;
+  c.beginPath(); c.moveTo(-0.8, cy - 1); c.lineTo(0.8, cy - 1); c.stroke();
+  c.beginPath(); c.moveTo(-6.4, cy - 1.4); c.lineTo(-9.4, cy - 2.2); c.stroke();
+  c.beginPath(); c.moveTo(6.4, cy - 1.4); c.lineTo(9.4, cy - 2.2); c.stroke();
+}
+
+function dessinerEcharpe(c, p) {
+  const col = melange(p.haut, "#ffffff", 0.35);
+  c.fillStyle = col;
+  c.beginPath(); c.ellipse(0, -49.5, 7.4, 3.4, 0, 0, 6.3); c.fill();
+  c.beginPath(); c.roundRect(2.6, -50, 4.2, 14, 2); c.fill();
+  c.fillStyle = foncer(col, 0.18);
+  c.fillRect(2.6, -40, 4.2, 1.6);
+}
+function dessinerCollier(c) {
+  c.strokeStyle = "#f9ca24"; c.lineWidth = 1.1;
+  c.beginPath(); c.arc(0, -48, 4.6, 0.15 * Math.PI, 0.85 * Math.PI); c.stroke();
+  c.fillStyle = "#74b9ff";
+  c.beginPath(); c.arc(0, -43.4, 1.6, 0, 6.3); c.fill();
+}
+function dessinerSac(c) {
+  c.fillStyle = "#8e6e53";
+  c.beginPath(); c.roundRect(-8, -46, 16, 17, 4); c.fill();
+  c.fillStyle = foncer("#8e6e53", 0.25);
+  c.beginPath(); c.roundRect(-8, -46, 16, 5.5, 3); c.fill();
+  c.fillStyle = "#f9ca24";
+  c.beginPath(); c.arc(0, -40.5, 1.3, 0, 6.3); c.fill();
+}
+function dessinerBretelles(c) {
+  c.strokeStyle = "#8e6e53"; c.lineWidth = 2.4;
+  c.beginPath(); c.moveTo(-5.6, -49); c.lineTo(-4.6, -33); c.stroke();
+  c.beginPath(); c.moveTo(5.6, -49); c.lineTo(4.6, -33); c.stroke();
+}
+function dessinerCape(c, swing) {
+  const bal = swing * 0.4;
+  c.fillStyle = "#8e2f4a";
+  c.beginPath();
+  c.moveTo(-8, -49); c.lineTo(8, -49);
+  c.quadraticCurveTo(13 + bal, -30, 11 + bal, -8);
+  c.quadraticCurveTo(0, -12, -11 + bal, -8);
+  c.quadraticCurveTo(-13 + bal, -30, -8, -49);
+  c.closePath(); c.fill();
+  c.fillStyle = "rgba(255,255,255,0.08)";
+  c.beginPath(); c.moveTo(-2, -49); c.lineTo(2, -49); c.lineTo(4 + bal, -10); c.lineTo(-1 + bal, -10); c.closePath(); c.fill();
+}
+function dessinerAiles(c, t) {
+  const bat = Math.sin(t * 4) * 0.18;
+  c.save();
+  c.globalAlpha = 0.78;
+  for (const s of [-1, 1]) {
+    c.save();
+    c.translate(s * 5, -42); c.rotate(s * (0.35 + bat));
+    const g = c.createLinearGradient(0, 0, s * 18, -14);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(1, "#a29bfe");
+    c.fillStyle = g;
+    c.beginPath();
+    c.moveTo(0, 0);
+    c.quadraticCurveTo(s * 16, -18, s * 20, -2);
+    c.quadraticCurveTo(s * 14, 6, 0, 4);
+    c.closePath(); c.fill();
+    c.restore();
+  }
+  c.restore();
+}
+
+/* ==========================================================================
+   2. LE MONDE INFINI
+   Rien n'est stocké d'avance : chaque morceau de 16x16 cases est fabriqué
+   à la demande à partir de bruits déterministes, puis gardé en mémoire.
+   ========================================================================== */
+
+const TL = 48;      // taille d'une case, en unités du monde
+const CH = 16;      // côté d'un morceau (chunk), en cases
+const REG = 88;     // côté d'une région, en cases : au plus un village par région
+
+// Le monde est vaste mais fini : 2000 x 2000 cases, centrées sur l'origine.
+// Il n'y a pas de mur invisible — les terres se changent en plage puis en océan.
+const MONDE_R = 1000;                 // demi-côté, en cases
+const MONDE_COTE = MONDE_R * 2;       // 2000 cases de côté
+const BORD_MIN = MONDE_R * TL;        // limite en unités du monde
+
+const HERBE = 0, SABLE = 1, EAU = 2, CHEMIN = 3, TERRE = 4;
+
+const BIOMES = {
+  prairie: { nom: "Prairie", sol: ["#6ab04c", "#63a747", "#74b855", "#5f9f45"],
+             ciel: "#87c5f0", arbre: 0.05, sapin: 0.15, buisson: 0.05, fleur: 0.16, rocher: 0.02, cactus: 0 },
+  foret:   { nom: "Grande forêt", sol: ["#4e8f3d", "#468336", "#579a45", "#3f7b32"],
+             ciel: "#7fb8e0", arbre: 0.30, sapin: 0.35, buisson: 0.09, fleur: 0.05, rocher: 0.02, cactus: 0 },
+  desert:  { nom: "Désert", sol: ["#e3c98f", "#dcc084", "#ead4a0", "#d6b878"],
+             ciel: "#c9d8e8", arbre: 0, sapin: 0, buisson: 0.01, fleur: 0.01, rocher: 0.05, cactus: 0.05 },
+  neige:   { nom: "Terres gelées", sol: ["#eef4f7", "#e4edf2", "#f6fafc", "#dde8ee"],
+             ciel: "#b8cfe0", arbre: 0.02, sapin: 0.9, buisson: 0.01, fleur: 0.01, rocher: 0.04, cactus: 0 },
+  marais:  { nom: "Marais", sol: ["#5c7a3a", "#546f35", "#657f45", "#4a6a30"],
+             ciel: "#9db6a8", arbre: 0.16, sapin: 0.05, buisson: 0.14, fleur: 0.04, rocher: 0.01, cactus: 0 }
+};
+const CLES_BIOME = Object.keys(BIOMES);
+
+// Deux bruits très lents décident du climat, donc du biome.
+function biomeEn(tx, ty) {
+  const chaleur = fractal(tx / 260, ty / 260, 101, 2);
+  const humide = fractal(tx / 190, ty / 190, 202, 2);
+  if (chaleur > 0.60 && humide < 0.46) return "desert";
+  if (chaleur < 0.36) return "neige";
+  if (humide > 0.66) return chaleur > 0.5 ? "marais" : "foret";
+  if (humide > 0.55) return "foret";
+  return "prairie";
+}
+// Relief : sous 0.36 c'est de l'eau, juste au-dessus une plage.
+// Près du bord du monde, le relief plonge : les terres finissent en océan.
+function niveauEn(tx, ty) {
+  const d = Math.max(Math.abs(tx), Math.abs(ty)) / MONDE_R;
+  if (d >= 1) return 0.04;
+  const n = fractal(tx / 70, ty / 70, 303, 3) * 0.75 + fractal(tx / 17, ty / 17, 404, 2) * 0.25;
+  const bord = clamp((d - 0.88) / 0.12, 0, 1);
+  return bord === 0 ? n : n * (1 - bord) + 0.06 * bord;
+}
+// Vrai ou faux : la case est-elle au-delà des côtes, en plein océan ?
+function horsMonde(tx, ty) {
+  return Math.abs(tx) > MONDE_R || Math.abs(ty) > MONDE_R;
+}
+
+/* --------------------------------------------------------- villages */
+
+const regionsCache = new Map();
+
+// Où se trouve le village d'une région, sans le construire (sert aussi à la carte).
+function positionVillage(rx, ry) {
+  const depart = (rx === 0 && ry === 0);          // village de départ garanti
+  if (!depart && aleaCase(rx, ry, 777) >= 0.55) return null;
+
+  let cx = rx * REG + 12 + Math.floor(aleaCase(rx, ry, 778) * (REG - 24));
+  let cy = ry * REG + 12 + Math.floor(aleaCase(rx, ry, 779) * (REG - 24));
+  if (depart) {
+    // on démarre au vert : on cherche une prairie au sec dans la région
+    chercher:
+    for (let ty = 8; ty < REG - 8; ty += 3) for (let tx = 8; tx < REG - 8; tx += 3) {
+      const b = biomeEn(tx, ty);
+      if ((b === "prairie" || b === "foret") && niveauEn(tx, ty) > 0.47) { cx = tx; cy = ty; break chercher; }
+    }
+    return [cx, cy];
+  }
+  // pas de village sur l'eau, ni au-delà des côtes
+  if (Math.abs(cx) > MONDE_R - 14 || Math.abs(cy) > MONDE_R - 14) return null;
+  if (niveauEn(cx, cy) <= 0.42) return null;
+  return [cx, cy];
+}
+
+function villageDe(rx, ry) {
+  const cle = rx + "," + ry;
+  if (regionsCache.has(cle)) return regionsCache.get(cle);
+
+  const pos = positionVillage(rx, ry);
+  const v = pos ? construireVillage(pos[0], pos[1], rx, ry) : null;
+  regionsCache.set(cle, v);
+  if (regionsCache.size > 400) regionsCache.delete(regionsCache.keys().next().value);
+  return v;
+}
+
+function construireVillage(cx, cy, rx, ry) {
+  const h = aleaCase(rx, ry, 780);
+  const rayon = 6 + Math.floor(h * 4);
+  const v = { cx, cy, rayon, sol: new Map(), bloc: new Set(), batiments: [], maisons: [],
+              cle: rx + ":" + ry, nom: "Village " + (rx) + "." + (ry) };
+
+  const mettre = (tx, ty, t) => v.sol.set(tx + "," + ty, t);
+
+  // la place
+  for (let dy = -rayon; dy <= rayon; dy++) for (let dx = -rayon; dx <= rayon; dx++) {
+    if (Math.hypot(dx, dy * 1.15) <= rayon) mettre(cx + dx, cy + dy, TERRE);
+  }
+
+  const poser = (b) => {
+    b.x = (b.tx + b.w / 2) * TL;
+    b.y = (b.ty + b.h) * TL;
+    for (let y = 0; y < b.h; y++) for (let x = 0; x < b.w; x++) {
+      mettre(b.tx + x, b.ty + y, TERRE);
+      // les maisons ne bloquent plus la case entière : on y entre, ce sont leurs
+      // murs (de vraies pièces de construction) qui arrêtent le personnage
+      if (b.type !== "maison") v.bloc.add((b.tx + x) + "," + (b.ty + y));
+    }
+    if (b.type === "maison") v.maisons.push(b); else v.batiments.push(b);
+  };
+
+  // maisons réparties en couronne, chacune reliée à la place par un chemin
+  const n = 3 + Math.floor(aleaCase(rx, ry, 781) * 4);
+  const toits = ["#c0392b", "#2d6a8f", "#27632a", "#8e44ad", "#d35400", "#16a085"];
+  const murs = ["#e8d8b7", "#dfe6e9", "#f5e0c8", "#eae0d5"];
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * Math.PI * 2 + aleaCase(rx, ry, 790 + i) * 0.5;
+    const d = rayon + 2 + aleaCase(rx, ry, 800 + i) * 2;
+    // assez grandes pour qu'on y circule entre les meubles
+    const bw = 4 + Math.round(aleaCase(rx, ry, 810 + i));
+    const bh = 4;
+    const btx = Math.round(cx + Math.cos(a) * d - bw / 2);
+    const bty = Math.round(cy + Math.sin(a) * d - bh / 2);
+    poser({ type: "maison", tx: btx, ty: bty, w: bw, h: bh,
+            couleur: murs[Math.floor(aleaCase(rx, ry, 820 + i) * murs.length)],
+            toit: toits[Math.floor(aleaCase(rx, ry, 830 + i) * toits.length)] });
+    // chemin de la place jusqu'à la porte
+    let px = cx, py = cy;
+    const dx = Math.round(btx + bw / 2), dy = Math.round(bty + bh);
+    while (px !== dx || py !== dy) {
+      if (px !== dx) px += Math.sign(dx - px);
+      else py += Math.sign(dy - py);
+      if (!v.bloc.has(px + "," + py)) { mettre(px, py, CHEMIN); mettre(px + 1, py, CHEMIN); }
+    }
+  }
+
+  poser({ type: "puits", tx: cx + 2, ty: cy + 2, w: 1, h: 1 });
+  poser({ type: "armoire", tx: cx, ty: cy - 1, w: 1, h: 1 });
+  batirMaisons(v, rx, ry);
+  return v;
+}
+
+/* --------------------------------------------------------------------------
+   Les maisons du village sont bâties avec les mêmes pièces que celles du
+   joueur : murs, plancher, porte, fenêtres, toit, et de vrais meubles.
+   On y entre, on s'y assoit, on y regarde la télé.
+   Ces pièces sont marquées « auto » : elles se refabriquent toutes seules et
+   ne sont pas enregistrées — seules les retouches du joueur le sont.
+   -------------------------------------------------------------------------- */
+
+const villagesMeubles = new Set();
+
+function batirMaisons(v, rx, ry) {
+  if (villagesMeubles.has(v.cle)) return;
+  villagesMeubles.add(v.cle);
+
+  const MURS = ["mur_platre", "mur_bois", "mur_brique", "mur_pierre", "mur_rondins"];
+  const TOITS = ["toit_tuiles", "toit_ardoise", "toit_chaume"];
+  const SOLS = ["sol_parquet", "sol_bois", "sol_dalle", "sol_carrelage"];
+
+  v.maisons.forEach((b, k) => {
+    const h = (s) => aleaCase(rx * 31 + k, ry * 17 + s, 900 + s);
+    const mur = MURS[Math.floor(h(1) * MURS.length)];
+    const toit = TOITS[Math.floor(h(2) * TOITS.length)];
+    const sol = SOLS[Math.floor(h(3) * SOLS.length)];
+
+    const gx0 = b.tx * 2, gy0 = b.ty * 2;          // 1 case de terrain = 2 cases de construction
+    const L = b.w * 2, P = b.h * 2;
+    const porte = 1 + Math.floor(h(4) * (L - 2));  // position de la porte sur le mur sud
+
+    for (let j = 0; j < P; j++) {
+      for (let i = 0; i < L; i++) {
+        poserPiece(gx0 + i, gy0 + j, 0, sol, true);
+        if (poserPiece(gx0 + i, gy0 + j, 1, toit, true)) {
+          const ct = caseC(gx0 + i, gy0 + j, 1);
+          if (ct) ct.toitAuto = true;      // en 3D, la toiture à pans prend le relais
+        }
+        const bord = (i === 0 || j === 0 || i === L - 1 || j === P - 1);
+        if (!bord) continue;
+        if (j === P - 1 && i === porte) poserPiece(gx0 + i, gy0 + j, 0, "porte", true);
+        else if (j === P - 1 && (i === 1 || i === L - 2)) poserPiece(gx0 + i, gy0 + j, 0, "fenetre", true);
+        else if (j === 0 && (i === 1 || i === L - 2)) poserPiece(gx0 + i, gy0 + j, 0, "fenetre", true);
+        else if (i === 0 && j === Math.floor(P / 2)) poserPiece(gx0 + i, gy0 + j, 0, "fenetre", true);
+        else poserPiece(gx0 + i, gy0 + j, 0, mur, true);
+      }
+    }
+    meublerInterieur(gx0 + 1, gy0 + 1, L - 2, P - 2, h);
+  });
+}
+
+// L'aménagement : coin salon face à la télé, coin nuit, coin repas.
+// Chaque meuble est posé s'il tient — poserPiece refuse si la place est prise.
+function meublerInterieur(gx, gy, L, P, h) {
+  if (L < 3 || P < 3) return;
+  const droite = gx + L - 1, bas = gy + P - 1;
+
+  // --- le coin nuit d'abord : c'est le meuble le plus encombrant ---
+  if (L >= 5 && P >= 4) poserPiece(droite - 1, gy, 0, "lit", true);
+  else poserPiece(droite, gy, 0, "coffre", true);
+
+  // --- le salon, à gauche : la télé contre le mur du fond, le canapé en face ---
+  poserPiece(gx, gy, 0, "tele", true);                         // 2 x 1, écran vers le sud
+  if (P >= 4) {
+    poserPiece(gx, gy + 2, 0, "canape", true);                 // 3 x 1, dossier au sud
+    for (let i = 0; i < Math.min(3, L - 1); i++) poserPiece(gx + i, gy + 1, 0, "sol_tapis", true);
+    if (L >= 7) poserPiece(gx + 3, gy + 1, 0, "table_basse", true);
+  } else {
+    poserPiece(gx, gy + 2, 0, "fauteuil", true);
+  }
+
+  // --- le long du mur sud, sans barrer le passage ---
+  if (P >= 5) {
+    poserPiece(gx, bas, 0, "chaise", true);
+    if (L >= 6) poserPiece(gx + 2, bas, 0, "etagere", true);
+    poserPiece(droite, bas, 0, "plante", true);
+  }
+  poserPiece(droite, Math.min(gy + 3, bas), 0, "lampe", true);
+  if (L >= 7 && h(9) < 0.5) poserPiece(droite - 1, bas - 1, 0, "fauteuil", true);
+}
+
+// Villages susceptibles de recouvrir la case (on regarde les régions voisines).
+function villagesAutour(tx, ty) {
+  const rx = Math.floor(tx / REG), ry = Math.floor(ty / REG);
+  const out = [];
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) {
+    const v = villageDe(rx + i, ry + j);
+    if (v) out.push(v);
+  }
+  return out;
+}
+
+/* --------------------------------------------------------- morceaux (chunks) */
+
+const chunks = new Map();
+let dernierCle = "", dernierChunk = null;   // les boucles de rendu restent dans le même morceau
+
+function chunkDe(cx, cy) {
+  const cle = cx + "," + cy;
+  if (cle === dernierCle) return dernierChunk;
+  let c = chunks.get(cle);
+  if (c) { dernierCle = cle; dernierChunk = c; return c; }
+  c = genererChunk(cx, cy);
+  chunks.set(cle, c);
+  if (chunks.size > 900) {                       // on oublie les plus anciens
+    for (let i = 0; i < 60; i++) chunks.delete(chunks.keys().next().value);
+  }
+  dernierCle = cle; dernierChunk = c;
+  return c;
+}
+
+function genererChunk(cx, cy) {
+  const tuiles = new Uint8Array(CH * CH);
+  const biomes = new Uint8Array(CH * CH);
+  const decors = [];
+
+  // au large, inutile de tirer des bruits : c'est de l'océan d'un bout à l'autre
+  const tx0 = cx * CH, tx1 = tx0 + CH - 1, ty0 = cy * CH, ty1 = ty0 + CH - 1;
+  if (tx0 > MONDE_R || tx1 < -MONDE_R || ty0 > MONDE_R || ty1 < -MONDE_R) {
+    tuiles.fill(EAU);
+    return { tuiles, biomes, decors, ocean: true };
+  }
+
+  const vs = villagesAutour(cx * CH + CH / 2, cy * CH + CH / 2);
+
+  for (let j = 0; j < CH; j++) {
+    for (let i = 0; i < CH; i++) {
+      const tx = cx * CH + i, ty = cy * CH + j;
+      const bio = biomeEn(tx, ty);
+      const B = BIOMES[bio];
+      biomes[j * CH + i] = CLES_BIOME.indexOf(bio);
+
+      // village prioritaire (place, chemins, emprises)
+      let t = null, dansVillage = false;
+      for (const v of vs) {
+        const s = v.sol.get(tx + "," + ty);
+        if (s !== undefined) { t = s; dansVillage = true; break; }
+      }
+
+      if (t === null) {
+        const niv = niveauEn(tx, ty) + (bio === "marais" ? 0.045 : 0) - (bio === "desert" ? 0.05 : 0);
+        t = niv < 0.36 ? EAU : (niv < 0.395 ? SABLE : HERBE);
+      }
+      tuiles[j * CH + i] = t;
+
+      if (dansVillage || t !== HERBE) {
+        if (t === EAU && bio === "marais" && aleaCase(tx, ty, 55) < 0.10) {
+          decors.push({ t: "nenuphar", x: (tx + 0.5) * TL, y: (ty + 0.5) * TL, ech: 0.7 });
+        }
+        continue;
+      }
+
+      // végétation, selon le biome
+      const r = aleaCase(tx, ty, 11);
+      const x = (tx + 0.18 + aleaCase(tx, ty, 12) * 0.64) * TL;
+      const y = (ty + 0.35 + aleaCase(tx, ty, 13) * 0.45) * TL;
+      const ech = 0.75 + aleaCase(tx, ty, 14) * 0.5;
+      const densiteBois = fractal(tx / 40, ty / 40, 505, 2);   // clairières et bosquets
+
+      let seuil = 0;
+      if (r < (seuil += B.arbre * densiteBois * 2)) {
+        const sap = aleaCase(tx, ty, 15) < B.sapin;
+        decors.push({ t: "arbre", type: sap ? "sapin" : (aleaCase(tx, ty, 16) < 0.12 ? "pommier" : "feuillu"),
+                      neige: bio === "neige", sombre: bio === "marais",
+                      x, y, ech, teinte: aleaCase(tx, ty, 17), dur: 11 });
+      } else if (r < (seuil += B.cactus)) {
+        decors.push({ t: "cactus", x, y, ech, v: aleaCase(tx, ty, 18), dur: 9 });
+      } else if (r < (seuil += B.rocher)) {
+        decors.push({ t: "rocher", x, y, ech, v: aleaCase(tx, ty, 19), dur: 10 });
+      } else if (r < (seuil += B.buisson)) {
+        decors.push({ t: "buisson", x, y, ech, baies: aleaCase(tx, ty, 20) < 0.3, neige: bio === "neige" });
+      } else if (r < (seuil += B.fleur)) {
+        decors.push({ t: "fleur", x, y, ech,
+                      c: ["#ffffff", "#f9ca24", "#e84393", "#a29bfe", "#ff7675"][Math.floor(aleaCase(tx, ty, 21) * 5)] });
+      }
+    }
+  }
+  return { tuiles, biomes, decors };
+}
+
+function tuileEn(tx, ty) {
+  const cx = Math.floor(tx / CH), cy = Math.floor(ty / CH);
+  const c = chunkDe(cx, cy);
+  return c.tuiles[(ty - cy * CH) * CH + (tx - cx * CH)];
+}
+function biomeCase(tx, ty) {
+  const cx = Math.floor(tx / CH), cy = Math.floor(ty / CH);
+  const c = chunkDe(cx, cy);
+  return CLES_BIOME[c.biomes[(ty - cy * CH) * CH + (tx - cx * CH)]];
+}
+
+/* --------------------------------------------------------- couleurs du sol */
+
+// Toutes les nuances sont calculées une fois pour toutes : en 3D on colore
+// plus de mille cases par image, on ne peut pas fabriquer une couleur à chaque fois.
+const COUL_SABLE = ["#e6d3a3", "#ddc794", "#ecdbb0"];
+const COUL_CHEMIN = [0, 1, 2, 3].map(i => melange("#b08d57", "#8b6b3d", i / 6));
+const COUL_TERRE = [0, 1, 2, 3].map(i => melange("#c8a878", "#a8874f", i / 7.5));
+const COUL_EAU = {};
+for (const [cle, base] of [["normal", "#2e86c1"], ["marais", "#3d6b4a"], ["neige", "#5f8fae"]]) {
+  COUL_EAU[cle] = [];
+  for (let i = 0; i < 8; i++) COUL_EAU[cle].push(melange(base, "#1b4f72", 0.25 + (i / 7) * 0.25));
+}
+
+function couleurEau(tx, ty, bio) {
+  const p = Math.sin(temps * 1.4 + tx * 0.6 + ty * 0.4) * 0.5 + 0.5;
+  const pal = COUL_EAU[bio === "marais" ? "marais" : (bio === "neige" ? "neige" : "normal")];
+  return pal[Math.min(7, (p * 8) | 0)];
+}
+
+function couleurSol(tx, ty, t, bio) {
+  const a = aleaCase(tx, ty, 1);
+  if (t === EAU) return couleurEau(tx, ty, bio);
+  if (t === SABLE) return bio === "neige" ? "#dfe9ef" : COUL_SABLE[(a * 3) | 0];
+  if (t === CHEMIN) return COUL_CHEMIN[(a * 4) | 0];
+  if (t === TERRE) return COUL_TERRE[(a * 4) | 0];
+  const pal = BIOMES[bio].sol;
+  return pal[(a * pal.length) | 0];
+}
+
+/* --------------------------------------------------------- collisions */
+
+function bloqueCase(tx, ty) {
+  if (tuileEn(tx, ty) === EAU) return true;
+  for (const v of villagesAutour(tx, ty)) if (v.bloc.has(tx + "," + ty)) return true;
+  return false;
+}
+
+function decorsAutour(x, y) {
+  const cx = Math.floor(x / TL / CH), cy = Math.floor(y / TL / CH);
+  const out = [];
+  for (let j = -1; j <= 1; j++) for (let i = -1; i <= 1; i++) out.push(chunkDe(cx + i, cy + j));
+  return out;
+}
+
+function libreEn(x, y) {
+  const r = joueur.rayon;
+  const niv = joueur.niveau || 0;
+
+  // ce qui est construit : murs et meubles solides, à l'étage où l'on se trouve
+  for (const [dx, dy] of [[-r, -r * 0.5], [r, -r * 0.5], [-r, r * 0.4], [r, r * 0.4], [0, 0]]) {
+    if (murEn(x + dx, y + dy, niv)) return false;
+  }
+  if (niv > 0) return porteurEn(x, y, niv);   // à l'étage, on marche sur les planchers
+
+  for (const [dx, dy] of [[-r, -r * 0.5], [r, -r * 0.5], [-r, r * 0.4], [r, r * 0.4], [0, 0]]) {
+    if (bloqueCase(Math.floor((x + dx) / TL), Math.floor((y + dy) / TL))) return false;
+  }
+  for (const c of decorsAutour(x, y)) {
+    for (const o of c.decors) {
+      if (!o.dur) continue;
+      const dx = x - o.x;
+      if (dx > 40 || dx < -40) continue;
+      const dy = (y - o.y) / 0.62;
+      const rr = o.dur * 0.7 + r * 0.5;
+      if (dx * dx + dy * dy < rr * rr) return false;
+    }
+  }
+  return true;
+}
+
+/* ==========================================================================
+   3. LE JOUEUR
+   ========================================================================== */
+
+const joueur = {
+  x: 0, y: 0, vitesse: 175, pas: 0,
+  regarde: 1, dos: false, dir: -Math.PI / 2, rayon: 10,
+  niveau: 0, derniereCase: "", assis: null
+};
+let temps = 0;
+let mode3D = false;
+const etincelles = [];
+
+// (le placement de départ a lieu plus bas : il a besoin de la construction)
+function placerDepart() {
+  const v = villageDe(0, 0);
+  joueur.x = (v.cx + 2.5) * TL;
+  joueur.y = (v.cy + 1.5) * TL;
+  let essais = 0;
+  while (!libreEn(joueur.x, joueur.y) && essais++ < 40) joueur.y += TL;
+}
+
+const touches = Object.create(null);
+window.addEventListener("keydown", (ev) => {
+  const el = document.activeElement;
+  if (el && el.tagName === "INPUT") return;      // on tape un nom : pas de raccourci
+  const k = ev.key.toLowerCase();
+  touches[k] = true;
+  if (k === "e" && !modeConstruction) agir();
+  if (k === "c") basculerPanneau(!panneau.classList.contains("ouvert"));
+  if (k === "v") basculerVue();
+  if (k === "m") { carteVisible = !carteVisible; btnCarte.classList.toggle("on", carteVisible); }
+  if (k === "b") basculerConstruction();
+  if (k === "g") basculerMondes();
+  if (k === "f") basculerPlein();
+  if (k === "escape") { basculerPanneau(false); basculerConstruction(false); basculerMondes(false); }
+  if (modeConstruction) {
+    if (k === "pagedown") { niveauC = Math.max(0, niveauC - 1); majPalette(); }
+    if (k === "pageup") { niveauC = Math.min(NIV_MAX, niveauC + 1); majPalette(); }
+  }
+  if ([" ", "arrowup", "arrowdown", "arrowleft", "arrowright"].includes(k)) ev.preventDefault();
+});
+window.addEventListener("keyup", (ev) => { touches[ev.key.toLowerCase()] = false; });
+window.addEventListener("blur", () => { for (const k in touches) touches[k] = false; });
+
+function armoireProche() {
+  let best = null, bd = 1e9;
+  for (const v of villagesAutour(Math.floor(joueur.x / TL), Math.floor(joueur.y / TL))) {
+    for (const b of v.batiments) {
+      if (b.type !== "armoire") continue;
+      const d = Math.hypot(joueur.x - b.x, joueur.y - (b.y - TL * 0.4));
+      if (d < bd) { bd = d; best = b; }
+    }
+  }
+  return { b: best, d: bd };
+}
+function prochePorte() { return armoireProche().d < 85; }
+
+function majJoueur(dt) {
+  let ex = 0, ey = 0;
+  if (touches["arrowleft"] || touches["q"] || touches["a"]) ex -= 1;
+  if (touches["arrowright"] || touches["d"]) ex += 1;
+  if (touches["arrowup"] || touches["z"] || touches["w"]) ey -= 1;
+  if (touches["arrowdown"] || touches["s"]) ey += 1;
+
+  // assis : le moindre déplacement fait se lever
+  if (joueur.assis) {
+    if (ex || ey) seLever();
+    else {
+      joueur.pas = 0;
+      majInvite();
+      return;
+    }
+  }
+
+  let dx = 0, dy = 0;
+  if (ex || ey) {
+    const n = Math.hypot(ex, ey); ex /= n; ey /= n;
+    if (mode3D) {
+      // en 3D on avance par rapport à la caméra
+      const ca = camAngle;
+      const fx = Math.cos(ca), fy = Math.sin(ca);       // vers l'avant
+      const rx = Math.sin(ca), ry = -Math.cos(ca);      // vers la droite de l'écran
+      dx = fx * -ey + rx * ex;
+      dy = fy * -ey + ry * ex;
+    } else {
+      dx = ex; dy = ey;
+    }
+  }
+
+  if (dx || dy) {
+    const v = joueur.vitesse * (touches["shift"] ? 1.85 : 1) * dt;
+    if (libreEn(joueur.x + dx * v, joueur.y)) joueur.x += dx * v;
+    if (libreEn(joueur.x, joueur.y + dy * v)) joueur.y += dy * v;
+    // garde-fou : on ne sort jamais des limites du monde
+    joueur.x = clamp(joueur.x, -BORD_MIN, BORD_MIN);
+    joueur.y = clamp(joueur.y, -BORD_MIN, BORD_MIN);
+    joueur.dir = Math.atan2(dy, dx);
+    if (!mode3D) {
+      if (dx) joueur.regarde = dx > 0 ? 1 : -1;
+      joueur.dos = dy < -0.6 && Math.abs(dx) < 0.5;
+    }
+    joueur.pas += dt * (touches["shift"] ? 1.7 : 1);
+  } else {
+    joueur.pas = 0;
+  }
+
+  majEtage();
+  majInvite();
+}
+
+/* --------------------------------------------------------------------------
+   S'asseoir, allumer la télé : l'action se déclenche sur la touche E, et
+   l'invite du bas d'écran annonce toujours ce qui est à portée de main.
+   -------------------------------------------------------------------------- */
+
+// Le meuble utilisable le plus proche (siège ou télévision).
+function meubleProche() {
+  const gx = Math.floor(joueur.x / CELL), gy = Math.floor(joueur.y / CELL);
+  let best = null, bd = 1e9;
+  for (let j = -2; j <= 2; j++) {
+    for (let i = -2; i <= 2; i++) {
+      const o = origineC(gx + i, gy + j, joueur.niveau);
+      if (!o || !o.o) continue;
+      const p = PIECE[o.o];
+      if (!p.assise && !p.tele) continue;
+      const w = p.w || 1, h = p.h || 1;
+      const cx = clamp(joueur.x, (o.gx + 0.5) * CELL, (o.gx + w - 0.5) * CELL);
+      const cy = (o.gy + h / 2) * CELL;
+      const d = Math.hypot(cx - joueur.x, cy - joueur.y);
+      if (d > 44 || d >= bd) continue;
+      bd = d; best = { c: o, p, x: cx, y: cy };
+    }
+  }
+  return best;
+}
+
+// Le personnage a-t-il un toit au-dessus de la tête ?
+function joueurSousToit() {
+  const gx = Math.floor(joueur.x / CELL), gy = Math.floor(joueur.y / CELL);
+  for (let n = joueur.niveau + 1; n <= NIV_MAX; n++) {
+    const c = caseC(gx, gy, n);
+    if (c && c.s && PIECE[c.s].cat === "Toits") return true;
+  }
+  return false;
+}
+
+function teleAllumeeProche() {
+  if (!joueur.assis) return false;
+  const gx = Math.floor(joueur.x / CELL), gy = Math.floor(joueur.y / CELL);
+  for (let j = -7; j <= 2; j++) for (let i = -4; i <= 4; i++) {
+    const o = origineC(gx + i, gy + j, joueur.niveau);
+    if (o && o.o && PIECE[o.o].tele && telesAllumees.has(cleC(o.gx, o.gy, o.n))) return true;
+  }
+  return false;
+}
+
+function texteAction() {
+  if (joueur.assis) return "<b>E</b> — Se lever";
+  const a = meubleProche();
+  if (a && a.p.assise) return "<b>E</b> — S'asseoir";
+  if (a && a.p.tele) {
+    return telesAllumees.has(cleC(a.c.gx, a.c.gy, a.c.n))
+      ? "<b>E</b> — Éteindre la télé" : "<b>E</b> — Allumer la télé";
+  }
+  if (prochePorte()) return "<b>E</b> — Se changer devant le miroir";
+  return null;
+}
+
+function sAsseoir(a) {
+  joueur.assis = { h: a.p.assise, gx: a.c.gx, gy: a.c.gy, n: a.c.n };
+  joueur.x = a.x;
+  joueur.y = a.y + 3;                       // posé sur l'assise, un peu vers l'avant
+  joueur.pas = 0;
+  joueur.dir = -Math.PI / 2;                // on regarde vers le nord, face au salon
+}
+
+function seLever() {
+  if (!joueur.assis) return;
+  const a = joueur.assis;
+  joueur.assis = null;
+  const p = PIECE[(caseC(a.gx, a.gy, a.n) || {}).o] || null;
+  const h = p ? (p.h || 1) : 1;
+  // on se pousse hors du meuble : devant, puis sur les côtés, puis derrière
+  for (const [dx, dy] of [[0, (h + 0.6) * CELL - (joueur.y - a.gy * CELL)],
+                          [0, CELL * 1.2], [CELL * 1.2, 0], [-CELL * 1.2, 0], [0, -CELL * 1.6]]) {
+    if (libreEn(joueur.x + dx, joueur.y + dy)) { joueur.x += dx; joueur.y += dy; return; }
+  }
+}
+
+function agir() {
+  if (joueur.assis) { seLever(); return; }
+  const a = meubleProche();
+  if (a && a.p.assise) { sAsseoir(a); return; }
+  if (a && a.p.tele) {
+    const k = cleC(a.c.gx, a.c.gy, a.c.n);
+    if (telesAllumees.has(k)) telesAllumees.delete(k); else telesAllumees.add(k);
+    construitModifie = true;
+    return;
+  }
+  if (prochePorte()) basculerPanneau(true);
+}
+
+// Escaliers : on change d'étage en entrant sur la marche, pas en y restant.
+// Et si le plancher disparaît sous les pieds, on redescend.
+function majEtage() {
+  const gx = Math.floor(joueur.x / CELL), gy = Math.floor(joueur.y / CELL);
+  const cle = gx + "," + gy;
+  if (cle !== joueur.derniereCase) {
+    joueur.derniereCase = cle;
+    const ici = caseC(gx, gy, joueur.niveau);
+    const sous = caseC(gx, gy, joueur.niveau - 1);
+    if (ici && ici.o === "escalier" && joueur.niveau < NIV_MAX) joueur.niveau++;
+    else if (joueur.niveau > 0 && sous && sous.o === "escalier") joueur.niveau--;
+  }
+  while (joueur.niveau > 0 && !porteurEn(joueur.x, joueur.y, joueur.niveau)) joueur.niveau--;
+}
+
+let dernierTexteInvite = "";
+function majInvite() {
+  const t = (panneau.classList.contains("ouvert") || modeConstruction) ? null : texteAction();
+  if (t !== dernierTexteInvite) {
+    dernierTexteInvite = t;
+    if (t) invite.innerHTML = t;
+  }
+  invite.classList.toggle("on", !!t);
+}
+
+// Orientation du panneau du personnage vue depuis la caméra 3D.
+function poseVersCamera() {
+  if (joueur.pas <= 0) {                       // à l'arrêt : face à la caméra
+    return { regarde: joueur.regardeArret || 1, dos: false };
+  }
+  let rel = joueur.dir - camAngle;
+  while (rel > Math.PI) rel -= 2 * Math.PI;
+  while (rel < -Math.PI) rel += 2 * Math.PI;
+  return { regarde: Math.sin(rel) <= 0 ? 1 : -1, dos: Math.cos(rel) > 0 };
+}
+
+/* ==========================================================================
+   4. DÉCORS — dessinés autour de (0, 0), réutilisés en 2D et en 3D
+   ========================================================================== */
+
+function artFleur(c, f) {
+  const vent = Math.sin(temps * 2 + f.x * 0.05) * 1.2;
+  c.strokeStyle = "#3d7a2e"; c.lineWidth = 1.4;
+  c.beginPath(); c.moveTo(0, 0); c.quadraticCurveTo(vent * 0.5, -5, vent, -9 * f.ech); c.stroke();
+  c.fillStyle = f.c;
+  const cx = vent, cy = -9 * f.ech;
+  for (let i = 0; i < 5; i++) {
+    const a = i * 1.256;
+    c.beginPath(); c.arc(cx + Math.cos(a) * 2.6 * f.ech, cy + Math.sin(a) * 2.6 * f.ech, 2 * f.ech, 0, 6.3); c.fill();
+  }
+  c.fillStyle = "#f6b93b";
+  c.beginPath(); c.arc(cx, cy, 1.6 * f.ech, 0, 6.3); c.fill();
+}
+
+function artNenuphar(c, b) {
+  c.fillStyle = "#2e8b57";
+  c.beginPath(); c.ellipse(0, Math.sin(temps + b.x) * 1.5, 11, 8, 0, 0.4, Math.PI * 2 + 0.1); c.fill();
+  c.fillStyle = "#ff9ff3";
+  c.beginPath(); c.arc(2, -2, 2.6, 0, 6.3); c.fill();
+}
+
+function artBuisson(c, b) {
+  const e = b.ech, vent = Math.sin(temps * 1.4 + b.x * 0.03) * 1.5;
+  c.fillStyle = b.neige ? "#c9dbe4" : "#3e8e41";
+  for (const [dx, dy, r] of [[-7, -4, 8], [7, -4, 8], [0, -9, 9]]) {
+    c.beginPath(); c.arc(dx * e + vent * 0.4, dy * e, r * e, 0, 6.3); c.fill();
+  }
+  c.fillStyle = "rgba(255,255,255,0.14)";
+  c.beginPath(); c.arc(-2 * e, -12 * e, 4 * e, 0, 6.3); c.fill();
+  if (b.baies) {
+    c.fillStyle = "#c0392b";
+    for (let i = 0; i < 4; i++) {
+      const a = aleaCase(Math.round(b.x), Math.round(b.y), i);
+      c.beginPath(); c.arc((a - 0.5) * 16 * e, -4 - a * 8 * e, 1.8 * e, 0, 6.3); c.fill();
+    }
+  }
+}
+
+function artRocher(c, r) {
+  const e = r.ech;
+  c.fillStyle = "rgba(0,0,0,0.18)";
+  c.beginPath(); c.ellipse(0, 0, 12 * e, 4 * e, 0, 0, 6.3); c.fill();
+  c.fillStyle = "#8d99a6";
+  c.beginPath();
+  c.moveTo(-12 * e, 0); c.lineTo(-8 * e, -11 * e); c.lineTo(2 * e, -14 * e);
+  c.lineTo(11 * e, -6 * e); c.lineTo(10 * e, 0);
+  c.closePath(); c.fill();
+  c.fillStyle = "#aab5be";
+  c.beginPath();
+  c.moveTo(-8 * e, -11 * e); c.lineTo(2 * e, -14 * e); c.lineTo(-1 * e, -6 * e);
+  c.closePath(); c.fill();
+  if (r.v > 0.6) {
+    c.fillStyle = "rgba(90,150,60,0.55)";
+    c.beginPath(); c.ellipse(4 * e, -2 * e, 5 * e, 2.4 * e, 0, 0, 6.3); c.fill();
+  }
+}
+
+function artCactus(c, k) {
+  const e = k.ech;
+  c.fillStyle = "rgba(0,0,0,0.18)";
+  c.beginPath(); c.ellipse(0, 0, 9 * e, 3 * e, 0, 0, 6.3); c.fill();
+  const vert = "#3f8f5a";
+  c.fillStyle = vert;
+  c.beginPath(); c.roundRect(-5 * e, -40 * e, 10 * e, 40 * e, 5 * e); c.fill();
+  c.beginPath(); c.roundRect(-14 * e, -30 * e, 6 * e, 16 * e, 3 * e); c.fill();
+  c.beginPath(); c.roundRect(-14 * e, -30 * e, 14 * e, 6 * e, 3 * e); c.fill();
+  if (k.v > 0.45) {
+    c.beginPath(); c.roundRect(8 * e, -34 * e, 6 * e, 14 * e, 3 * e); c.fill();
+    c.beginPath(); c.roundRect(0, -34 * e, 14 * e, 6 * e, 3 * e); c.fill();
+  }
+  c.strokeStyle = foncer(vert, 0.3); c.lineWidth = 0.9 * e;
+  for (let i = 0; i < 5; i++) {
+    c.beginPath(); c.moveTo(-2 * e, (-36 + i * 7) * e); c.lineTo(2 * e, (-36 + i * 7) * e); c.stroke();
+  }
+  if (k.v > 0.8) {
+    c.fillStyle = "#ff7675";
+    c.beginPath(); c.arc(0, -42 * e, 2.6 * e, 0, 6.3); c.fill();
+  }
+}
+
+function artArbre(c, a) {
+  const e = a.ech, vent = Math.sin(temps * 1.1 + a.x * 0.02) * 2.2;
+  c.fillStyle = "rgba(0,0,0,0.20)";
+  c.beginPath(); c.ellipse(0, 0, 16 * e, 5 * e, 0, 0, 6.3); c.fill();
+
+  c.fillStyle = a.sombre ? "#5b432a" : "#7b5230";
+  c.beginPath();
+  c.moveTo(-4 * e, 0); c.lineTo(-2.6 * e, -26 * e); c.lineTo(2.6 * e, -26 * e); c.lineTo(4 * e, 0);
+  c.closePath(); c.fill();
+
+  if (a.type === "sapin") {
+    let vert = melange("#1e8449", "#145a32", a.teinte * 0.6);
+    if (a.sombre) vert = melange(vert, "#000000", 0.25);
+    for (let i = 0; i < 3; i++) {
+      const yy = -20 * e - i * 13 * e, l = (20 - i * 4) * e;
+      c.fillStyle = i === 0 ? vert : clair(vert, 0.06 * i);
+      c.beginPath();
+      c.moveTo(vent * (i + 1) * 0.3, yy - 20 * e);
+      c.lineTo(l, yy); c.lineTo(-l, yy);
+      c.closePath(); c.fill();
+      if (a.neige) {                                  // sapin enneigé
+        c.fillStyle = "rgba(255,255,255,0.85)";
+        c.beginPath();
+        c.moveTo(vent * (i + 1) * 0.3, yy - 20 * e);
+        c.lineTo(l * 0.55, yy - 8 * e); c.lineTo(-l * 0.55, yy - 8 * e);
+        c.closePath(); c.fill();
+        c.fillStyle = i === 0 ? vert : clair(vert, 0.06 * i);
+      }
+    }
+  } else {
+    let vert = melange("#2e9e4f", "#1e7a3c", a.teinte);
+    if (a.sombre) vert = melange(vert, "#2c3e2f", 0.45);
+    if (a.neige) vert = melange(vert, "#ffffff", 0.35);
+    c.fillStyle = vert;
+    for (const [dx, dy, r] of [[0, -40, 18], [-13, -32, 13], [13, -32, 13], [-7, -46, 12], [8, -46, 12]]) {
+      c.beginPath(); c.arc(dx * e + vent, dy * e, r * e, 0, 6.3); c.fill();
+    }
+    c.fillStyle = "rgba(255,255,255,0.13)";
+    c.beginPath(); c.arc(-6 * e + vent, -50 * e, 9 * e, 0, 6.3); c.fill();
+    c.fillStyle = "rgba(0,0,0,0.10)";
+    c.beginPath(); c.arc(7 * e + vent, -30 * e, 10 * e, 0, 6.3); c.fill();
+    if (a.type === "pommier") {
+      c.fillStyle = "#e74c3c";
+      for (let i = 0; i < 5; i++) {
+        const p = aleaCase(Math.round(a.x), Math.round(a.y), i);
+        const q = aleaCase(Math.round(a.x), Math.round(a.y), i + 7);
+        c.beginPath(); c.arc((p - 0.5) * 34 * e + vent, -(30 + q * 18) * e, 2.6 * e, 0, 6.3); c.fill();
+      }
+    }
+  }
+}
+
+const ART = { arbre: artArbre, rocher: artRocher, buisson: artBuisson,
+              fleur: artFleur, cactus: artCactus, nenuphar: artNenuphar };
+
+// Bâtiments à plat (mode 2D) — origine au milieu de la base.
+function artBatiment(c, b) {
+  const bw = b.w * TL, bh = b.h * TL;
+
+  if (b.type === "puits") {
+    c.fillStyle = "rgba(0,0,0,0.2)";
+    c.beginPath(); c.ellipse(0, 0, 20, 7, 0, 0, 6.3); c.fill();
+    c.fillStyle = "#95a5a6";
+    c.beginPath(); c.ellipse(0, -6, 19, 9, 0, 0, 6.3); c.fill();
+    c.fillStyle = "#2c3e50";
+    c.beginPath(); c.ellipse(0, -8, 13, 6, 0, 0, 6.3); c.fill();
+    c.strokeStyle = "#7b5230"; c.lineWidth = 4;
+    c.beginPath(); c.moveTo(-14, -10); c.lineTo(-14, -34); c.stroke();
+    c.beginPath(); c.moveTo(14, -10); c.lineTo(14, -34); c.stroke();
+    c.fillStyle = "#c0392b";
+    c.beginPath(); c.moveTo(-22, -32); c.lineTo(0, -46); c.lineTo(22, -32); c.closePath(); c.fill();
+    return;
+  }
+
+  if (b.type === "armoire") {
+    c.fillStyle = "rgba(0,0,0,0.25)";
+    c.beginPath(); c.ellipse(0, 0, 24, 7, 0, 0, 6.3); c.fill();
+    c.fillStyle = "#8b5e34";
+    c.beginPath(); c.roundRect(-22, -74, 44, 74, 4); c.fill();
+    c.fillStyle = "#a06c3e";
+    c.beginPath(); c.roundRect(-19, -70, 38, 66, 3); c.fill();
+    const g = c.createLinearGradient(-18, -68, -2, -8);
+    g.addColorStop(0, "#dff3ff"); g.addColorStop(0.5, "#9fd0e8"); g.addColorStop(1, "#cfe9f7");
+    c.fillStyle = g;
+    c.beginPath(); c.roundRect(-17, -66, 16, 58, 2); c.fill();
+    c.save();
+    c.beginPath(); c.roundRect(-17, -66, 16, 58, 2); c.clip();
+    const ec = ((temps * 26) % 110) - 30;
+    c.fillStyle = "rgba(255,255,255,0.55)";
+    c.beginPath();
+    c.moveTo(-17 + ec, -66); c.lineTo(-11 + ec, -66); c.lineTo(-19 + ec, -8); c.lineTo(-25 + ec, -8);
+    c.closePath(); c.fill();
+    c.restore();
+    c.fillStyle = "#7a4e2a";
+    c.beginPath(); c.roundRect(1, -66, 16, 58, 2); c.fill();
+    c.fillStyle = "#8e5f34";
+    c.beginPath(); c.roundRect(3, -62, 12, 24, 2); c.fill();
+    c.beginPath(); c.roundRect(3, -34, 12, 22, 2); c.fill();
+    c.fillStyle = "#f9ca24";
+    c.beginPath(); c.arc(-3.5, -36, 2, 0, 6.3); c.fill();
+    c.beginPath(); c.arc(3.5, -36, 2, 0, 6.3); c.fill();
+    c.fillStyle = "#6d4423";
+    c.beginPath(); c.roundRect(-25, -80, 50, 8, 3); c.fill();
+    return;
+  }
+
+  // maison
+  c.fillStyle = "rgba(0,0,0,0.22)";
+  c.beginPath(); c.ellipse(0, 0, bw * 0.5, 9, 0, 0, 6.3); c.fill();
+  const murH = 52, x0 = -bw / 2;
+  c.fillStyle = b.couleur;
+  c.fillRect(x0 + 4, -murH, bw - 8, murH);
+  c.fillStyle = "rgba(0,0,0,0.10)";
+  c.fillRect(bw / 2 - 16, -murH, 12, murH);
+  c.fillStyle = b.toit;
+  c.beginPath();
+  c.moveTo(x0 - 4, -murH + 2); c.lineTo(0, -murH - 42); c.lineTo(bw / 2 + 4, -murH + 2);
+  c.closePath(); c.fill();
+  c.fillStyle = "rgba(255,255,255,0.12)";
+  c.beginPath();
+  c.moveTo(x0 - 4, -murH + 2); c.lineTo(0, -murH - 42); c.lineTo(0, -murH + 2);
+  c.closePath(); c.fill();
+  c.fillStyle = "#6d4423";
+  c.beginPath(); c.roundRect(-11, -34, 22, 34, [6, 6, 0, 0]); c.fill();
+  c.fillStyle = "#f9ca24";
+  c.beginPath(); c.arc(6, -17, 1.8, 0, 6.3); c.fill();
+  for (const fx of [x0 + 14, bw / 2 - 24]) {
+    c.fillStyle = "#ffeaa7";
+    c.beginPath(); c.roundRect(fx, -murH + 12, 16, 15, 2); c.fill();
+    c.strokeStyle = "#6d4423"; c.lineWidth = 1.6;
+    c.strokeRect(fx, -murH + 12, 16, 15);
+    c.beginPath(); c.moveTo(fx + 8, -murH + 12); c.lineTo(fx + 8, -murH + 27); c.stroke();
+  }
+  c.fillStyle = "#8d6e63";
+  c.fillRect(bw / 2 - 22, -murH - 42, 10, 22);
+  c.fillStyle = "rgba(255,255,255,0.35)";
+  for (let i = 0; i < 3; i++) {
+    const p = (temps * 0.5 + i * 0.33) % 1;
+    c.beginPath();
+    c.arc(bw / 2 - 17 + Math.sin(p * 6 + i) * 7, -murH - 46 - p * 34, 3 + p * 6, 0, 6.3);
+    c.fill();
+  }
+}
+
+function etoile(c, x, y, r, col) {
+  c.fillStyle = col;
+  c.beginPath();
+  for (let i = 0; i < 8; i++) {
+    const a = i * Math.PI / 4, rr = i % 2 ? r * 0.4 : r;
+    c[i ? "lineTo" : "moveTo"](x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+  }
+  c.closePath(); c.fill();
+}
+
+/* ==========================================================================
+   5. CONSTRUCTION — murs, planchers, décorations
+   Chaque pièce est décrite par des boîtes [x0,y0,z0, x1,y1,z1, couleur]
+   exprimées dans la case (0..CELL) et depuis le plancher de l'étage (0..HAUT).
+   Les deux rendus, 2D et 3D, lisent exactement la même géométrie : une pièce
+   dessinée une fois existe dans les deux vues.
+   ========================================================================== */
+
+const CELL = 24;                  // côté d'une case de construction (demi-case de terrain)
+const HAUT = 90;                  // hauteur d'un étage
+const NIV_MAX = 2;                // rez-de-chaussée + 2 étages
+const K2D = 0.62;                 // en vue de dessus, 1 unité de hauteur = 0.62 pixel vers le haut
+const CELL_CHUNK = CH * TL / CELL; // cases de construction par morceau de monde
+
+// fabriques de géométrie pour les formes régulières
+const boitesMur = (c) => [[0, 0, 0, CELL, CELL, HAUT, c]];
+const boitesSol = (c) => [[0, 0, 0, CELL, CELL, 5, c]];
+const boitesToit = (c) => [[-3, -3, 0, CELL + 3, CELL + 3, 14, c]];
+function boitesEscalier() {
+  const b = [];
+  for (let k = 0; k < 6; k++) b.push([0, k * 4, k * 15, CELL, (k + 1) * 4, (k + 1) * 15, "#b08d57"]);
+  return b;
+}
+
+const PIECES = [
+  // --- murs : ils portent la maison et arrêtent le personnage ---
+  { id: "mur_bois",    nom: "Bois",    cat: "Murs", solide: true, boites: boitesMur("#a9743b") },
+  { id: "mur_pierre",  nom: "Pierre",  cat: "Murs", solide: true, boites: boitesMur("#9a9a9a") },
+  { id: "mur_brique",  nom: "Brique",  cat: "Murs", solide: true, boites: boitesMur("#b5533a") },
+  { id: "mur_platre",  nom: "Plâtre",  cat: "Murs", solide: true, boites: boitesMur("#ece5d8") },
+  { id: "mur_rondins", nom: "Rondins", cat: "Murs", solide: true, boites: boitesMur("#8a5a2b") },
+  { id: "haie",        nom: "Haie",    cat: "Murs", solide: true, boites: [[0, 0, 0, CELL, CELL, 42, "#4c9a3a"]] },
+  { id: "cloture",     nom: "Clôture", cat: "Murs", solide: true, boites: [
+      [2, 10, 0, 6, 14, 46, "#b98a4b"], [18, 10, 0, 22, 14, 46, "#b98a4b"],
+      [0, 11, 30, CELL, 13, 34, "#c9a05b"], [0, 11, 14, CELL, 13, 18, "#c9a05b"] ] },
+
+  // --- ouvertures ---
+  { id: "porte", nom: "Porte", cat: "Ouvertures", solide: false, boites: [
+      [0, 0, 0, 4, CELL, HAUT, "#8a5a2b"], [CELL - 4, 0, 0, CELL, CELL, HAUT, "#8a5a2b"],
+      [0, 0, HAUT - 14, CELL, CELL, HAUT, "#8a5a2b"],
+      [4, 8, 0, CELL - 4, 13, HAUT - 14, "#6d4423"],
+      [CELL - 8, 9, 38, CELL - 6, 12.5, 42, "#f9ca24"] ] },
+  { id: "fenetre", nom: "Fenêtre", cat: "Ouvertures", solide: true, boites: [
+      [0, 0, 0, CELL, CELL, 26, "#ece5d8"], [0, 0, 64, CELL, CELL, HAUT, "#ece5d8"],
+      [0, 0, 26, 4, CELL, 64, "#ece5d8"], [CELL - 4, 0, 26, CELL, CELL, 64, "#ece5d8"],
+      [4, 9, 26, CELL - 4, 15, 64, "#9fd8ef"] ] },
+  { id: "escalier", nom: "Escalier", cat: "Ouvertures", solide: false, porteur: true, boites: boitesEscalier() },
+
+  // --- planchers ---
+  { id: "sol_bois",      nom: "Plancher",  cat: "Sols", sol: true, boites: boitesSol("#c99a5b") },
+  { id: "sol_dalle",     nom: "Dalle",     cat: "Sols", sol: true, boites: boitesSol("#b0b0b0") },
+  { id: "sol_carrelage", nom: "Carrelage", cat: "Sols", sol: true, damier: "#8fa3b0", boites: boitesSol("#e8e8e8") },
+  { id: "sol_tapis",     nom: "Tapis",     cat: "Sols", sol: true, boites: boitesSol("#b0392f") },
+  { id: "sol_pave",      nom: "Pavé",      cat: "Sols", sol: true, boites: boitesSol("#9d9187") },
+  { id: "sol_parquet",   nom: "Parquet",   cat: "Sols", sol: true, damier: "#a9743b", boites: boitesSol("#d4a76a") },
+
+  // --- toits (à poser à l'étage au-dessus des murs) ---
+  { id: "toit_tuiles",  nom: "Tuiles",  cat: "Toits", sol: true, boites: boitesToit("#c0392b") },
+  { id: "toit_chaume",  nom: "Chaume",  cat: "Toits", sol: true, boites: boitesToit("#cdae5a") },
+  { id: "toit_ardoise", nom: "Ardoise", cat: "Toits", sol: true, boites: boitesToit("#5d6d7e") },
+
+  // --- meubles ---
+  // Tout est à l'échelle du personnage : il mesure 72 unités (≈ 1,70 m),
+  // donc 1 unité ≈ 2,4 cm. Une assise de chaise à 19, un plan de table à 32,
+  // un écran de télé centré à 47 : les proportions sont celles d'une vraie pièce.
+  // « w » et « h » donnent l'emprise en cases : un lit occupe 2 x 3 cases.
+  // Les assises sont à hauteur réelle : 19 unités ≈ 45 cm, la hauteur d'une chaise.
+  { id: "chaise", nom: "Chaise", cat: "Meubles", solide: true, assise: 19, boites: [
+      [5, 5, 0, 8, 8, 15, "#7a4e2a"], [16, 5, 0, 19, 8, 15, "#7a4e2a"],
+      [5, 16, 0, 8, 19, 15, "#7a4e2a"], [16, 16, 0, 19, 19, 15, "#7a4e2a"],
+      [4, 4, 15, 20, 20, 19, "#a9743b"],
+      [4, 18, 19, 20, 21, 45, "#a9743b"] ] },                       // dossier au sud : on s'assoit face au nord
+  { id: "fauteuil", nom: "Fauteuil", cat: "Meubles", solide: true, assise: 19, boites: [
+      [1, 1, 0, 23, 23, 14, "#7f5b8f"], [3, 2, 14, 21, 19, 19, "#9b6fb0"],
+      [1, 17, 14, 23, 23, 44, "#7f5b8f"],
+      [1, 1, 14, 5, 18, 28, "#8e66a0"], [19, 1, 14, 23, 18, 28, "#8e66a0"] ] },
+  { id: "canape", nom: "Canapé", cat: "Meubles", solide: true, assise: 20, w: 3, h: 1, boites: [
+      [1, 1, 0, 71, 23, 14, "#4a6fa5"],
+      [4, 2, 14, 23, 19, 20, "#5c85bf"], [25, 2, 14, 47, 19, 20, "#5c85bf"], [49, 2, 14, 68, 19, 20, "#5c85bf"],
+      [1, 17, 14, 71, 23, 44, "#4a6fa5"],
+      [0, 1, 14, 5, 18, 29, "#5c85bf"], [67, 1, 14, 72, 18, 29, "#5c85bf"],
+      [7, 18, 20, 20, 20, 38, "#f1c40f"] ] },                       // un coussin jaune
+  { id: "table", nom: "Table", cat: "Meubles", solide: true, w: 2, h: 2, boites: [
+      [4, 4, 0, 9, 9, 32, "#8a5a2b"], [39, 4, 0, 44, 9, 32, "#8a5a2b"],
+      [4, 39, 0, 9, 44, 32, "#8a5a2b"], [39, 39, 0, 44, 44, 32, "#8a5a2b"],
+      [1, 1, 32, 47, 47, 37, "#a9743b"] ] },
+  { id: "table_basse", nom: "Table basse", cat: "Meubles", solide: true, w: 2, h: 1, boites: [
+      [3, 3, 0, 7, 7, 17, "#8a5a2b"], [41, 3, 0, 45, 7, 17, "#8a5a2b"],
+      [3, 17, 0, 7, 21, 17, "#8a5a2b"], [41, 17, 0, 45, 21, 17, "#8a5a2b"],
+      [1, 1, 17, 47, 23, 21, "#a9743b"] ] },
+  { id: "lit", nom: "Lit", cat: "Meubles", solide: true, couchage: true, w: 2, h: 3, boites: [
+      [2, 4, 0, 46, 70, 16, "#8a5a2b"],
+      [2, 4, 16, 46, 70, 26, "#ecf0f1"],
+      [2, 26, 16, 46, 70, 27, "#c0392b"],
+      [5, 7, 26, 22, 20, 31, "#ffffff"], [26, 7, 26, 43, 20, 31, "#ffffff"],
+      [0, 0, 0, 48, 4, 52, "#7a4e2a"] ] },
+  { id: "tele", nom: "Télévision", cat: "Meubles", solide: true, tele: true, ecran: 3, w: 2, h: 1, boites: [
+      [4, 6, 0, 44, 20, 24, "#4a4a52"],                              // meuble
+      [20, 10, 24, 28, 18, 30, "#33333a"],                           // pied
+      [3, 11, 30, 45, 17, 64, "#22222a"],                            // cadre
+      [5, 11.5, 32, 43, 17.4, 62, "#1b2b3a"] ] },                    // écran (index 3), en léger relief
+  { id: "etagere", nom: "Bibliothèque", cat: "Meubles", solide: true, w: 2, h: 1, boites: [
+      [1, 2, 0, 47, 11, 76, "#8a5a2b"],
+      [2, 3, 24, 46, 10, 27, "#a9743b"], [2, 3, 50, 46, 10, 53, "#a9743b"],
+      [4, 4, 27, 20, 9, 46, "#c0392b"], [21, 4, 27, 34, 9, 43, "#2980b9"],
+      [4, 4, 53, 26, 9, 70, "#27ae60"], [27, 4, 53, 40, 9, 66, "#e67e22"] ] },
+  { id: "coffre", nom: "Coffre", cat: "Meubles", solide: true, boites: [
+      [3, 4, 0, 21, 20, 15, "#a9743b"], [3, 4, 15, 21, 20, 21, "#7a4e2a"],
+      [11, 3, 4, 13, 21, 18, "#f9ca24"] ] },
+  { id: "lampe", nom: "Lampadaire", cat: "Meubles", solide: false, boites: [
+      [10, 10, 0, 14, 14, 52, "#7a4e2a"], [6, 6, 52, 18, 18, 68, "#f9ca24"] ] },
+  { id: "plante", nom: "Plante", cat: "Meubles", solide: false, boites: [
+      [7, 7, 0, 17, 17, 16, "#c0764a"], [4, 4, 16, 20, 20, 44, "#2e8b57"],
+      [8, 8, 44, 16, 16, 56, "#27ae60"] ] },
+  { id: "cheminee", nom: "Cheminée", cat: "Meubles", solide: true, boites: [
+      [0, 0, 0, CELL, 11, HAUT, "#9a9a9a"], [5, 0, 0, 19, 7, 32, "#2c3e50"],
+      [7, 1, 2, 17, 6, 20, "#e67e22"], [0, 0, 36, CELL, 13, 41, "#b0b0b0"] ] },
+  { id: "tableau", nom: "Tableau", cat: "Meubles", solide: false, boites: [
+      [3, 0, 46, 21, 3, 70, "#d4af37"], [5, 1, 48, 19, 2.5, 68, "#74b9ff"] ] },
+  { id: "tonneau", nom: "Tonneau", cat: "Meubles", solide: true, boites: [
+      [5, 5, 0, 19, 19, 30, "#8a5a2b"], [4, 4, 6, 20, 20, 9, "#7f8c8d"], [4, 4, 22, 20, 20, 25, "#7f8c8d"] ] },
+  { id: "fontaine", nom: "Fontaine", cat: "Jardin", solide: true, boites: [
+      [0, 0, 0, CELL, CELL, 12, "#95a5a6"], [3, 3, 12, 21, 21, 15, "#5dade2"],
+      [9, 9, 15, 15, 15, 34, "#95a5a6"], [6, 6, 34, 18, 18, 38, "#aab5be"] ] },
+  { id: "arbuste", nom: "Arbuste", cat: "Jardin", solide: false, boites: [
+      [8, 8, 0, 16, 16, 10, "#7a4e2a"], [4, 4, 10, 20, 20, 34, "#3e8e41"] ] }
+];
+const PIECE = Object.fromEntries(PIECES.map(p => [p.id, p]));
+const CATS_PIECES = [...new Set(PIECES.map(p => p.cat))];
+
+/* --------------------------------------------------- ce qui est construit */
+
+const construction = new Map();        // "gx,gy,n"  -> { gx, gy, n, s, o }
+const consChunks = new Map();          // "cx,cy"    -> Map des cases du morceau
+
+const cleC = (gx, gy, n) => gx + "," + gy + "," + n;
+const cleChunkC = (gx, gy) => Math.floor(gx / CELL_CHUNK) + "," + Math.floor(gy / CELL_CHUNK);
+
+function caseC(gx, gy, n) { return construction.get(cleC(gx, gy, n)); }
+
+function cellule(gx, gy, n) {
+  const cle = cleC(gx, gy, n);
+  let c = construction.get(cle);
+  if (!c) {
+    // auto : null = case neuve, true = pièce du village, false = retouchée par le joueur
+    c = { gx, gy, n, s: null, o: null, ref: null, auto: null };
+    construction.set(cle, c);
+    const ck = cleChunkC(gx, gy);
+    let m = consChunks.get(ck);
+    if (!m) { m = new Map(); consChunks.set(ck, m); }
+    m.set(cle, c);
+  }
+  return c;
+}
+
+// La case qui porte réellement le meuble : pour un canapé de 3 cases,
+// les deux cases suivantes renvoient vers celle d'origine.
+function origineC(gx, gy, n) {
+  const c = caseC(gx, gy, n);
+  if (!c) return null;
+  return c.ref ? construction.get(c.ref) || null : c;
+}
+
+// auto = pièce du village, fabriquée à la volée et jamais enregistrée
+function poserPiece(gx, gy, n, id, auto) {
+  const p = PIECE[id];
+  if (!p || n < 0 || n > NIV_MAX) return false;
+
+  if (p.sol) {
+    if (auto) {
+      const dejaLa = caseC(gx, gy, n);
+      if (dejaLa && dejaLa.auto === false) return false;   // le joueur a retouché cette case
+      const c = cellule(gx, gy, n);
+      if (c.auto !== false) { c.s = id; c.auto = true; }
+      return true;
+    }
+    const c = cellule(gx, gy, n);
+    c.s = id; c.auto = false; construitModifie = true;
+    return true;
+  }
+
+  const w = p.w || 1, h = p.h || 1;
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    const c = caseC(gx + i, gy + j, n);
+    if (c && (c.o || c.ref)) return false;              // la place est déjà prise
+    if (auto && c && c.auto === false) return false;    // case retouchée par le joueur
+  }
+  const cle = cleC(gx, gy, n);
+  const c0 = cellule(gx, gy, n);
+  c0.o = id;
+  if (!auto) c0.auto = false; else if (c0.auto !== false) c0.auto = true;
+  for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+    if (!i && !j) continue;
+    const c = cellule(gx + i, gy + j, n);
+    c.ref = cle;
+    if (!auto) c.auto = false; else if (c.auto !== false) c.auto = true;
+  }
+  if (!auto) construitModifie = true;
+  return true;
+}
+
+function oublierCase(c) {
+  if (c.o || c.s || c.ref) return;
+  if (c.auto === false) return;            // trace d'un effacement : on la garde
+  const cle = cleC(c.gx, c.gy, c.n);
+  construction.delete(cle);
+  const m = consChunks.get(cleChunkC(c.gx, c.gy));
+  if (m) { m.delete(cle); if (!m.size) consChunks.delete(cleChunkC(c.gx, c.gy)); }
+}
+
+function effacerPiece(gx, gy, n) {
+  const c = caseC(gx, gy, n);
+  if (!c) return;
+  const orig = c.ref ? construction.get(c.ref) : c;
+
+  if (orig && orig.o) {                    // on retire d'abord le meuble ou le mur
+    const p = PIECE[orig.o], w = p.w || 1, h = p.h || 1;
+    orig.o = null; orig.auto = false;
+    for (let j = 0; j < h; j++) for (let i = 0; i < w; i++) {
+      const cc = caseC(orig.gx + i, orig.gy + j, n);
+      if (cc && (cc.ref || cc === orig)) { cc.ref = null; cc.auto = false; oublierCase(cc); }
+    }
+  } else if (c.s) {                        // puis le plancher
+    c.s = null; c.auto = false;
+    oublierCase(c);
+  }
+  construitModifie = true;
+}
+
+// --- mise à plat des constructions (pour la sauvegarde) ---
+// Les pièces « auto » (maisons du village) se refabriquent toutes seules :
+// on n'enregistre que ce que le joueur a posé ou retiré.
+let construitModifie = false;
+function serialiserConstruction() {
+  const t = [];
+  for (const c of construction.values()) {
+    if (c.auto !== false) continue;
+    if (c.ref) continue;                   // case rattachée : rétablie avec son meuble
+    t.push([c.gx, c.gy, c.n, c.s, c.o]);
+  }
+  return t;
+}
+function appliquerConstruction(t) {
+  construction.clear(); consChunks.clear();
+  villagesMeubles.clear();
+  for (const [gx, gy, n, s, o] of (t || [])) {
+    if (s && PIECE[s]) poserPiece(gx, gy, n, s);
+    if (o && PIECE[o]) poserPiece(gx, gy, n, o);
+    if (!s && !o) cellule(gx, gy, n).auto = false;      // case vidée par le joueur
+  }
+  construitModifie = false;
+}
+// appelée par les outils de construction : on enregistre la partie en cours
+function sauverConstruction() { enregistrerCourant(); }
+
+/* --------------------------------------------------- lecture par le jeu */
+
+// Un mur (ou un meuble solide) barre-t-il le passage à cet étage ?
+function murEn(x, y, niv) {
+  const c = origineC(Math.floor(x / CELL), Math.floor(y / CELL), niv);
+  return !!(c && c.o && PIECE[c.o].solide);
+}
+// Y a-t-il de quoi poser le pied à cet étage ? (le rez-de-chaussée, c'est le sol)
+function porteurEn(x, y, niv) {
+  if (niv <= 0) return true;
+  const gx = Math.floor(x / CELL), gy = Math.floor(y / CELL);
+  const c = caseC(gx, gy, niv), o = origineC(gx, gy, niv);
+  if (c && c.s) return true;
+  if (o && o.o && PIECE[o.o].porteur) return true;
+  const sous = caseC(gx, gy, niv - 1);
+  return !!(sous && sous.o === "escalier");
+}
+
+// Cases construites visibles dans une zone du monde (coordonnées monde).
+function casesConstruites(x0, y0, x1, y1) {
+  const out = [];
+  const c0x = Math.floor(x0 / CELL / CELL_CHUNK), c1x = Math.floor(x1 / CELL / CELL_CHUNK);
+  const c0y = Math.floor(y0 / CELL / CELL_CHUNK), c1y = Math.floor(y1 / CELL / CELL_CHUNK);
+  for (let cy = c0y; cy <= c1y; cy++) {
+    for (let cx = c0x; cx <= c1x; cx++) {
+      const m = consChunks.get(cx + "," + cy);
+      if (!m) continue;
+      for (const c of m.values()) {
+        if (c.ref) continue;                       // case rattachée à un meuble voisin
+        if (!c.o && !c.s) continue;                // simple trace d'effacement
+        const wx = c.gx * CELL, wy = c.gy * CELL;
+        if (wx < x0 - CELL * 4 || wx > x1 || wy < y0 - CELL * 5 || wy > y1) continue;
+        out.push(c);
+      }
+    }
+  }
+  return out;
+}
+
+/* --------------------------------------------------- dessin des boîtes en 2D */
+
+// Une boîte vue de dessus : sa face supérieure, puis sa face avant.
+function boite2D(c, b, teinte) {
+  const x0 = b[0], y0 = b[1], z0 = b[2], x1 = b[3], y1 = b[4], z1 = b[5];
+  const col = teinte || b[6];
+  const hautY = y0 - z1 * K2D;
+  c.fillStyle = clair(col, 0.16);
+  c.fillRect(x0, hautY, x1 - x0, y1 - y0);                       // dessus
+  c.fillStyle = col;
+  c.fillRect(x0, y1 - z1 * K2D, x1 - x0, (z1 - z0) * K2D);       // face avant
+  c.fillStyle = "rgba(0,0,0,0.10)";
+  c.fillRect(x0, y1 - z0 * K2D - 1, x1 - x0, 1);                 // liseré au sol
+}
+
+// Écran de télévision : une image qui change, plus un léger scintillement.
+const telesAllumees = new Set();
+const ECRAN = ["#3aa7d8", "#e8c46a", "#7ec97e", "#e78ba0", "#8f7ede", "#d97b4a"];
+function couleurEcran(k) {
+  const i = (Math.floor(temps * 1.1) + k) % ECRAN.length;
+  return melange(ECRAN[(i + ECRAN.length) % ECRAN.length], "#ffffff",
+                 0.15 + 0.15 * Math.sin(temps * 24 + k));
+}
+
+function dessinerPiece2D(c, id, gx, gy, niv) {
+  const p = PIECE[id];
+  const t = (p.damier && ((gx + gy) & 1)) ? p.damier : null;
+  const allumee = p.tele && telesAllumees.has(cleC(gx, gy, niv || 0));
+  for (let i = 0; i < p.boites.length; i++) {
+    boite2D(c, p.boites[i], (allumee && p.ecran === i) ? couleurEcran(gx + gy) : t);
+  }
+}
+
+/* --------------------------------------------------- outil de construction */
+
+let modeConstruction = false;
+let pieceSel = "mur_bois";
+let outil = "poser";                 // "poser" | "gomme" | "maison"
+let niveauC = 0;
+let souris = null;                   // dernière position du pointeur
+let viseC = null;                    // case visée [gx, gy]
+
+// Bâtit une maison complète d'un seul geste : sol, murs, porte, fenêtres, toit, meubles.
+function maisonAuto(gx, gy) {
+  const L = 8, P = 7;
+  const mur = PIECE[pieceSel] && PIECE[pieceSel].cat === "Murs" ? pieceSel : "mur_platre";
+  for (let j = 0; j < P; j++) {
+    for (let i = 0; i < L; i++) {
+      poserPiece(gx + i, gy + j, 0, "sol_parquet");
+      const bord = (i === 0 || j === 0 || i === L - 1 || j === P - 1);
+      if (bord) poserPiece(gx + i, gy + j, 0, mur);
+      poserPiece(gx + i, gy + j, 1, "toit_tuiles");
+    }
+  }
+  poserPiece(gx + 3, gy + P - 1, 0, "porte");
+  poserPiece(gx + 1, gy + P - 1, 0, "fenetre");
+  poserPiece(gx + L - 2, gy + P - 1, 0, "fenetre");
+  poserPiece(gx + 1, gy, 0, "fenetre");
+  poserPiece(gx + L - 2, gy, 0, "fenetre");
+  meublerInterieur(gx + 1, gy + 1, L - 2, P - 2, () => 0.4);
+  sauverConstruction();
+}
+
+// Du pointeur vers une case de construction, dans les deux vues.
+function viser(mx, my) {
+  if (!mode3D) {
+    return [Math.floor((camX + mx) / CELL),
+            Math.floor((camY + my + niveauC * HAUT * K2D) / CELL)];
+  }
+  if (!cam3D) return null;
+  const cam = cam3D.cam, F = cam3D.F, R = cam3D.R, U = cam3D.U, foc = cam3D.foc;
+  const ex = mx - W / 2, ey = -(my - H / 2);
+  const d = [F[0] * foc + R[0] * ex + U[0] * ey,
+             F[1] * foc + R[1] * ex + U[1] * ey,
+             F[2] * foc + R[2] * ex + U[2] * ey];
+  if (Math.abs(d[2]) < 1e-6) return null;
+  const t = (niveauC * HAUT - cam[2]) / d[2];
+  if (t <= 0) return null;
+  return [Math.floor((cam[0] + d[0] * t) / CELL), Math.floor((cam[1] + d[1] * t) / CELL)];
+}
+
+function appliquerOutil(effacer) {
+  if (!viseC) return;
+  const [gx, gy] = viseC;
+  if (Math.abs(gx * CELL) > BORD_MIN || Math.abs(gy * CELL) > BORD_MIN) return;
+  if (effacer || outil === "gomme") effacerPiece(gx, gy, niveauC);
+  else if (outil === "maison") { maisonAuto(gx, gy); outil = "poser"; majPalette(); }
+  else poserPiece(gx, gy, niveauC, pieceSel);
+}
+
+// Aperçu translucide de la pièce sous le pointeur.
+function dessinerFantome2D() {
+  if (!modeConstruction || !viseC) return;
+  const [gx, gy] = viseC;
+  const x = gx * CELL - camX, y = gy * CELL - camY - niveauC * HAUT * K2D;
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.strokeStyle = (outil === "gomme") ? "#e74c3c" : "#f9ca24";
+  ctx.lineWidth = 2;
+  ctx.strokeRect(0.5, 0.5, CELL - 1, CELL - 1);
+  if (outil === "poser") {
+    ctx.globalAlpha = 0.55;
+    dessinerPiece2D(ctx, pieceSel, gx, gy);
+  }
+  ctx.restore();
+}
+
+/* ==========================================================================
+   6. RENDU 2D — vue de dessus
+   ========================================================================== */
+
+let camX = 0, camY = 0;
+
+function dessiner2D() {
+  camX = joueur.x - W / 2;
+  camY = joueur.y - H / 2;
+
+  const t0x = Math.floor(camX / TL), t0y = Math.floor(camY / TL);
+  const t1x = Math.ceil((camX + W) / TL), t1y = Math.ceil((camY + H) / TL);
+
+  // --- sol ---
+  for (let ty = t0y; ty <= t1y; ty++) {
+    for (let tx = t0x; tx <= t1x; tx++) {
+      const sx = tx * TL - camX, sy = ty * TL - camY;
+      const t = tuileEn(tx, ty), bio = biomeCase(tx, ty);
+      const a = aleaCase(tx, ty, 1);
+
+      if (t === EAU) {
+        ctx.fillStyle = bio === "neige" ? "#dfe9ef" : COUL_SABLE[Math.floor(a * 3)];
+        ctx.fillRect(sx, sy, TL + 1, TL + 1);
+        const N = tuileEn(tx, ty - 1) === EAU, S = tuileEn(tx, ty + 1) === EAU;
+        const E = tuileEn(tx + 1, ty) === EAU, O = tuileEn(tx - 1, ty) === EAU;
+        const R = 20;
+        ctx.fillStyle = couleurEau(tx, ty, bio);
+        ctx.beginPath();
+        ctx.roundRect(sx - 0.5, sy - 0.5, TL + 1.5, TL + 1.5,
+          [(!N && !O) ? R : 0, (!N && !E) ? R : 0, (!S && !E) ? R : 0, (!S && !O) ? R : 0]);
+        ctx.fill();
+        ctx.save(); ctx.clip();
+        ctx.fillStyle = "rgba(255,255,255,0.10)";
+        ctx.fillRect(sx + 6 + a * 14, sy + 14 + Math.sin(temps * 1.1 + tx) * 4, 16, 2.5);
+        ctx.restore();
+        continue;
+      }
+
+      ctx.fillStyle = couleurSol(tx, ty, t, bio);
+      ctx.fillRect(sx, sy, TL + 1, TL + 1);
+
+      if (t === CHEMIN || t === TERRE) {
+        ctx.fillStyle = "rgba(90,66,38,0.18)";
+        for (let i = 0; i < 4; i++) {
+          const b = aleaCase(tx, ty, 30 + i), b2 = aleaCase(tx, ty, 40 + i);
+          ctx.beginPath(); ctx.ellipse(sx + b * TL, sy + b2 * TL, 3 + b * 3, 2 + b2, 0, 0, 6.3); ctx.fill();
+        }
+      } else if (t === SABLE) {
+        ctx.fillStyle = "rgba(160,130,80,0.16)";
+        for (let i = 0; i < 3; i++) {
+          ctx.fillRect(sx + aleaCase(tx, ty, 10 + i) * 40, sy + aleaCase(tx, ty, 20 + i) * 40, 3, 2);
+        }
+      } else if (bio !== "desert" && bio !== "neige") {
+        ctx.strokeStyle = "rgba(40,90,35,0.30)"; ctx.lineWidth = 1.6;
+        for (let i = 0; i < 3; i++) {
+          const bx = aleaCase(tx, ty, 50 + i) * TL, by = aleaCase(tx, ty, 60 + i) * TL;
+          const vent = Math.sin(temps * 1.6 + (tx + ty) * 0.5 + i) * 1.8;
+          ctx.beginPath();
+          ctx.moveTo(sx + bx, sy + by);
+          ctx.quadraticCurveTo(sx + bx + vent * 0.5, sy + by - 4, sx + bx + vent, sy + by - 7);
+          ctx.stroke();
+        }
+      }
+    }
+  }
+
+  // écume au bord de l'eau
+  ctx.strokeStyle = "rgba(255,255,255,0.35)"; ctx.lineWidth = 2;
+  for (let ty = t0y; ty <= t1y; ty++) for (let tx = t0x; tx <= t1x; tx++) {
+    if (tuileEn(tx, ty) !== EAU) continue;
+    const sx = tx * TL - camX, sy = ty * TL - camY;
+    const on = Math.sin(temps * 2 + tx * 0.8) * 0.6;
+    const g = tuileEn(tx - 1, ty) === EAU ? 0 : 13, d = tuileEn(tx + 1, ty) === EAU ? 0 : 13;
+    if (tuileEn(tx, ty - 1) !== EAU) { ctx.beginPath(); ctx.moveTo(sx + g, sy + on); ctx.lineTo(sx + TL - d, sy + on); ctx.stroke(); }
+    if (tuileEn(tx, ty + 1) !== EAU) { ctx.beginPath(); ctx.moveTo(sx + g, sy + TL + on); ctx.lineTo(sx + TL - d, sy + TL + on); ctx.stroke(); }
+  }
+
+  // --- ce qui est construit : les planchers d'abord (ils sont plats) ---
+  const nivVu = modeConstruction ? niveauC : joueur.niveau;
+  const dedans2D = !modeConstruction && joueurSousToit();
+  // Vu du dessus, une maison garde son toit — il ne s'efface que si l'on entre.
+  const estToit = (c) => c.s && PIECE[c.s].cat === "Toits";
+  const toits2D = [];
+
+  const construit = casesConstruites(camX - 60, camY - 60, camX + W + 60, camY + H + 200);
+  for (const c of construit) {
+    if (!dedans2D && c.n === nivVu + 1 && estToit(c)) toits2D.push(c);
+    if (c.n > nivVu || !c.s) continue;
+    ctx.save();
+    ctx.translate(c.gx * CELL - camX, c.gy * CELL - camY - c.n * HAUT * K2D);
+    dessinerPiece2D(ctx, c.s, c.gx, c.gy, c.n);
+    ctx.restore();
+  }
+
+  // --- objets triés par profondeur ---
+  const liste = [];
+  const marge = 140;
+  const c0x = Math.floor((camX - marge) / TL / CH), c1x = Math.floor((camX + W + marge) / TL / CH);
+  const c0y = Math.floor((camY - marge) / TL / CH), c1y = Math.floor((camY + H + marge) / TL / CH);
+  for (let cy = c0y; cy <= c1y; cy++) for (let cx = c0x; cx <= c1x; cx++) {
+    for (const o of chunkDe(cx, cy).decors) {
+      if (o.x < camX - marge || o.x > camX + W + marge || o.y < camY - marge || o.y > camY + H + marge) continue;
+      liste.push({ y: o.y, o });
+    }
+  }
+  for (const v of villagesAutour(Math.floor(joueur.x / TL), Math.floor(joueur.y / TL))) {
+    for (const b of v.batiments) {
+      if (b.x < camX - 200 || b.x > camX + W + 200 || b.y < camY - 260 || b.y > camY + H + 200) continue;
+      liste.push({ y: b.y, bat: b });
+    }
+  }
+  for (const c of construit) {
+    if (c.n > nivVu || !c.o) continue;
+    const p = PIECE[c.o];
+    liste.push({ y: (c.gy + (p.h || 1)) * CELL + c.n * 0.5, cons: c });
+  }
+  liste.push({ y: joueur.y + joueur.niveau * 0.5, joueur: true });
+  liste.sort((a, b) => a.y - b.y);
+
+  for (const it of liste) {
+    ctx.save();
+    if (it.joueur) {
+      ctx.translate(joueur.x - camX, joueur.y - camY - joueur.niveau * HAUT * K2D);
+      dessinerJoueur2D();
+    } else if (it.cons) {
+      // un mur planté juste devant le personnage devient translucide :
+      // sinon, en vue de dessus, on ne verrait jamais l'intérieur d'une pièce
+      const dy = (it.cons.gy + 1) * CELL - joueur.y, dx = it.cons.gx * CELL + CELL / 2 - joueur.x;
+      if (it.cons.n === joueur.niveau && dy > 0 && dy < 3.5 * CELL && Math.abs(dx) < 4 * CELL
+          && PIECE[it.cons.o].solide) ctx.globalAlpha = 0.4;
+      ctx.translate(it.cons.gx * CELL - camX, it.cons.gy * CELL - camY - it.cons.n * HAUT * K2D);
+      dessinerPiece2D(ctx, it.cons.o, it.cons.gx, it.cons.gy, it.cons.n);
+      ctx.globalAlpha = 1;
+    } else if (it.bat) {
+      ctx.translate(it.bat.x - camX, it.bat.y - camY);
+      artBatiment(ctx, it.bat);
+      if (it.bat.type === "armoire" && prochePorte()) {
+        for (let i = 0; i < 3; i++) {
+          const a = temps * 2 + i * 2.1;
+          etoile(ctx, Math.cos(a) * 22, -88 + Math.sin(a * 1.3) * 6, 3.4 + Math.sin(a * 3) * 1, "#f9ca24");
+        }
+      }
+    } else {
+      ctx.translate(it.o.x - camX, it.o.y - camY);
+      ART[it.o.t](ctx, it.o);
+    }
+    ctx.restore();
+  }
+
+  // les toits par-dessus tout le reste : de dehors, on ne voit pas l'intérieur
+  for (const c of toits2D) {
+    ctx.save();
+    ctx.translate(c.gx * CELL - camX, c.gy * CELL - camY - c.n * HAUT * K2D);
+    dessinerPiece2D(ctx, c.s, c.gx, c.gy, c.n);
+    ctx.restore();
+  }
+
+  // étincelles
+  for (const e of etincelles) {
+    ctx.globalAlpha = clamp(e.vie / 0.6, 0, 1);
+    etoile(ctx, e.x - camX, e.y - camY, 3.5, e.c);
+  }
+  ctx.globalAlpha = 1;
+  dessinerFantome2D();
+
+  const vg = ctx.createRadialGradient(W / 2, H / 2, Math.min(W, H) * 0.42, W / 2, H / 2, Math.max(W, H) * 0.78);
+  vg.addColorStop(0, "rgba(0,0,0,0)");
+  vg.addColorStop(1, "rgba(0,0,0,0.28)");
+  ctx.fillStyle = vg;
+  ctx.fillRect(0, 0, W, H);
+}
+
+function dessinerJoueur2D() {
+  const bob = joueur.pas > 0 ? Math.abs(Math.sin(joueur.pas * 9)) : 0;
+  if (!joueur.assis) {
+    ctx.fillStyle = "rgba(0,0,0,0.22)";
+    ctx.beginPath(); ctx.ellipse(0, 0, 12 - bob * 2, 4.5 - bob, 0, 0, 6.3); ctx.fill();
+  }
+  ctx.save();
+  ctx.scale(joueur.regarde * 0.9, 0.9);
+  dessinerPerso(ctx, perso, { pas: joueur.pas, dos: joueur.assis ? false : joueur.dos,
+                              temps: temps, assis: joueur.assis ? joueur.assis.h : 0 });
+  ctx.restore();
+  etiquetteNom(ctx, 0, -92);
+}
+
+function etiquetteNom(c, x, y) {
+  if (!perso.nom) return;
+  c.font = "600 13px system-ui, sans-serif";
+  c.textAlign = "center";
+  const l = c.measureText(perso.nom).width;
+  c.fillStyle = "rgba(0,0,0,0.35)";
+  c.beginPath(); c.roundRect(x - l / 2 - 7, y, l + 14, 19, 9); c.fill();
+  c.fillStyle = "#fff";
+  c.fillText(perso.nom, x, y + 14);
+  c.textAlign = "start";
+}
+
+/* ==========================================================================
+   6. RENDU 3D — caméra derrière le personnage, polygones triés
+   ========================================================================== */
+
+let camAngle = Math.PI / 2;     // direction du regard de la caméra (monde)
+let camHaut = 0.62;             // inclinaison (0 = rasant, 1 = plongée)
+let zoom3D = 1;
+const PORTEE = 22;              // rayon de rendu, en cases
+const memoBrume = new Map();
+let memoCiel = "";
+
+function basculerVue() {
+  mode3D = !mode3D;
+  btnVue.textContent = mode3D ? "2D" : "3D";
+  hudVue.textContent = mode3D ? "3D" : "2D";
+  if (mode3D) camAngle = joueur.dir;
+}
+
+// --- pointeur : construire, ou pivoter la caméra ---
+let glisse = null, peint = null;
+let cam3D = null;                     // repère de la caméra, gardé pour viser au sol
+
+canvas.addEventListener("contextmenu", (e) => { if (modeConstruction) e.preventDefault(); });
+
+canvas.addEventListener("pointerdown", (e) => {
+  souris = { x: e.clientX, y: e.clientY };
+  viseC = viser(e.clientX, e.clientY);
+  // en construction : clic gauche pose, clic droit efface ; Alt ou molette enfoncée = pivoter
+  if (modeConstruction && !(mode3D && (e.button === 1 || e.altKey))) {
+    peint = { effacer: e.button === 2 };
+    appliquerOutil(peint.effacer);
+    canvas.setPointerCapture(e.pointerId);
+    return;
+  }
+  if (!mode3D) return;
+  glisse = { x: e.clientX, y: e.clientY };
+  canvas.classList.add("pivote");
+  canvas.setPointerCapture(e.pointerId);
+});
+canvas.addEventListener("pointermove", (e) => {
+  souris = { x: e.clientX, y: e.clientY };
+  if (modeConstruction) viseC = viser(e.clientX, e.clientY);
+  if (peint) {
+    if (outil !== "maison") appliquerOutil(peint.effacer);   // on peint en glissant
+    return;
+  }
+  if (!glisse) return;
+  camAngle += (e.clientX - glisse.x) * 0.006;
+  camHaut = clamp(camHaut - (e.clientY - glisse.y) * 0.004, 0.12, 1.5);
+  glisse = { x: e.clientX, y: e.clientY };
+});
+const finGlisse = () => {
+  glisse = null;
+  if (peint) { peint = null; if (construitModifie) sauverConstruction(); }
+  canvas.classList.remove("pivote");
+};
+canvas.addEventListener("pointerup", finGlisse);
+canvas.addEventListener("pointercancel", finGlisse);
+canvas.addEventListener("wheel", (e) => {
+  if (!mode3D) return;
+  e.preventDefault();
+  zoom3D = clamp(zoom3D * (e.deltaY > 0 ? 1.12 : 0.89), 0.45, 3.2);
+}, { passive: false });
+
+function dessiner3D() {
+  const bio = biomeCase(Math.floor(joueur.x / TL), Math.floor(joueur.y / TL));
+  const ciel = BIOMES[bio].ciel;
+
+  // --- ciel ---
+  const g = ctx.createLinearGradient(0, 0, 0, H);
+  g.addColorStop(0, melange(ciel, "#0b3c6b", 0.45));
+  g.addColorStop(0.55, ciel);
+  g.addColorStop(1, clair(ciel, 0.35));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.beginPath(); ctx.arc(W * 0.76, H * 0.16, 26, 0, 6.3); ctx.fill();
+
+  // --- caméra : sous un toit, elle se rapproche pour ne pas traverser les murs ---
+  const dedans = joueurSousToit();
+  const dist = (dedans ? 118 : 210) * zoom3D;
+  const haut = (dedans ? 92 : 120) * camHaut * zoom3D + (dedans ? 52 : 30);
+  const cam = [joueur.x - Math.cos(camAngle) * dist, joueur.y - Math.sin(camAngle) * dist, haut];
+  const cible = [joueur.x, joueur.y, 26];
+  let F = [cible[0] - cam[0], cible[1] - cam[1], cible[2] - cam[2]];
+  const fl = Math.hypot(F[0], F[1], F[2]); F = [F[0] / fl, F[1] / fl, F[2] / fl];
+  let R = [F[1], -F[0], 0];
+  const rl = Math.hypot(R[0], R[1]) || 1; R = [R[0] / rl, R[1] / rl, 0];
+  const U = [R[1] * F[2] - R[2] * F[1], R[2] * F[0] - R[0] * F[2], R[0] * F[1] - R[1] * F[0]];
+  const foc = H * 0.92;
+
+  function proj(p) {
+    const rx = p[0] - cam[0], ry = p[1] - cam[1], rz = p[2] - cam[2];
+    const zc = rx * F[0] + ry * F[1] + rz * F[2];
+    if (zc < 6) return null;
+    return [W / 2 + foc * (rx * R[0] + ry * R[1] + rz * R[2]) / zc,
+            H / 2 - foc * (rx * U[0] + ry * U[1] + rz * U[2]) / zc, zc];
+  }
+  const devant = (x, y) => (x - cam[0]) * F[0] + (y - cam[1]) * F[1] > -60;
+  cam3D = { cam, F, R, U, foc };            // sert à viser le sol avec le pointeur
+
+  // Au loin, tout se fond dans le ciel. La nuance est mémorisée par palier
+  // de distance, sinon on fabriquerait des milliers de couleurs par image.
+  if (memoCiel !== ciel) { memoBrume.clear(); memoCiel = ciel; }
+  function brume(col, zc) {
+    const n = clamp(Math.round((zc - 450) / 130), 0, 9);
+    if (n === 0) return col;
+    const cle = col + "|" + n;
+    let v = memoBrume.get(cle);
+    if (!v) { v = melange(col, ciel, n * 0.1); memoBrume.set(cle, v); }
+    return v;
+  }
+
+  const sols = [], ombres = [], objets = [];
+  const ptx = Math.round(joueur.x / TL), pty = Math.round(joueur.y / TL);
+
+  // --- sol : plat, donc dessiné entièrement avant le reste ---
+  for (let j = -PORTEE; j <= PORTEE; j++) {
+    for (let i = -PORTEE; i <= PORTEE; i++) {
+      if (i * i + j * j > PORTEE * PORTEE) continue;
+      const tx = ptx + i, ty = pty + j;
+      const wx = tx * TL, wy = ty * TL;
+      if (!devant(wx + TL / 2, wy + TL / 2)) continue;
+      const p0 = proj([wx, wy, 0]), p1 = proj([wx + TL, wy, 0]);
+      const p2 = proj([wx + TL, wy + TL, 0]), p3 = proj([wx, wy + TL, 0]);
+      if (!p0 || !p1 || !p2 || !p3) continue;
+      const t = tuileEn(tx, ty);
+      const zc = (p0[2] + p2[2]) / 2;
+      sols.push({ d: zc, poly: [p0, p1, p2, p3], col: brume(couleurSol(tx, ty, t, biomeCase(tx, ty)), zc) });
+    }
+  }
+  const prims = objets;
+
+  // --- panneaux (végétation) ---
+  const portee = PORTEE * TL;
+  const c0x = Math.floor((joueur.x - portee) / TL / CH), c1x = Math.floor((joueur.x + portee) / TL / CH);
+  const c0y = Math.floor((joueur.y - portee) / TL / CH), c1y = Math.floor((joueur.y + portee) / TL / CH);
+  for (let cy = c0y; cy <= c1y; cy++) for (let cx = c0x; cx <= c1x; cx++) {
+    for (const o of chunkDe(cx, cy).decors) {
+      if (Math.hypot(o.x - joueur.x, o.y - joueur.y) > portee) continue;
+      if (!devant(o.x, o.y)) continue;
+      const p = proj([o.x, o.y, 0]);
+      if (!p) continue;
+      prims.push({ d: p[2], bb: { art: ART[o.t], o, sx: p[0], sy: p[1], ech: foc / p[2], zc: p[2] } });
+    }
+  }
+
+  // --- ce qui a été construit : murs, planchers, meubles ---
+  // Quand on est sous un toit, on l'escamote : sinon on ne verrait jamais
+  // l'intérieur d'une maison depuis la caméra extérieure.
+  const nivVu3D = modeConstruction ? niveauC : NIV_MAX;
+  const bord = PORTEE * TL;
+  // profondeur du personnage : à l'intérieur, tout mur plus proche que lui
+  // s'efface, sinon la caméra se retrouve nez à nez avec la cloison du fond
+  const profJoueur = (joueur.x - cam[0]) * F[0] + (joueur.y - cam[1]) * F[1] +
+                     (joueur.niveau * HAUT + 30 - cam[2]) * F[2];
+
+  for (const c of casesConstruites(joueur.x - bord, joueur.y - bord, joueur.x + bord, joueur.y + bord)) {
+    if (c.n > nivVu3D) continue;
+    const wx = c.gx * CELL, wy = c.gy * CELL, z0 = c.n * HAUT;
+    if (!devant(wx + CELL / 2, wy + CELL / 2)) continue;
+    if (dedans && c.o && PIECE[c.o].cat === "Murs") {
+      const prof = (wx + CELL / 2 - cam[0]) * F[0] + (wy + CELL / 2 - cam[1]) * F[1] +
+                   (z0 + 45 - cam[2]) * F[2];
+      if (prof < profJoueur - 12) continue;          // cloison entre la caméra et nous
+    }
+    // les toits des maisons du village sont remplacés par une vraie toiture à pans
+    if (c.s && !(PIECE[c.s].cat === "Toits" && (c.toitAuto || (dedans && c.n > joueur.niveau)))) {
+      // un plancher : seule sa face supérieure se voit
+      const p = PIECE[c.s], b = p.boites[0];
+      const col = (p.damier && ((c.gx + c.gy) & 1)) ? p.damier : b[6];
+      const q = [[wx + b[0], wy + b[1], z0 + b[5]], [wx + b[3], wy + b[1], z0 + b[5]],
+                 [wx + b[3], wy + b[4], z0 + b[5]], [wx + b[0], wy + b[4], z0 + b[5]]].map(proj);
+      if (!q.some(v => !v)) {
+        const d = (q[0][2] + q[2][2]) / 2;
+        objets.push({ d: d + 0.5, poly: q, col: brume(clair(col, 0.1), d), bord: true });
+      }
+      if (c.n > 0 || p.cat === "Toits") {          // dessous visible quand c'est en l'air
+        pousserBoite(objets, proj, brume, wx + b[0], wy + b[1], wx + b[3], wy + b[4],
+                     z0 + b[2], z0 + b[5], col);
+      }
+    }
+    if (c.o) {
+      const p = PIECE[c.o];
+      const allumee = p.tele && telesAllumees.has(cleC(c.gx, c.gy, c.n));
+      for (let i = 0; i < p.boites.length; i++) {
+        const b = p.boites[i];
+        pousserBoite(objets, proj, brume, wx + b[0], wy + b[1], wx + b[3], wy + b[4],
+                     z0 + b[2], z0 + b[5], (allumee && p.ecran === i) ? couleurEcran(c.gx + c.gy) : b[6]);
+      }
+    }
+  }
+
+  // --- les toitures à pans des maisons du village ---
+  if (!dedans) {
+    for (const v of villagesAutour(ptx, pty)) {
+      for (const b of v.maisons) {
+        if (Math.hypot(b.x - joueur.x, b.y - joueur.y) > portee + 240) continue;
+        pousserToiture(prims, b, proj, devant, brume);
+      }
+    }
+  }
+
+  // --- bâtiments en volume, posés sur leur ombre ---
+  for (const v of villagesAutour(ptx, pty)) {
+    for (const b of v.batiments) {
+      if (Math.hypot(b.x - joueur.x, b.y - joueur.y) > portee + 200) continue;
+      const o = [[b.tx * TL - 6, b.ty * TL - 4, 0.4], [(b.tx + b.w) * TL + 10, b.ty * TL - 4, 0.4],
+                 [(b.tx + b.w) * TL + 10, (b.ty + b.h) * TL + 8, 0.4], [b.tx * TL - 6, (b.ty + b.h) * TL + 8, 0.4]].map(proj);
+      if (!o.some(v2 => !v2)) ombres.push({ d: (o[0][2] + o[2][2]) / 2, poly: o, col: "rgba(0,0,0,0.22)" });
+      pousserBatiment3D(prims, b, proj, devant, brume);
+    }
+  }
+
+  // --- le personnage (à la hauteur de son étage) ---
+  const pj = proj([joueur.x, joueur.y, joueur.niveau * HAUT + 5]);
+  if (pj) prims.push({ d: pj[2] - 1, bb: { joueur: true, sx: pj[0], sy: pj[1], ech: foc / pj[2], zc: pj[2] } });
+
+  // --- étincelles ---
+  for (const e of etincelles) {
+    const pe = proj([e.x, e.y, 40]);
+    if (pe) prims.push({ d: pe[2] - 2, bb: { etincelle: e, sx: pe[0], sy: pe[1], ech: foc / pe[2] } });
+  }
+
+  // du plus loin au plus proche : le sol d'abord, puis tout ce qui s'élève
+  sols.sort((a, b) => b.d - a.d);
+  prims.sort((a, b) => b.d - a.d);
+
+  for (const pr of sols.concat(ombres)) {
+    ctx.fillStyle = pr.col;
+    ctx.beginPath();
+    ctx.moveTo(pr.poly[0][0], pr.poly[0][1]);
+    for (let k = 1; k < 4; k++) ctx.lineTo(pr.poly[k][0], pr.poly[k][1]);
+    ctx.closePath();
+    ctx.fill();
+  }
+
+  for (const pr of prims) {
+    if (pr.poly) {
+      ctx.fillStyle = pr.col;
+      ctx.beginPath();
+      ctx.moveTo(pr.poly[0][0], pr.poly[0][1]);
+      for (let k = 1; k < pr.poly.length; k++) ctx.lineTo(pr.poly[k][0], pr.poly[k][1]);
+      ctx.closePath();
+      ctx.fill();
+      if (pr.bord) { ctx.strokeStyle = pr.col; ctx.lineWidth = 1; ctx.stroke(); }
+      continue;
+    }
+    const b = pr.bb;
+    ctx.save();
+    ctx.translate(b.sx, b.sy);
+    ctx.scale(b.ech, b.ech);
+    if (b.joueur) {
+      const pose = poseVersCamera();
+      ctx.save();
+      if (!joueur.assis) {
+        ctx.fillStyle = "rgba(0,0,0,0.25)";
+        ctx.beginPath(); ctx.ellipse(0, 0, 12, 5, 0, 0, 6.3); ctx.fill();
+      }
+      ctx.scale(pose.regarde, 1);
+      dessinerPerso(ctx, perso, { pas: joueur.pas, dos: joueur.assis ? false : pose.dos,
+                                  temps: temps, assis: joueur.assis ? joueur.assis.h : 0 });
+      ctx.restore();
+      ctx.restore();                                   // l'étiquette reste à taille d'écran
+      etiquetteNom(ctx, b.sx, b.sy - 92 * b.ech);
+      continue;
+    } else if (b.etincelle) {
+      ctx.globalAlpha = clamp(b.etincelle.vie / 0.6, 0, 1);
+      etoile(ctx, 0, 0, 4, b.etincelle.c);
+    } else {
+      ctx.globalAlpha = clamp(1.25 - (b.zc - 700) / 900, 0.15, 1);   // fondu au loin
+      b.art(ctx, b.o);
+    }
+    ctx.restore();
+  }
+
+  dessinerFantome3D(proj, brume);
+}
+
+// Aperçu de la pièce à poser, par-dessus la scène.
+function dessinerFantome3D(proj, brume) {
+  if (!modeConstruction || !viseC) return;
+  const [gx, gy] = viseC;
+  const wx = gx * CELL, wy = gy * CELL, z0 = niveauC * HAUT;
+
+  const q = [[wx, wy, z0], [wx + CELL, wy, z0], [wx + CELL, wy + CELL, z0], [wx, wy + CELL, z0]].map(proj);
+  if (q.some(v => !v)) return;
+  ctx.save();
+  ctx.strokeStyle = (outil === "gomme") ? "#e74c3c" : "#f9ca24";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(q[0][0], q[0][1]);
+  for (let k = 1; k < 4; k++) ctx.lineTo(q[k][0], q[k][1]);
+  ctx.closePath(); ctx.stroke();
+
+  if (outil === "poser") {
+    const apercu = [];
+    for (const b of PIECE[pieceSel].boites) {
+      pousserBoite(apercu, proj, brume, wx + b[0], wy + b[1], wx + b[3], wy + b[4], z0 + b[2], z0 + b[5], b[6]);
+    }
+    apercu.sort((a, b2) => b2.d - a.d);
+    ctx.globalAlpha = 0.5;
+    for (const pr of apercu) {
+      ctx.fillStyle = pr.col;
+      ctx.beginPath();
+      ctx.moveTo(pr.poly[0][0], pr.poly[0][1]);
+      for (let k = 1; k < 4; k++) ctx.lineTo(pr.poly[k][0], pr.poly[k][1]);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  ctx.restore();
+}
+
+// Boîte : 8 sommets, 5 faces visibles, teintées selon leur orientation.
+function pousserBoite(prims, proj, brume, x0, y0, x1, y1, z0, z1, couleur) {
+  const P = [
+    [x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+    [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]
+  ].map(proj);
+  const faces = [[[4, 5, 6, 7], 1.06], [[0, 1, 5, 4], 0.86], [[1, 2, 6, 5], 0.66],
+                 [[2, 3, 7, 6], 0.78], [[3, 0, 4, 7], 0.72]];
+  for (const [idx, f] of faces) {
+    const q = idx.map(k => P[k]);
+    if (q.some(v => !v)) continue;
+    const d = (q[0][2] + q[1][2] + q[2][2] + q[3][2]) / 4;
+    prims.push({ d, poly: q, col: brume(melange(couleur, f > 1 ? "#ffffff" : "#000000", Math.abs(f - 1)), d), bord: true });
+  }
+}
+
+// Toiture à deux pans posée sur les murs d'une maison du village.
+function pousserToiture(prims, b, proj, devant, brume) {
+  const x0 = b.tx * TL - 4, y0 = b.ty * TL - 4;
+  const x1 = (b.tx + b.w) * TL + 4, y1 = (b.ty + b.h) * TL + 4;
+  if (!devant((x0 + x1) / 2, (y0 + y1) / 2)) return;
+  const z = HAUT, mx = (x0 + x1) / 2;
+  const A = proj([x0, y0, z]), B = proj([x1, y0, z]);
+  const C = proj([x1, y1, z]), D = proj([x0, y1, z]);
+  const S1 = proj([mx, y0, z + 52]), S2 = proj([mx, y1, z + 52]);
+  if (!A || !B || !C || !D || !S1 || !S2) return;
+  for (const [q, f] of [[[A, B, S1], 0.88], [[D, C, S2], 0.88],
+                        [[B, C, S2, S1], 1.0], [[A, D, S2, S1], 0.74]]) {
+    let d = 0; for (const v of q) d += v[2]; d /= q.length;
+    prims.push({ d, poly: q, col: brume(melange(b.toit, f > 0.95 ? "#ffffff" : "#000000",
+                                                Math.abs(f - 1) * 1.2), d), bord: true });
+  }
+}
+
+function pousserBatiment3D(prims, b, proj, devant, brume) {
+  const x0 = b.tx * TL, y0 = b.ty * TL, x1 = (b.tx + b.w) * TL, y1 = (b.ty + b.h) * TL;
+  if (!devant((x0 + x1) / 2, (y0 + y1) / 2)) return;
+
+  if (b.type === "puits") {
+    pousserBoite(prims, proj, brume, x0 + 8, y0 + 8, x1 - 8, y1 - 8, 0, 22, "#95a5a6");
+    pousserBoite(prims, proj, brume, x0 + 12, y0 + 4, x0 + 17, y1 - 4, 22, 56, "#7b5230");
+    pousserBoite(prims, proj, brume, x1 - 17, y0 + 4, x1 - 12, y1 - 4, 22, 56, "#7b5230");
+    pousserBoite(prims, proj, brume, x0 + 2, y0 + 2, x1 - 2, y1 - 2, 56, 64, "#c0392b");
+    return;
+  }
+
+  if (b.type === "armoire") {
+    const cx = (x0 + x1) / 2, cy = (y0 + y1) / 2;
+    pousserBoite(prims, proj, brume, cx - 22, cy - 11, cx + 22, cy + 11, 0, 74, "#8b5e34");
+    pousserBoite(prims, proj, brume, cx - 25, cy - 13, cx + 25, cy + 13, 74, 82, "#6d4423");
+    // le miroir, sur la face sud
+    const M = [[cx - 18, cy + 12, 8], [cx - 2, cy + 12, 8], [cx - 2, cy + 12, 66], [cx - 18, cy + 12, 66]].map(proj);
+    if (!M.some(v => !v)) {
+      const d = (M[0][2] + M[2][2]) / 2;
+      prims.push({ d: d - 0.5, poly: M, col: brume("#bfe3f5", d), bord: true });
+    }
+    return;
+  }
+
+  // maison : murs + toit à deux pentes
+  const murH = 78;
+  pousserBoite(prims, proj, brume, x0 + 4, y0 + 4, x1 - 4, y1 - 4, 0, murH, b.couleur);
+
+  const mx = (x0 + x1) / 2;
+  const A = proj([x0, y0, murH]), B = proj([x1, y0, murH]);
+  const C = proj([x1, y1, murH]), D = proj([x0, y1, murH]);
+  const S1 = proj([mx, y0, murH + 54]), S2 = proj([mx, y1, murH + 54]);
+  if (A && B && C && D && S1 && S2) {
+    const pans = [
+      [[A, B, S1], 0.9], [[D, C, S2], 0.9],                    // pignons
+      [[B, C, S2, S1], 1.0], [[A, D, S2, S1], 0.75]            // pentes
+    ];
+    for (const [q, f] of pans) {
+      let d = 0; for (const v of q) d += v[2]; d /= q.length;
+      prims.push({ d, poly: q, col: brume(melange(b.toit, f > 0.95 ? "#ffffff" : "#000000", Math.abs(f - 1) * 1.2), d), bord: true });
+    }
+  }
+  // porte et fenêtres, plaquées sur la face sud
+  const face = (xa, xb, za, zb, col) => {
+    const q = [[xa, y1 - 3.5, za], [xb, y1 - 3.5, za], [xb, y1 - 3.5, zb], [xa, y1 - 3.5, zb]].map(proj);
+    if (q.some(v => !v)) return;
+    const d = (q[0][2] + q[2][2]) / 2;
+    prims.push({ d: d - 0.5, poly: q, col: brume(col, d), bord: true });
+  };
+  face(mx - 12, mx + 12, 0, 46, "#6d4423");
+  face(x0 + 12, x0 + 30, 52, 70, "#ffeaa7");
+  face(x1 - 30, x1 - 12, 52, 70, "#ffeaa7");
+}
+
+/* ==========================================================================
+   7. ÉTINCELLES, HUD
+   ========================================================================== */
+
+function majEtincelles(dt) {
+  for (let i = etincelles.length - 1; i >= 0; i--) {
+    const e = etincelles[i];
+    e.vie -= dt; e.x += e.vx * dt; e.y += e.vy * dt; e.vy += 22 * dt;
+    if (e.vie <= 0) etincelles.splice(i, 1);
+  }
+}
+function ajouterEtincelles() {
+  for (let i = 0; i < 18; i++) {
+    const a = Math.random() * 6.3, v = 30 + Math.random() * 70;
+    etincelles.push({
+      x: joueur.x, y: joueur.y - 20, vx: Math.cos(a) * v, vy: Math.sin(a) * v - 40,
+      vie: 0.5 + Math.random() * 0.5, c: ["#f9ca24", "#ffffff", "#e84393", "#74b9ff"][i % 4]
+    });
+  }
+}
+
+/* --------------------------------------------------------------------------
+   La carte du monde. Elle est peinte une seule fois, quelques lignes par image
+   pour ne pas figer le jeu, à partir des mêmes bruits que le terrain.
+   -------------------------------------------------------------------------- */
+
+const CARTE_N = 180;                       // côté de la carte, en pixels
+const carteMonde = document.createElement("canvas");
+carteMonde.width = CARTE_N; carteMonde.height = CARTE_N;
+const cctx = carteMonde.getContext("2d");
+let carteLigne = 0;                        // ligne en cours de peinture
+let carteVisible = false;
+
+function peindreCarte(lignes) {
+  if (carteLigne >= CARTE_N) return;
+  const fin = Math.min(CARTE_N, carteLigne + lignes);
+  for (let j = carteLigne; j < fin; j++) {
+    const ty = Math.round((j / CARTE_N * 2 - 1) * MONDE_R);
+    for (let i = 0; i < CARTE_N; i++) {
+      const tx = Math.round((i / CARTE_N * 2 - 1) * MONDE_R);
+      const niv = niveauEn(tx, ty);
+      let col;
+      if (niv < 0.30) col = "#1b5e8c";                    // haute mer
+      else if (niv < 0.36) col = "#2e86c1";               // eau côtière
+      else if (niv < 0.40) col = "#e6d3a3";               // plage
+      else col = BIOMES[biomeEn(tx, ty)].sol[0];
+      cctx.fillStyle = col;
+      cctx.fillRect(i, j, 1, 1);
+    }
+  }
+  carteLigne = fin;
+  if (carteLigne >= CARTE_N) marquerVillages();
+}
+
+// Une fois le relief peint, on pose un point sur chaque village.
+function marquerVillages() {
+  const rMax = Math.ceil(MONDE_R / REG);
+  cctx.fillStyle = "#e84393";
+  for (let ry = -rMax; ry <= rMax; ry++) {
+    for (let rx = -rMax; rx <= rMax; rx++) {
+      const p = positionVillage(rx, ry);
+      if (!p) continue;
+      const i = Math.round((p[0] / MONDE_R + 1) / 2 * CARTE_N);
+      const j = Math.round((p[1] / MONDE_R + 1) / 2 * CARTE_N);
+      cctx.fillRect(i - 1, j - 1, 2, 2);
+    }
+  }
+}
+
+function dessinerCarte() {
+  if (!carteVisible) return;
+  const T = Math.min(200, Math.max(140, Math.round(Math.min(W, H) * 0.26)));
+  const x0 = W - T - 16, y0 = H - T - 16;
+
+  ctx.save();
+  ctx.fillStyle = "rgba(0,0,0,0.45)";
+  ctx.beginPath(); ctx.roundRect(x0 - 6, y0 - 6, T + 12, T + 30, 10); ctx.fill();
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(carteMonde, x0, y0, T, T);
+  ctx.imageSmoothingEnabled = true;
+  ctx.strokeStyle = "rgba(255,255,255,0.5)"; ctx.lineWidth = 1.5;
+  ctx.strokeRect(x0, y0, T, T);
+
+  if (carteLigne < CARTE_N) {                       // barre de progression
+    ctx.fillStyle = "rgba(0,0,0,0.5)";
+    ctx.fillRect(x0, y0 + T * carteLigne / CARTE_N, T, T - T * carteLigne / CARTE_N);
+  }
+
+  // position et direction du regard
+  const px = x0 + (joueur.x / TL / MONDE_R + 1) / 2 * T;
+  const py = y0 + (joueur.y / TL / MONDE_R + 1) / 2 * T;
+  const a = mode3D ? camAngle : Math.PI / 2;
+  ctx.fillStyle = "rgba(255,255,255,0.85)";
+  ctx.beginPath();
+  ctx.moveTo(px + Math.cos(a) * 9, py + Math.sin(a) * 9);
+  ctx.lineTo(px + Math.cos(a + 2.5) * 6, py + Math.sin(a + 2.5) * 6);
+  ctx.lineTo(px + Math.cos(a - 2.5) * 6, py + Math.sin(a - 2.5) * 6);
+  ctx.closePath(); ctx.fill();
+  ctx.fillStyle = "#f9ca24";
+  ctx.beginPath(); ctx.arc(px, py, 3, 0, 6.3); ctx.fill();
+  ctx.strokeStyle = "rgba(0,0,0,0.6)"; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(px, py, 3, 0, 6.3); ctx.stroke();
+
+  ctx.fillStyle = "rgba(255,255,255,0.8)";
+  ctx.font = "11px system-ui, sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Monde " + MONDE_COTE + " × " + MONDE_COTE + " cases", x0 + T / 2, y0 + T + 16);
+  ctx.textAlign = "start";
+  ctx.restore();
+}
+
+/* --------------------------------------------------------------------------
+   Les mondes : chacun a sa graine (donc son terrain), ses constructions,
+   sa tenue et l'endroit où l'on s'était arrêté.
+   -------------------------------------------------------------------------- */
+
+const CLE_COURANT = "monde2-courant";
+const CLE_MONDES = "monde2-mondes";
+let nomMondeCourant = "Mon monde";
+
+// Repart de zéro avec une nouvelle graine : caches vidés, carte à repeindre.
+function installerMonde(graine, donnees) {
+  GRAINE = graine | 0;
+  chunks.clear(); regionsCache.clear(); memoBrume.clear();
+  dernierCle = ""; dernierChunk = null;
+  appliquerConstruction(donnees && donnees.c);
+  telesAllumees.clear();
+  for (const k of ((donnees && donnees.tv) || [])) telesAllumees.add(k);
+  joueur.assis = null;
+  carteLigne = 0;                                   // la carte se repeindra
+  cctx.clearRect(0, 0, CARTE_N, CARTE_N);
+
+  if (donnees && donnees.p) {
+    perso = Object.assign({}, DEFAUT, donnees.p);
+    sauverPerso();
+  }
+  if (donnees && typeof donnees.x === "number") {
+    joueur.x = donnees.x; joueur.y = donnees.y; joueur.niveau = donnees.n || 0;
+  } else {
+    joueur.niveau = 0;
+    placerDepart();
+  }
+  joueur.pas = 0; joueur.derniereCase = "";
+  nomMondeCourant = (donnees && donnees.nom) || nomMondeCourant;
+}
+
+function etatCourant() {
+  return { g: GRAINE, nom: nomMondeCourant, x: joueur.x, y: joueur.y, n: joueur.niveau,
+           p: perso, c: serialiserConstruction(), tv: [...telesAllumees] };
+}
+
+function enregistrerCourant() {
+  try { localStorage.setItem(CLE_COURANT, JSON.stringify(etatCourant())); } catch (e) {}
+  construitModifie = false;
+}
+
+function chargerCourant() {
+  try {
+    const brut = localStorage.getItem(CLE_COURANT);
+    if (brut) {
+      const d = JSON.parse(brut);
+      installerMonde(d.g, d);
+      return true;
+    }
+    // reprise d'une ancienne partie, d'avant les mondes multiples
+    const vieux = localStorage.getItem("monde2-construction");
+    if (vieux) {
+      installerMonde(GRAINE, { c: JSON.parse(vieux) });
+      localStorage.removeItem("monde2-construction");
+      return true;
+    }
+  } catch (e) {}
+  return false;
+}
+
+// --- la liste des mondes enregistrés ---
+function listeMondes() {
+  try { return JSON.parse(localStorage.getItem(CLE_MONDES)) || []; } catch (e) { return []; }
+}
+function ecrireListe(l) {
+  try { localStorage.setItem(CLE_MONDES, JSON.stringify(l)); return true; }
+  catch (e) { alert("Il n'y a plus de place pour enregistrer. Supprime un monde."); return false; }
+}
+
+// Vignette : la carte du monde, réduite. On la termine si besoin.
+function vignetteMonde() {
+  while (carteLigne < CARTE_N) peindreCarte(60);
+  const v = document.createElement("canvas");
+  v.width = 96; v.height = 96;
+  const c = v.getContext("2d");
+  c.imageSmoothingEnabled = false;
+  c.drawImage(carteMonde, 0, 0, 96, 96);
+  return v.toDataURL("image/jpeg", 0.55);
+}
+
+function enregistrerMonde(nom, id) {
+  const l = listeMondes();
+  nomMondeCourant = nom;
+  const e = Object.assign(etatCourant(), {
+    id: id || ("m" + Date.now()),
+    nom: nom,
+    date: new Date().toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }),
+    vignette: vignetteMonde()
+  });
+  const i = l.findIndex(m => m.id === e.id);
+  if (i >= 0) l[i] = e; else l.unshift(e);
+  if (!ecrireListe(l)) return null;
+  enregistrerCourant();
+  return e.id;
+}
+
+function chargerMonde(id) {
+  const m = listeMondes().find(x => x.id === id);
+  if (!m) return;
+  installerMonde(m.g, m);
+  enregistrerCourant();
+}
+
+function supprimerMonde(id) {
+  ecrireListe(listeMondes().filter(m => m.id !== id));
+}
+
+const hudX = document.getElementById("hudX"), hudY = document.getElementById("hudY");
+const hudBiome = document.getElementById("hudBiome"), hudVue = document.getElementById("hudVue");
+let hudDernier = 0;
+function majHUD() {
+  if (temps - hudDernier < 0.2) return;
+  hudDernier = temps;
+  const tx = Math.floor(joueur.x / TL), ty = Math.floor(joueur.y / TL);
+  hudX.textContent = tx;
+  hudY.textContent = ty;
+  hudBiome.textContent = BIOMES[biomeCase(tx, ty)].nom +
+    (joueur.niveau > 0 ? " · " + NOMS_ETAGE[joueur.niveau] : "") +
+    (teleAllumeeProche() ? " · 📺 regarde la télé" : (joueur.assis ? " · assis" : ""));
+}
+
+/* ==========================================================================
+   8. PANNEAU GARDE-ROBE
+   ========================================================================== */
+
+const panneau = document.getElementById("panneau");
+const invite = document.getElementById("invite");
+const onglets = document.getElementById("onglets");
+const contenu = document.getElementById("contenu");
+const champNom = document.getElementById("nom");
+const apercu = document.getElementById("apercu");
+const actxBase = apercu.getContext("2d");
+const btnVue = document.getElementById("btnVue");
+const btnCarte = document.getElementById("btnCarte");
+let catActive = "cheveux";
+let apercuRegarde = 1, apercuDos = false, apercuMarche = true, apercuPas = 0;
+
+function calerApercu() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const r = apercu.getBoundingClientRect();
+  apercu.width = Math.round(r.width * dpr);
+  apercu.height = Math.round(r.height * dpr);
+  actxBase.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener("resize", calerApercu);
+
+function construireOnglets() {
+  onglets.innerHTML = "";
+  for (const c of CATEGORIES) {
+    const b = document.createElement("button");
+    b.innerHTML = "<span>" + c.icone + "</span>" + c.nom;
+    b.className = c.id === catActive ? "actif" : "";
+    b.onclick = () => { catActive = c.id; construireOnglets(); construireContenu(); };
+    onglets.appendChild(b);
+  }
+}
+
+function construireContenu() {
+  const c = CATEGORIES.find(x => x.id === catActive);
+  contenu.innerHTML = "";
+
+  if (c.styles) {
+    const t = document.createElement("div");
+    t.className = "titreSection";
+    t.textContent = (c.id === "chapeau" || c.id === "accessoire") ? "Modèle" : "Style";
+    contenu.appendChild(t);
+    const g = document.createElement("div");
+    g.className = "grilleStyles";
+    for (const [id, nom] of c.styles) {
+      const b = document.createElement("button");
+      b.textContent = nom;
+      if (perso[c.champStyle] === id) b.classList.add("actif");
+      b.onclick = () => { perso[c.champStyle] = id; appliquer(); construireContenu(); };
+      g.appendChild(b);
+    }
+    contenu.appendChild(g);
+  }
+
+  if (c.couleurs) {
+    const t = document.createElement("div");
+    t.className = "titreSection";
+    t.textContent = c.titreCouleur || "Couleur";
+    contenu.appendChild(t);
+    const g = document.createElement("div");
+    g.className = "grilleCouleurs";
+    for (const col of c.couleurs) {
+      const b = document.createElement("button");
+      b.className = "pastille" + (perso[c.champCouleur] === col ? " actif" : "");
+      b.style.background = col;
+      b.title = col;
+      b.onclick = () => { perso[c.champCouleur] = col; appliquer(); construireContenu(); };
+      g.appendChild(b);
+    }
+    contenu.appendChild(g);
+  }
+}
+
+function appliquer() {
+  sauverPerso();
+  ajouterEtincelles();
+}
+
+function basculerPanneau(ouvrir) {
+  panneau.classList.toggle("ouvert", ouvrir);
+  invite.classList.remove("on");
+  if (ouvrir) {
+    basculerConstruction(false);          // on ne bâtit pas en s'habillant
+    calerApercu(); construireOnglets(); construireContenu(); champNom.value = perso.nom;
+  }
+}
+
+document.getElementById("btnGarde").onclick = () => basculerPanneau(!panneau.classList.contains("ouvert"));
+document.getElementById("fermer").onclick = () => basculerPanneau(false);
+btnVue.onclick = basculerVue;
+btnCarte.onclick = () => { carteVisible = !carteVisible; btnCarte.classList.toggle("on", carteVisible); };
+
+const POSES = [{ r: 1, dos: false }, { r: 1, dos: true }, { r: -1, dos: false }, { r: -1, dos: true }];
+let poseApercu = 0;
+for (const b of document.querySelectorAll("#apercuBtns [data-tourne]")) {
+  b.onclick = () => {
+    poseApercu = (poseApercu + Number(b.dataset.tourne) + POSES.length) % POSES.length;
+    apercuRegarde = POSES[poseApercu].r;
+    apercuDos = POSES[poseApercu].dos;
+  };
+}
+const btnMarche = document.getElementById("btnMarche");
+btnMarche.onclick = () => { apercuMarche = !apercuMarche; btnMarche.classList.toggle("on", apercuMarche); };
+
+champNom.addEventListener("input", () => { perso.nom = champNom.value.slice(0, 14); sauverPerso(); });
+
+document.getElementById("btnAlea").onclick = () => {
+  const pick = (t) => t[Math.floor(Math.random() * t.length)];
+  perso.peau = pick(PAL_PEAU);
+  perso.cheveux = pick(PAL_CHEVEUX);
+  perso.yeux = pick(PAL_YEUX);
+  perso.haut = pick(PAL_TISSU);
+  perso.bas = pick(PAL_TISSU);
+  perso.chaussures = pick(PAL_TISSU);
+  for (const c of CATEGORIES) if (c.styles) perso[c.champStyle] = pick(c.styles)[0];
+  appliquer(); construireContenu();
+};
+document.getElementById("btnDefaut").onclick = () => {
+  const nom = perso.nom;
+  perso = Object.assign({}, DEFAUT, { nom: nom });
+  appliquer(); construireContenu();
+};
+
+/* --------------------------------------------------- palette de construction */
+
+const palette = document.getElementById("palette");
+const palOnglets = document.getElementById("palOnglets");
+const palItems = document.getElementById("palItems");
+const palNiv = document.getElementById("palNiv");
+const btnBatir = document.getElementById("btnBatir");
+const elAide = document.getElementById("aide");
+let catPiece = "Murs";
+
+const NOMS_ETAGE = ["Rez-de-chaussée", "1er étage", "2e étage"];
+
+// Petite vignette dessinée avec la géométrie de la pièce elle-même.
+function vignettePiece(cv, id) {
+  const p = PIECE[id], c = cv.getContext("2d");
+  let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
+  for (const b of p.boites) {
+    minX = Math.min(minX, b[0]); maxX = Math.max(maxX, b[3]);
+    minY = Math.min(minY, b[1] - b[5] * K2D); maxY = Math.max(maxY, b[4] - b[2] * K2D);
+  }
+  const s = Math.min((cv.width - 4) / (maxX - minX), (cv.height - 4) / (maxY - minY));
+  c.clearRect(0, 0, cv.width, cv.height);
+  c.save();
+  c.translate(cv.width / 2 - (minX + maxX) / 2 * s, cv.height / 2 - (minY + maxY) / 2 * s);
+  c.scale(s, s);
+  dessinerPiece2D(c, id, 0, 0);
+  c.restore();
+}
+
+function construirePalette() {
+  palOnglets.innerHTML = "";
+  for (const cat of CATS_PIECES) {
+    const b = document.createElement("button");
+    b.textContent = cat;
+    b.className = cat === catPiece ? "actif" : "";
+    b.onclick = () => { catPiece = cat; outil = "poser"; construirePalette(); };
+    palOnglets.appendChild(b);
+  }
+  palItems.innerHTML = "";
+  for (const p of PIECES.filter(p => p.cat === catPiece)) {
+    const b = document.createElement("button");
+    b.className = "palItem" + (p.id === pieceSel && outil === "poser" ? " actif" : "");
+    const cv = document.createElement("canvas");
+    cv.width = 56; cv.height = 46;
+    b.appendChild(cv);
+    b.appendChild(document.createTextNode(p.nom));
+    b.onclick = () => { pieceSel = p.id; outil = "poser"; construirePalette(); };
+    palItems.appendChild(b);
+    vignettePiece(cv, p.id);
+  }
+  majPalette();
+}
+
+function majPalette() {
+  palNiv.textContent = NOMS_ETAGE[niveauC];
+  document.getElementById("palGomme").classList.toggle("actif", outil === "gomme");
+  document.getElementById("palMaison").classList.toggle("actif", outil === "maison");
+  for (const b of palItems.children) b.classList.toggle("actif", outil === "poser" && b.textContent === PIECE[pieceSel].nom);
+}
+
+function basculerConstruction(on) {
+  modeConstruction = (on === undefined) ? !modeConstruction : on;
+  palette.classList.toggle("ouvert", modeConstruction);
+  btnBatir.classList.toggle("on", modeConstruction);
+  elAide.style.display = modeConstruction ? "none" : "";
+  if (modeConstruction) {
+    basculerPanneau(false);
+    niveauC = joueur.niveau;
+    construirePalette();
+  } else {
+    viseC = null;
+    if (construitModifie) sauverConstruction();
+  }
+}
+
+btnBatir.onclick = () => basculerConstruction();
+document.getElementById("palNivPlus").onclick = () => { niveauC = Math.min(NIV_MAX, niveauC + 1); majPalette(); };
+document.getElementById("palNivMoins").onclick = () => { niveauC = Math.max(0, niveauC - 1); majPalette(); };
+document.getElementById("palGomme").onclick = () => { outil = outil === "gomme" ? "poser" : "gomme"; construirePalette(); };
+document.getElementById("palMaison").onclick = () => { outil = outil === "maison" ? "poser" : "maison"; construirePalette(); };
+document.getElementById("palVider").onclick = () => {
+  if (!construction.size || !confirm("Tout démolir ? Les constructions seront perdues.")) return;
+  construction.clear(); consChunks.clear();
+  joueur.niveau = 0;
+  sauverConstruction();
+};
+
+/* --------------------------------------------------- panneau des mondes */
+
+const elMondes = document.getElementById("mondes");
+const listeEl = document.getElementById("listeMondes");
+const champMonde = document.getElementById("nomMonde");
+let idCourant = null;                      // sauvegarde à laquelle on est rattaché
+
+function construireListeMondes() {
+  const l = listeMondes();
+  listeEl.innerHTML = "";
+  if (!l.length) {
+    const v = document.createElement("div");
+    v.id = "mondesVide";
+    v.textContent = "Aucun monde enregistré pour l'instant. Donne un nom à celui-ci et clique sur Enregistrer.";
+    listeEl.appendChild(v);
+    return;
+  }
+  for (const m of l) {
+    const d = document.createElement("div");
+    d.className = "mondeCarte" + (m.id === idCourant ? " actif" : "");
+
+    const img = document.createElement("img");
+    if (m.vignette) img.src = m.vignette;
+    d.appendChild(img);
+
+    const info = document.createElement("div");
+    info.className = "mondeInfo";
+    const nb = (m.c || []).length;
+    info.innerHTML = "<b></b><span></span>";
+    info.querySelector("b").textContent = m.nom;
+    info.querySelector("span").textContent =
+      m.date + " · " + nb + (nb > 1 ? " constructions" : " construction");
+    d.appendChild(info);
+
+    const btns = document.createElement("div");
+    btns.className = "mondeBtns";
+    const bc = document.createElement("button");
+    bc.textContent = "▶ Ouvrir";
+    bc.onclick = () => {
+      if (construitModifie) enregistrerCourant();
+      chargerMonde(m.id);
+      idCourant = m.id;
+      champMonde.value = nomMondeCourant;
+      construireListeMondes();
+      basculerMondes(false);
+    };
+    const bs = document.createElement("button");
+    bs.className = "sup";
+    bs.textContent = "🗑";
+    bs.title = "Supprimer";
+    bs.onclick = () => {
+      if (!confirm("Supprimer « " + m.nom + " » ?")) return;
+      supprimerMonde(m.id);
+      if (idCourant === m.id) idCourant = null;
+      construireListeMondes();
+    };
+    btns.appendChild(bc); btns.appendChild(bs);
+    d.appendChild(btns);
+    listeEl.appendChild(d);
+  }
+}
+
+function basculerMondes(ouvrir) {
+  const on = (ouvrir === undefined) ? !elMondes.classList.contains("ouvert") : ouvrir;
+  elMondes.classList.toggle("ouvert", on);
+  if (on) {
+    basculerPanneau(false);
+    basculerConstruction(false);
+    champMonde.value = nomMondeCourant;
+    construireListeMondes();
+  }
+}
+
+document.getElementById("btnMondes").onclick = () => basculerMondes();
+document.getElementById("fermerMondes").onclick = () => basculerMondes(false);
+
+document.getElementById("btnEnregistrer").onclick = () => {
+  const nom = (champMonde.value || "").trim() || "Monde sans nom";
+  const id = enregistrerMonde(nom, idCourant);
+  if (id) { idCourant = id; construireListeMondes(); }
+};
+
+document.getElementById("btnNouveau").onclick = () => {
+  if (!confirm("Créer un nouveau monde ? Pense à enregistrer celui-ci avant.")) return;
+  const g = (Math.random() * 2000000000) | 0;
+  idCourant = null;
+  nomMondeCourant = "Monde " + (listeMondes().length + 1);
+  installerMonde(g, null);
+  enregistrerCourant();
+  champMonde.value = nomMondeCourant;
+  construireListeMondes();
+  basculerMondes(false);
+};
+
+/* --------------------------------------------------- plein écran */
+
+const btnPlein = document.getElementById("btnPlein");
+function basculerPlein() {
+  if (!document.fullscreenElement) {
+    const p = document.documentElement.requestFullscreen();
+    if (p && p.catch) p.catch(() => {});
+  } else if (document.exitFullscreen) {
+    document.exitFullscreen();
+  }
+}
+btnPlein.onclick = basculerPlein;
+document.addEventListener("fullscreenchange", () => {
+  const plein = !!document.fullscreenElement;
+  btnPlein.textContent = plein ? "⛶" : "⛶";
+  btnPlein.title = plein ? "Quitter le plein écran (F)" : "Plein écran (F)";
+  btnPlein.classList.toggle("on", plein);
+  redimensionner();
+});
+
+function dessinerApercu() {
+  if (!panneau.classList.contains("ouvert")) return;
+  const w = apercu.clientWidth, h = apercu.clientHeight;
+  actxBase.clearRect(0, 0, w, h);
+  actxBase.fillStyle = "rgba(0,0,0,0.28)";
+  actxBase.beginPath(); actxBase.ellipse(w / 2, h - 26, 42, 10, 0, 0, 6.3); actxBase.fill();
+  const ech = Math.min(w / 60, (h - 40) / 86);
+  actxBase.save();
+  actxBase.translate(w / 2, h - 24);
+  actxBase.scale(apercuRegarde * ech, ech);
+  dessinerPerso(actxBase, perso, { pas: apercuMarche ? apercuPas : 0, dos: apercuDos, temps: temps });
+  actxBase.restore();
+}
+
+/* ==========================================================================
+   9. BOUCLE PRINCIPALE
+   ========================================================================== */
+
+// On reprend là où l'on s'était arrêté ; sinon, on ouvre le monde par défaut.
+if (!chargerCourant()) {
+  placerDepart();
+  enregistrerCourant();
+}
+champMonde.value = nomMondeCourant;
+
+// La partie en cours est enregistrée toute seule : rien ne se perd.
+let prochainEnreg = 0;
+window.addEventListener("beforeunload", () => enregistrerCourant());
+document.addEventListener("visibilitychange", () => { if (document.hidden) enregistrerCourant(); });
+
+let dernier = performance.now();
+function boucle(now) {
+  const dt = Math.min((now - dernier) / 1000, 0.05);
+  dernier = now;
+  temps += dt;
+
+  majJoueur(dt);
+  majEtincelles(dt);
+
+  ctx.clearRect(0, 0, W, H);
+  if (mode3D) dessiner3D(); else dessiner2D();
+
+  peindreCarte(10);           // la carte se peint peu à peu, sans figer le jeu
+  dessinerCarte();
+  majHUD();
+
+  // position et constructions sauvegardées régulièrement
+  if (temps > prochainEnreg) { prochainEnreg = temps + 8; enregistrerCourant(); }
+  apercuPas += dt;
+  dessinerApercu();
+
+  requestAnimationFrame(boucle);
+}
+requestAnimationFrame(boucle);
+</script>
+</body>
+</html>

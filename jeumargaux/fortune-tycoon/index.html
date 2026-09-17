@@ -1,0 +1,1963 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fortune Tycoon · Le jeu de l'immobilier</title>
+<style>
+:root{
+  --bg:#0e1726; --panel:#16233a; --panel2:#1e2f4d; --ink:#e8eefc; --muted:#95a6c4;
+  --accent:#f4c542; --accent2:#4a90e2; --line:#2a3c5e; --good:#27ae60; --bad:#e74c3c;
+  --board-bg:#cfe8d4; --tile:#f6faf5; --tile-line:#cbd8c9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Segoe UI",system-ui,-apple-system,"Microsoft YaHei",sans-serif}
+.hidden{display:none!important}
+button{cursor:pointer;font-family:inherit}
+
+/* ---- setup screen ---- */
+#setup{max-width:560px;margin:6vh auto;padding:34px;background:var(--panel);border-radius:18px;
+  box-shadow:0 20px 60px rgba(0,0,0,.5);border:1px solid var(--line)}
+#setup h1{margin:0 0 4px;font-size:34px;letter-spacing:2px}
+#setup h1 span{color:var(--accent)}
+.subtitle{color:var(--muted);margin:0 0 24px}
+.field{margin:16px 0}
+.field label{display:block;margin-bottom:6px;color:var(--muted);font-size:14px}
+.field input,.field select{width:100%;padding:11px 12px;border-radius:10px;border:1px solid var(--line);
+  background:var(--panel2);color:var(--ink);font-size:15px}
+.rules{background:var(--panel2);border-radius:12px;padding:14px 16px;margin:20px 0;font-size:13px;color:var(--muted);line-height:1.7}
+.rules b{color:var(--ink)}
+
+/* ---- buttons ---- */
+.btn{padding:10px 16px;border-radius:10px;border:1px solid var(--line);background:var(--panel2);
+  color:var(--ink);font-size:14px;font-weight:600;transition:.15s;margin:4px}
+.btn:hover:not(:disabled){transform:translateY(-1px);border-color:var(--accent2)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+.btn.primary{background:var(--accent);color:#1a1200;border-color:var(--accent)}
+.btn.ghost{background:transparent}
+.btn.big{font-size:17px;padding:13px 22px;width:100%;margin-top:8px}
+
+/* ---- game layout ---- */
+#game{display:grid;grid-template-columns:minmax(560px,1fr) 340px;gap:16px;padding:16px;height:100vh}
+.left{display:flex;flex-direction:column;gap:12px;min-width:0}
+.right{display:flex;flex-direction:column;gap:12px;min-height:0}
+.topbar{display:flex;justify-content:space-between;align-items:center}
+.topbar .title{font-size:20px;letter-spacing:2px}
+.topbar .title span{color:var(--accent)}
+.vtag{color:var(--muted);font-size:11px;font-weight:400}
+
+/* ---- board ---- */
+.board-wrap{aspect-ratio:1/1;width:min(100%,calc(100vh - 160px));margin:0 auto}
+#board{display:grid;grid-template-columns:repeat(11,1fr);grid-template-rows:repeat(11,1fr);
+  gap:2px;background:#2a4d34;padding:6px;border-radius:12px;width:100%;height:100%;
+  box-shadow:0 10px 40px rgba(0,0,0,.5)}
+.tile{background:var(--tile);border:1px solid var(--tile-line);border-radius:3px;position:relative;
+  overflow:hidden;color:#20301f;display:flex;flex-direction:column;font-size:9px;min-width:0}
+.tile.corner{background:#eef6ec}
+.tile.owned{box-shadow:inset 0 0 0 2px var(--owner,transparent)}
+.colorbar{height:16%;min-height:8px;width:100%}
+.tile.left .colorbar,.tile.right .colorbar{position:absolute;top:0;bottom:0;height:auto;width:16%}
+.tile.left .colorbar{right:0}.tile.right .colorbar{left:0}
+.tile.top .colorbar{order:2}
+.tile-label{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  text-align:center;padding:2px;gap:1px;line-height:1.05}
+.tile-label .tn{font-weight:700;font-size:9px}
+.tile-label .tp{color:#4a6b3f;font-size:8px}
+.tile-label .tsub{color:#7a5a2a;font-size:8px}
+.tile-label .ticon{font-size:16px}
+.tile.corner .tile-label .ticon{font-size:22px}
+.tile.corner .tile-label .tn{font-size:11px}
+.tile-badge{position:absolute;top:1px;right:1px;display:flex;gap:1px;align-items:center;flex-wrap:wrap;justify-content:flex-end;max-width:70%}
+.ownerdot{width:7px;height:7px;border-radius:50%;display:inline-block;border:1px solid #0003}
+.mort{font-size:7px;background:#e74c3c;color:#fff;padding:0 2px;border-radius:2px}
+.houses{font-size:7px;letter-spacing:-2px}.hotel{font-size:11px}
+.tile-tokens{position:absolute;bottom:1px;left:1px;display:flex;flex-wrap:wrap;gap:1px;max-width:90%}
+.token{width:15px;height:15px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:10px;border:2px solid #fff;box-shadow:0 1px 3px #0006}
+.token.active{box-shadow:0 0 0 2px var(--accent),0 1px 3px #0006;animation:bob .8s infinite alternate}
+@keyframes bob{to{transform:translateY(-3px)}}
+
+/* ---- board center ---- */
+.board-center{background:linear-gradient(135deg,#173a24,#0f2a19);border-radius:8px;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#dfeede;padding:16px;text-align:center}
+.brand{font-size:clamp(20px,3vw,40px);font-weight:800;letter-spacing:4px;transform:rotate(-8deg)}
+.brand span{display:block;font-size:.4em;letter-spacing:3px;color:var(--accent)}
+.dice-area{display:flex;gap:14px}
+.die{width:52px;height:52px;background:#fff;color:#1a1a1a;border-radius:12px;display:flex;
+  align-items:center;justify-content:center;font-size:30px;font-weight:800;box-shadow:0 6px 14px #0007}
+.dice-area.rolling .die{animation:shake .1s infinite}
+@keyframes shake{0%{transform:translate(1px,-1px) rotate(3deg)}50%{transform:translate(-1px,1px) rotate(-3deg)}100%{transform:translate(1px,1px)}}
+.turn-banner{font-size:16px;background:#0006;padding:8px 16px;border-radius:20px}
+.tbtok,.tbtok{width:22px;height:22px;border-radius:50%;display:inline-flex;align-items:center;justify-content:center;vertical-align:middle}
+.center-msg{color:var(--accent);min-height:16px;font-size:13px}
+
+/* ---- controls ---- */
+#controls{background:var(--panel);border-radius:12px;padding:10px;border:1px solid var(--line);
+  display:flex;flex-wrap:wrap;justify-content:center;min-height:56px;align-items:center}
+.ai-thinking{color:var(--muted);font-style:italic;padding:10px}
+
+/* ---- right side ---- */
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px}
+.panel h3{margin:0 0 8px;font-size:14px;color:var(--muted);text-transform:uppercase;letter-spacing:1px}
+#players{display:flex;flex-direction:column;gap:8px}
+.pcard{background:var(--panel2);border-left:4px solid;border-radius:8px;padding:8px 10px}
+.pcard.current{outline:2px solid var(--accent)}
+.pcard.bankrupt{opacity:.45;filter:grayscale(1)}
+.pcard-top{display:flex;align-items:center;gap:6px;font-weight:600}
+.ptok{width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff}
+.pname{flex:1}
+.jailtag,.cardtag{font-size:11px;background:#0004;padding:1px 6px;border-radius:8px;color:var(--accent)}
+.pmoney{font-size:20px;font-weight:800;color:var(--accent);margin:2px 0}
+.pmeta{font-size:12px;color:var(--muted)}
+#log{flex:1;overflow-y:auto;font-size:12.5px;line-height:1.6;background:var(--panel);
+  border:1px solid var(--line);border-radius:12px;padding:12px;min-height:120px}
+.logline{padding:2px 0;border-bottom:1px solid #ffffff08;color:#cdd8ec}
+
+/* ---- modal ---- */
+#modal{position:fixed;inset:0;background:#000a;display:flex;align-items:center;justify-content:center;z-index:50}
+.modal-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:22px;max-width:460px;width:92%;max-height:86vh;overflow:auto}
+#modalTitle{margin:0 0 12px;font-size:18px}
+#modalBody{font-size:14px;line-height:1.6}
+#modalFooter{margin-top:16px;display:flex;justify-content:flex-end;gap:8px}
+.bid-input{width:100%;padding:10px;font-size:18px;border-radius:8px;border:1px solid var(--line);background:var(--panel2);color:var(--ink);margin:8px 0}
+.hint{color:var(--muted);font-size:12px}
+.ti-name{font-size:16px;font-weight:700;margin-bottom:8px}
+.ti-rent{width:100%;border-collapse:collapse;margin:8px 0}
+.ti-rent th,.ti-rent td{border:1px solid var(--line);padding:4px 8px;text-align:left;font-size:13px}
+.mlist{display:flex;flex-direction:column;gap:6px}
+.mrow{display:grid;grid-template-columns:1fr auto;gap:4px;align-items:center;background:var(--panel2);padding:8px;border-radius:8px}
+.mname{font-size:13px;font-weight:600}.mmeta{font-size:12px;color:var(--muted)}
+.mbtns{grid-column:1/3;display:flex;gap:6px;flex-wrap:wrap}
+.mini{font-size:12px;padding:4px 8px;border-radius:6px;border:1px solid var(--line);background:var(--accent2);color:#fff}
+.mini:disabled{opacity:.35;cursor:not-allowed;background:var(--panel)}
+.chip{width:12px;height:12px;border-radius:3px;display:inline-block;vertical-align:middle;margin-right:4px}
+
+/* ---- bourse ---- */
+.slist{display:flex;flex-direction:column;gap:6px}
+.srow{display:grid;grid-template-columns:1fr auto;gap:2px 8px;background:var(--panel2);padding:8px;border-radius:8px;align-items:center}
+.sname{font-weight:700;font-size:14px}
+.sprice{font-size:14px;text-align:right}
+.sown{grid-column:1;font-size:12px;color:var(--muted)}
+.sbtns{grid-column:2;display:flex;gap:4px;align-items:center}
+.qty-input{width:56px;padding:4px 6px;border-radius:6px;border:1px solid var(--line);background:var(--panel);color:var(--ink)}
+.up{color:var(--good);font-size:12px}.down{color:var(--bad);font-size:12px}.flat{color:var(--muted);font-size:12px}
+.news{background:#3b2f10;border:1px solid #6b5518;color:#ffd25e;padding:8px 10px;border-radius:8px;font-size:13px}
+
+/* ---- cartes / cibles ---- */
+.tgrid{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.tbtn{min-width:40px}
+.barrier{font-size:9px}
+
+@media(max-width:980px){
+  #game{grid-template-columns:1fr;height:auto}
+  .board-wrap{max-height:none}
+  .right{flex-direction:row;flex-wrap:wrap}
+  .panel,#log{flex:1;min-width:240px}
+}
+
+</style>
+</head>
+<body>
+
+<div id="setup">
+  <h1>Fortune <span>Tycoon</span></h1>
+  <p class="subtitle">Le grand jeu de l'immobilier · Affrontez l'ordinateur · <span id="version">v2.1.0</span></p>
+
+  <div class="field">
+    <label for="humanName">Votre nom</label>
+    <input id="humanName" type="text" value="Margaux" maxlength="14">
+  </div>
+  <div class="field">
+    <label for="aiCount">Nombre d'adversaires (ordinateur)</label>
+    <select id="aiCount">
+      <option value="1">1 (Constance)</option>
+      <option value="2">2</option>
+      <option value="3" selected>3</option>
+      <option value="4">4</option>
+      <option value="5">5</option>
+    </select>
+  </div>
+  <div class="field">
+    <label for="roundLimit">Limite de tours (décompte du patrimoine à la fin, 0 = dernier survivant)</label>
+    <select id="roundLimit">
+      <option value="0">Sans limite (dernier survivant)</option>
+      <option value="30">30 tours (partie rapide)</option>
+      <option value="60" selected>60 tours (partie standard)</option>
+      <option value="100">100 tours (partie longue)</option>
+    </select>
+  </div>
+
+  <div class="rules">
+    <b>Règles</b> : lancez les dés, achetez les propriétés libres, réunissez un groupe de couleur
+    pour <b>construire maisons et hôtels</b> et faire grimper les loyers.
+    <b>Départ</b> : +200 € à chaque passage ; <b>Prison</b> : sortez avec un double, 50 € ou une carte.
+    Une propriété refusée part <b>aux enchères</b> ; sans argent, c'est la <b>faillite</b>.
+    <br><b>Nouveau façon jeu vidéo</b> — 📈 <b>Bourse</b> : achetez/vendez 6 actions dont les cours
+    bougent chaque tour (actualités, krachs…) ; 🏦 <b>Banque</b> : dépôts à 5 % d'intérêts,
+    à l'abri du Voleur ; 🃏 <b>Boutique de cartes</b> : missile, tortue, barrière, voleur,
+    dés pipés, cartes rouge/noire ; 🎟️ <b>Loterie</b> : tirage tous les 5 tours.
+    Cliquez sur une case pour voir ses détails.
+  </div>
+
+  <button id="startBtn" class="btn primary big">Commencer la partie</button>
+</div>
+
+<div id="game" class="hidden">
+  <div class="left">
+    <div class="topbar">
+      <div class="title">Fortune <span>Tycoon</span> <small class="vtag">v2.1.0</small></div>
+      <div>
+        <button id="speedBtn" class="btn ghost" title="Vitesse de l'ordinateur">⏩ ×1</button>
+        <button id="quitBtn" class="btn ghost">Quitter</button>
+      </div>
+    </div>
+    <div class="board-wrap"><div id="board"></div></div>
+    <div id="controls"></div>
+  </div>
+  <div class="right">
+    <div class="panel"><h3>Joueurs</h3><div id="players"></div></div>
+    <div id="log"></div>
+  </div>
+</div>
+
+<div id="modal" class="hidden">
+  <div class="modal-box">
+    <h3 id="modalTitle"></h3>
+    <div id="modalBody"></div>
+    <div id="modalFooter"></div>
+  </div>
+</div>
+
+<script>
+/*
+ * Fortune Tycoon — moteur de jeu pur (sans DOM), version « jeu vidéo » :
+ * plateau classique + Bourse, Banque, cartes d'action, boutique, loterie,
+ * actualités économiques. Déterministe via RNG injectable → testable sous Node.
+ */
+(function (root) {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // Plateau
+  // ---------------------------------------------------------------------------
+  const GROUPS = {
+    brown:     { color: '#8d5524', house: 50 },
+    lightblue: { color: '#7ec8e3', house: 50 },
+    pink:      { color: '#d6409f', house: 100 },
+    orange:    { color: '#f08c1d', house: 100 },
+    red:       { color: '#e2323b', house: 150 },
+    yellow:    { color: '#f4d03f', house: 150 },
+    green:     { color: '#27ae60', house: 200 },
+    blue:      { color: '#2d6cdf', house: 200 },
+  };
+
+  const P = (name, group, price, rents) => ({ type: 'property', name, group, price, rents, houses: 0, mortgaged: false, owner: null });
+  const S = (name) => ({ type: 'station', name, price: 200, owner: null, mortgaged: false });
+  const U = (name) => ({ type: 'utility', name, price: 150, owner: null, mortgaged: false });
+
+  function buildBoard() {
+    return [
+      { type: 'go', name: 'Départ' },                                        // 0
+      P('Bordeaux', 'brown', 60, [2, 10, 30, 90, 160, 250]),                 // 1
+      { type: 'fate', name: 'Communauté' },                                  // 2
+      P('Toulouse', 'brown', 60, [4, 20, 60, 180, 320, 450]),                // 3
+      { type: 'tax', name: 'Impôts', amount: 200 },                          // 4
+      S('Gare du Nord'),                                                     // 5
+      P('Nantes', 'lightblue', 100, [6, 30, 90, 270, 400, 550]),             // 6
+      { type: 'chance', name: 'Chance' },                                    // 7
+      P('Rennes', 'lightblue', 100, [6, 30, 90, 270, 400, 550]),             // 8
+      P('Lille', 'lightblue', 120, [8, 40, 100, 300, 450, 600]),             // 9
+      { type: 'jail', name: 'Prison' },                                      // 10
+      P('Marseille', 'pink', 140, [10, 50, 150, 450, 625, 750]),             // 11
+      U('Cie d’Électricité'),                                           // 12
+      P('Aix-en-Provence', 'pink', 140, [10, 50, 150, 450, 625, 750]),       // 13
+      P('Nice', 'pink', 160, [12, 60, 180, 500, 700, 900]),                  // 14
+      S('Gare de l’Est'),                                               // 15
+      P('Strasbourg', 'orange', 180, [14, 70, 200, 550, 750, 950]),          // 16
+      { type: 'lottery', name: 'Loterie' },                                  // 17
+      P('Colmar', 'orange', 180, [14, 70, 200, 550, 750, 950]),              // 18
+      P('Metz', 'orange', 200, [16, 80, 220, 600, 800, 1000]),               // 19
+      { type: 'bourse', name: 'Bourse' },                                    // 20
+      P('Lyon', 'red', 220, [18, 90, 250, 700, 875, 1050]),                  // 21
+      { type: 'chance', name: 'Chance' },                                    // 22
+      P('Grenoble', 'red', 220, [18, 90, 250, 700, 875, 1050]),              // 23
+      P('Annecy', 'red', 240, [20, 100, 300, 750, 925, 1100]),               // 24
+      S('Gare de Lyon'),                                                     // 25
+      P('Dijon', 'yellow', 260, [22, 110, 330, 800, 975, 1150]),             // 26
+      P('Reims', 'yellow', 260, [22, 110, 330, 800, 975, 1150]),             // 27
+      U('Cie des Eaux'),                                                     // 28
+      P('Versailles', 'yellow', 280, [24, 120, 360, 850, 1025, 1200]),       // 29
+      { type: 'gotojail', name: 'Allez en Prison' },                         // 30
+      P('Cannes', 'green', 300, [26, 130, 390, 900, 1100, 1275]),            // 31
+      P('Saint-Tropez', 'green', 300, [26, 130, 390, 900, 1100, 1275]),      // 32
+      { type: 'fate', name: 'Communauté' },                                  // 33
+      P('Deauville', 'green', 320, [28, 150, 450, 1000, 1200, 1400]),        // 34
+      S('Gare Montparnasse'),                                                // 35
+      { type: 'cardshop', name: 'Boutique' },                                // 36
+      P('Montmartre', 'blue', 350, [35, 175, 500, 1100, 1300, 1500]),        // 37
+      { type: 'tax', name: 'Taxe de Luxe', amount: 100 },                    // 38
+      P('Champs-Élysées', 'blue', 400, [50, 200, 600, 1400, 1700, 2000]),    // 39
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bourse : actions cotées
+  // ---------------------------------------------------------------------------
+  function buildStocks() {
+    return [
+      { key: 'aero',  name: 'Aéro Bleu',      price: 25, prev: 25 },
+      { key: 'vin',   name: 'VinExport',      price: 30, prev: 30 },
+      { key: 'tech',  name: 'TechLutèce',     price: 45, prev: 45 },
+      { key: 'rail',  name: 'Rail de France', price: 40, prev: 40 },
+      { key: 'sol',   name: 'Énergie Soleil', price: 55, prev: 55 },
+      { key: 'mode',  name: 'Mode Paris',     price: 60, prev: 60 },
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // Cartes d'action (boutique)
+  // ---------------------------------------------------------------------------
+  const CARDS = {
+    des_pipes: { name: 'Dés pipés',   icon: '🎯', price: 250, desc: 'Choisissez le total de votre prochain lancer (2 à 12).' },
+    tortue:    { name: 'Tortue',      icon: '🐢', price: 150, desc: 'Le joueur ciblé passe son prochain tour.' },
+    missile:   { name: 'Missile',     icon: '🚀', price: 250, desc: 'Détruit une maison adverse (un hôtel redevient 4 maisons).' },
+    barriere:  { name: 'Barrière',    icon: '🚧', price: 100, desc: 'Posez une barrière : le prochain joueur qui passe est stoppé net.' },
+    voleur:    { name: 'Voleur',      icon: '🕵️', price: 200, desc: 'Volez 10 % du liquide d’un joueur.' },
+    rouge:     { name: 'Carte Rouge', icon: '🔺', price: 150, desc: 'Une action de votre choix grimpe de 20 %.' },
+    noire:     { name: 'Carte Noire', icon: '🔻', price: 150, desc: 'Une action de votre choix chute de 20 %.' },
+  };
+
+  // ---------------------------------------------------------------------------
+  // Paquets Chance / Communauté
+  // ---------------------------------------------------------------------------
+  function buildChance() {
+    return [
+      { text: 'Avancez jusqu’à la case Départ. Recevez 200 €.', act: (g, p) => g.moveTo(p, 0, true) },
+      { text: 'Avancez jusqu’aux Champs-Élysées.', act: (g, p) => g.moveTo(p, 39, true) },
+      { text: 'Avancez jusqu’à Metz. Si vous passez par Départ, recevez 200 €.', act: (g, p) => g.moveTo(p, 19, true) },
+      { text: 'Avancez jusqu’à la gare la plus proche. Payez le double du loyer.', act: (g, p) => g.advanceToNearest(p, 'station') },
+      { text: 'Avancez jusqu’à la compagnie la plus proche.', act: (g, p) => g.advanceToNearest(p, 'utility') },
+      { text: 'La banque vous verse un dividende de 50 €.', act: (g, p) => g.credit(p, 50) },
+      { text: 'Carte « Sortez de prison », à conserver.', act: (g, p) => { p.getOutCards++; } },
+      { text: 'Reculez de trois cases.', act: (g, p) => g.moveTo(p, (p.position + 37) % 40, false) },
+      { text: 'Allez en prison. Ne passez pas par Départ.', act: (g, p) => g.sendToJail(p) },
+      { text: 'Réparations : 25 € par maison, 100 € par hôtel.', act: (g, p) => g.repairs(p, 25, 100) },
+      { text: 'Krach boursier : toutes les actions perdent 10 %.', act: (g) => g.marketShockAll(0.90) },
+      { text: 'Rallye boursier : toutes les actions gagnent 10 %.', act: (g) => g.marketShockAll(1.10) },
+    ];
+  }
+  function buildFate() {
+    return [
+      { text: 'Avancez jusqu’à la case Départ. Recevez 200 €.', act: (g, p) => g.moveTo(p, 0, true) },
+      { text: 'Erreur de la banque en votre faveur : recevez 200 €.', act: (g, p) => g.credit(p, 200) },
+      { text: 'Frais médicaux : payez 50 €.', act: (g, p) => g.debit(p, 50) },
+      { text: 'Vente d’actions : recevez 50 €.', act: (g, p) => g.credit(p, 50) },
+      { text: 'Carte « Sortez de prison », à conserver.', act: (g, p) => { p.getOutCards++; } },
+      { text: 'Allez en prison. Ne passez pas par Départ.', act: (g, p) => g.sendToJail(p) },
+      { text: 'Rénovations : 40 € par maison, 115 € par hôtel.', act: (g, p) => g.repairs(p, 40, 115) },
+      { text: 'Frais de scolarité : payez 50 €.', act: (g, p) => g.debit(p, 50) },
+      { text: 'Remboursement d’impôts : recevez 20 €.', act: (g, p) => g.credit(p, 20) },
+      { text: 'C’est votre anniversaire : chaque joueur vous donne 10 €.', act: (g, p) => g.collectFromAll(p, 10) },
+      { text: 'Votre assurance-vie arrive à échéance : recevez 100 €.', act: (g, p) => g.credit(p, 100) },
+      { text: 'Vous recevez une carte d’action gratuite de la boutique.', act: (g, p) => g.grantRandomCard(p) },
+    ];
+  }
+
+  // ---------------------------------------------------------------------------
+  // RNG
+  // ---------------------------------------------------------------------------
+  function mulberry32(seed) {
+    let a = seed >>> 0;
+    return function () {
+      a |= 0; a = (a + 0x6D2B79F5) | 0;
+      let t = Math.imul(a ^ (a >>> 15), 1 | a);
+      t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+      return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+    };
+  }
+
+  // ---------------------------------------------------------------------------
+  // Jeu
+  // ---------------------------------------------------------------------------
+  const TOKENS = ['🎩', '🚗', '🐕', '🐈', '🚢', '👢'];
+
+  class Game {
+    constructor(opts = {}) {
+      opts = opts || {};
+      this.board = buildBoard();
+      this.stocks = buildStocks();
+      this.rng = opts.rng || mulberry32((opts.seed == null ? 1234 : opts.seed) >>> 0);
+      this.startMoney = opts.startMoney || 1500;
+      this.log = [];
+      this.chance = this.shuffle(buildChance());
+      this.fate = this.shuffle(buildFate());
+      this.chanceIdx = 0;
+      this.fateIdx = 0;
+      this.doublesCount = 0;
+      this.phase = 'roll';           // roll | action | auction | shop | lottery | end | gameover
+      this.lastDice = [0, 0];
+      this.pendingTile = null;
+      this.auction = null;
+      this.winner = null;
+      this.round = 1;
+      this.turnCount = 0;
+      this.roundLimit = opts.roundLimit || 0;
+      this.lottery = { pot: 200, tickets: [] };
+      this.lastDrawRound = 1;
+      this.lastNews = null;
+
+      const defs = opts.players || [
+        { name: 'Margaux', isAI: false },
+        { name: 'Constance', isAI: true },
+      ];
+      this.players = defs.map((d, i) => ({
+        id: i,
+        name: d.name,
+        token: d.token || TOKENS[i % TOKENS.length],
+        isAI: !!d.isAI,
+        money: this.startMoney,
+        position: 0,
+        inJail: false,
+        jailTurns: 0,
+        getOutCards: 0,
+        bankrupt: false,
+        stocks: {},          // key -> quantité
+        deposit: 0,          // dépôt bancaire (5 % d'intérêts par tour de table)
+        cards: [],           // cartes d'action détenues (clés de CARDS)
+        skipTurn: false,     // effet Tortue
+        forcedRoll: null,    // effet Dés pipés
+      }));
+      this.current = 0;
+    }
+
+    // ----- utilitaires -------------------------------------------------------
+    shuffle(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(this.rng() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
+    }
+    say(msg) { this.log.push(msg); if (this.log.length > 400) this.log.shift(); return msg; }
+    player() { return this.players[this.current]; }
+    activePlayers() { return this.players.filter(p => !p.bankrupt); }
+
+    groupTiles(group) {
+      const out = [];
+      this.board.forEach((t, i) => { if (t.type === 'property' && t.group === group) out.push(i); });
+      return out;
+    }
+    ownsFullGroup(player, group) {
+      return this.groupTiles(group).every(i => this.board[i].owner === player.id);
+    }
+    stationsOwned(player) {
+      return this.board.filter(t => t.type === 'station' && t.owner === player.id).length;
+    }
+    utilitiesOwned(player) {
+      return this.board.filter(t => t.type === 'utility' && t.owner === player.id).length;
+    }
+    playerProperties(player) {
+      const out = [];
+      this.board.forEach((t, i) => {
+        if ((t.type === 'property' || t.type === 'station' || t.type === 'utility') && t.owner === player.id) out.push(i);
+      });
+      return out;
+    }
+    stockValue(player) {
+      let v = 0;
+      for (const s of this.stocks) v += (player.stocks[s.key] || 0) * s.price;
+      return v;
+    }
+    netWorth(player) {
+      let w = player.money + player.deposit + this.stockValue(player);
+      for (const i of this.playerProperties(player)) {
+        const t = this.board[i];
+        w += t.mortgaged ? Math.floor(t.price / 2) : t.price;
+        if (t.type === 'property' && t.houses > 0) w += t.houses * GROUPS[t.group].house;
+      }
+      return w;
+    }
+
+    // ----- argent ------------------------------------------------------------
+    credit(player, amount) { player.money += amount; }
+    debit(player, amount) { player.money -= amount; }
+
+    // ----- dés / déplacement -------------------------------------------------
+    rollDice() {
+      if (this.phase !== 'roll') return { error: 'Impossible de lancer les dés maintenant.' };
+      const p = this.player();
+
+      // Dés pipés : total choisi, jamais compté comme double.
+      if (p.forcedRoll != null && !p.inJail) {
+        const total = Math.max(2, Math.min(12, p.forcedRoll));
+        p.forcedRoll = null;
+        const d1 = Math.ceil(total / 2), d2 = total - Math.ceil(total / 2);
+        this.lastDice = [d1, d2];
+        this.doublesCount = 0;
+        this.say(`🎯 ${p.name} utilise ses dés pipés : ${d1} + ${d2} = ${total}.`);
+        this.moveBy(p, total);
+        return { moved: true, dice: [d1, d2], isDouble: false, forced: true };
+      }
+
+      const d1 = 1 + Math.floor(this.rng() * 6);
+      const d2 = 1 + Math.floor(this.rng() * 6);
+      this.lastDice = [d1, d2];
+      const isDouble = d1 === d2;
+      this.say(`${p.token} ${p.name} lance ${d1} + ${d2} = ${d1 + d2}${isDouble ? ' (double !)' : ''}.`);
+
+      if (p.inJail) return this.resolveJailRoll(p, d1, d2, isDouble);
+
+      if (isDouble) {
+        this.doublesCount++;
+        if (this.doublesCount >= 3) {
+          this.say(`${p.name} fait trois doubles de suite : direction la prison !`);
+          this.doublesCount = 0;
+          this.sendToJail(p);
+          this.phase = 'end';
+          return { moved: false, toJail: true };
+        }
+      } else {
+        this.doublesCount = 0;
+      }
+
+      this.moveBy(p, d1 + d2);
+      return { moved: true, dice: [d1, d2], isDouble };
+    }
+
+    resolveJailRoll(p, d1, d2, isDouble) {
+      if (isDouble) {
+        this.say(`${p.name} fait un double, sort de prison et avance de ${d1 + d2} cases.`);
+        p.inJail = false; p.jailTurns = 0;
+        this.doublesCount = 0;
+        this.moveBy(p, d1 + d2);
+        return { moved: true, outOfJail: true };
+      }
+      p.jailTurns++;
+      if (p.jailTurns >= 3) {
+        this.say(`${p.name} échoue une 3e fois : paie 50 € et sort de prison.`);
+        this.debit(p, 50);
+        p.inJail = false; p.jailTurns = 0;
+        this.moveBy(p, d1 + d2);
+        return { moved: true, outOfJail: true, paid: true };
+      }
+      this.say(`${p.name} ne fait pas de double et reste en prison (tour ${p.jailTurns}/3).`);
+      this.phase = 'end';
+      return { moved: false, inJail: true };
+    }
+
+    moveBy(p, steps) {
+      let pos = p.position;
+      for (let s = 1; s <= steps; s++) {
+        pos = (pos + 1) % 40;
+        if (pos === 0) { this.credit(p, 200); this.say(`${p.name} passe par Départ et reçoit 200 €.`); }
+        if (this.board[pos].barrier) {
+          this.board[pos].barrier = false;
+          this.say(`🚧 ${p.name} est stoppé net par une barrière !`);
+          p.position = pos;
+          this.say(`${p.name} arrive sur ${this.board[pos].name}.`);
+          this.landOn(p);
+          return;
+        }
+      }
+      p.position = pos;
+      this.say(`${p.name} arrive sur ${this.board[pos].name}.`);
+      this.landOn(p);
+    }
+    moveTo(p, index, collectGo) {
+      const before = p.position;
+      if (collectGo && index < before) { this.credit(p, 200); this.say(`${p.name} passe par Départ et reçoit 200 €.`); }
+      p.position = index;
+      this.say(`${p.name} se déplace sur ${this.board[index].name}.`);
+      this.landOn(p);
+    }
+    advanceToNearest(p, type) {
+      let i = p.position;
+      for (let step = 1; step <= 40; step++) {
+        const idx = (i + step) % 40;
+        if (this.board[idx].type === type) {
+          if (idx <= i) { this.credit(p, 200); this.say(`${p.name} passe par Départ et reçoit 200 €.`); }
+          p.position = idx;
+          this.say(`${p.name} se déplace sur ${this.board[idx].name}.`);
+          this.landOn(p, { doubleRent: type === 'station', utilityTenX: type === 'utility' });
+          return;
+        }
+      }
+    }
+
+    // ----- atterrissage ------------------------------------------------------
+    landOn(p, ctx = {}) {
+      const idx = p.position;
+      const t = this.board[idx];
+      switch (t.type) {
+        case 'go':
+        case 'parking':
+        case 'jail':
+          this.phase = this.afterActionPhase();
+          break;
+        case 'gotojail':
+          this.sendToJail(p);
+          this.phase = 'end';
+          break;
+        case 'tax':
+          this.say(`${p.name} paie ${t.name} : ${t.amount} €.`);
+          this.debit(p, t.amount);
+          this.checkSolvency(p, null);
+          this.phase = this.afterActionPhase();
+          break;
+        case 'bourse': {
+          const div = Math.floor(this.stockValue(p) * 0.05);
+          if (div > 0) { this.credit(p, div); this.say(`📈 Jour de dividendes : ${p.name} reçoit ${div} € (5 % de son portefeuille).`); }
+          else this.say(`📈 ${p.name} visite la Bourse.`);
+          this.phase = this.afterActionPhase();
+          break;
+        }
+        case 'cardshop':
+          this.say(`🃏 ${p.name} entre dans la boutique de cartes.`);
+          this.phase = 'shop';
+          break;
+        case 'lottery':
+          this.say(`🎟️ ${p.name} passe devant la Loterie (cagnotte : ${this.lottery.pot} €).`);
+          this.phase = 'lottery';
+          break;
+        case 'chance': {
+          const card = this.chance[this.chanceIdx % this.chance.length];
+          this.chanceIdx++;
+          this.say(`Chance : ${card.text}`);
+          this.lastCard = { deck: 'chance', text: card.text };
+          card.act(this, p);
+          this.checkSolvency(p, null);
+          if (this.phase !== 'end' && this.phase !== 'shop' && this.phase !== 'lottery') this.phase = this.afterActionPhase();
+          break;
+        }
+        case 'fate': {
+          const card = this.fate[this.fateIdx % this.fate.length];
+          this.fateIdx++;
+          this.say(`Communauté : ${card.text}`);
+          this.lastCard = { deck: 'fate', text: card.text };
+          card.act(this, p);
+          this.checkSolvency(p, null);
+          if (this.phase !== 'end' && this.phase !== 'shop' && this.phase !== 'lottery') this.phase = this.afterActionPhase();
+          break;
+        }
+        case 'property':
+        case 'station':
+        case 'utility':
+          this.landOnOwnable(p, idx, ctx);
+          break;
+        default:
+          this.phase = this.afterActionPhase();
+      }
+    }
+
+    landOnOwnable(p, idx, ctx) {
+      const t = this.board[idx];
+      if (t.owner == null) {
+        this.pendingTile = idx;
+        this.phase = 'action';
+        this.say(`${t.name} est libre, prix : ${t.price} €.`);
+        return;
+      }
+      if (t.owner === p.id) {
+        this.say(`${p.name} s’arrête chez lui, sur ${t.name}.`);
+        this.phase = this.afterActionPhase();
+        return;
+      }
+      if (t.mortgaged) {
+        this.say(`${t.name} est hypothéquée : pas de loyer.`);
+        this.phase = this.afterActionPhase();
+        return;
+      }
+      const owner = this.players[t.owner];
+      const rent = this.rentFor(idx, ctx);
+      this.say(`${p.name} doit ${rent} € de loyer à ${owner.name} pour ${t.name}.`);
+      this.debit(p, rent);
+      this.credit(owner, Math.max(0, rent));
+      this.checkSolvency(p, owner, rent);
+      this.phase = this.afterActionPhase();
+    }
+
+    rentFor(idx, ctx = {}) {
+      const t = this.board[idx];
+      if (t.mortgaged || t.owner == null) return 0;
+      const owner = this.players[t.owner];
+      if (t.type === 'property') {
+        if (t.houses > 0) return t.rents[t.houses];
+        let rent = t.rents[0];
+        if (this.ownsFullGroup(owner, t.group)) rent *= 2;
+        return rent;
+      }
+      if (t.type === 'station') {
+        const n = this.stationsOwned(owner);
+        let rent = 25 * Math.pow(2, n - 1);
+        if (ctx.doubleRent) rent *= 2;
+        return rent;
+      }
+      if (t.type === 'utility') {
+        const n = this.utilitiesOwned(owner);
+        const dice = this.lastDice[0] + this.lastDice[1];
+        const mult = ctx.utilityTenX ? 10 : (n >= 2 ? 10 : 4);
+        return dice * mult;
+      }
+      return 0;
+    }
+
+    afterActionPhase() {
+      if (this.phase === 'gameover') return 'gameover';
+      const p = this.player();
+      if (this.doublesCount > 0 && !p.inJail) return 'roll';
+      return 'end';
+    }
+
+    // ----- achat / enchère ---------------------------------------------------
+    buyPending() {
+      if (this.pendingTile == null) return { error: 'Rien à acheter.' };
+      const p = this.player();
+      const t = this.board[this.pendingTile];
+      if (p.money < t.price) return { error: 'Fonds insuffisants.' };
+      this.debit(p, t.price);
+      t.owner = p.id;
+      this.say(`${p.name} achète ${t.name} pour ${t.price} €.`);
+      this.pendingTile = null;
+      this.phase = this.doublesCount > 0 && !p.inJail ? 'roll' : 'end';
+      return { ok: true };
+    }
+    skipPending(auction) {
+      if (this.pendingTile == null) return { error: 'Aucune case en attente.' };
+      const idx = this.pendingTile;
+      this.say(`${this.player().name} renonce à acheter ${this.board[idx].name}.`);
+      if (auction) return this.startAuction(idx);
+      this.pendingTile = null;
+      const p = this.player();
+      this.phase = this.doublesCount > 0 && !p.inJail ? 'roll' : 'end';
+      return { ok: true };
+    }
+
+    startAuction(idx) {
+      const bidders = this.activePlayers().map(p => p.id);
+      if (bidders.length === 0) { this.pendingTile = null; this.phase = this.afterActionPhase(); return { ok: true }; }
+      this.auction = { tile: idx, bidders, bids: {} };
+      this.phase = 'auction';
+      this.say(`🔨 ${this.board[idx].name} est mise aux enchères.`);
+      return { ok: true, auction: this.auction };
+    }
+    aiAuctionBid(player) {
+      if (!this.auction) return 0;
+      const t = this.board[this.auction.tile];
+      let cap = Math.floor(t.price * 0.65);
+      if (t.type === 'property') {
+        const owned = this.groupTiles(t.group).filter(i => this.board[i].owner === player.id).length;
+        if (owned >= 1) cap = t.price;
+      } else if (t.type === 'station') {
+        cap = Math.floor(t.price * (0.6 + 0.15 * this.stationsOwned(player)));
+      }
+      cap = Math.min(cap, Math.max(0, player.money - 20));
+      return cap;
+    }
+    resolveAuction(bids) {
+      if (!this.auction) return { error: 'Aucune enchère en cours.' };
+      const idx = this.auction.tile;
+      let winner = null, high = 0;
+      for (const pid of this.auction.bidders) {
+        let b = Math.max(0, Math.floor(bids[pid] || 0));
+        b = Math.min(b, this.players[pid].money);
+        if (b > high) { high = b; winner = pid; }
+      }
+      if (winner == null || high <= 0) {
+        this.say(`Enchère sans preneur : ${this.board[idx].name} reste libre.`);
+      } else {
+        this.debit(this.players[winner], high);
+        this.board[idx].owner = winner;
+        this.say(`🔨 ${this.players[winner].name} remporte ${this.board[idx].name} pour ${high} €.`);
+      }
+      this.auction = null;
+      this.pendingTile = null;
+      const p = this.player();
+      this.phase = this.doublesCount > 0 && !p.inJail ? 'roll' : 'end';
+      return { ok: true, winner, high };
+    }
+
+    // ----- Bourse ------------------------------------------------------------
+    getStock(key) { return this.stocks.find(s => s.key === key); }
+    buyStock(key, qty) {
+      const p = this.player();
+      const s = this.getStock(key);
+      qty = Math.floor(qty);
+      if (!s || qty < 1) return { error: 'Ordre invalide.' };
+      const cost = s.price * qty;
+      if (p.money < cost) return { error: 'Fonds insuffisants.' };
+      this.debit(p, cost);
+      p.stocks[key] = (p.stocks[key] || 0) + qty;
+      this.say(`📈 ${p.name} achète ${qty} action${qty > 1 ? 's' : ''} ${s.name} à ${s.price} € (${cost} €).`);
+      return { ok: true };
+    }
+    sellStock(key, qty) {
+      const p = this.player();
+      const s = this.getStock(key);
+      qty = Math.floor(qty);
+      const owned = p.stocks[key] || 0;
+      if (!s || qty < 1 || owned < qty) return { error: 'Ordre invalide.' };
+      p.stocks[key] = owned - qty;
+      if (p.stocks[key] === 0) delete p.stocks[key];
+      const gain = s.price * qty;
+      this.credit(p, gain);
+      this.say(`📉 ${p.name} vend ${qty} action${qty > 1 ? 's' : ''} ${s.name} à ${s.price} € (+${gain} €).`);
+      return { ok: true };
+    }
+    updateMarket() {
+      for (const s of this.stocks) {
+        s.prev = s.price;
+        s.price = Math.max(1, Math.round(s.price * (0.90 + this.rng() * 0.20)));
+      }
+    }
+    marketShockAll(mult) {
+      for (const s of this.stocks) {
+        s.prev = s.price;
+        s.price = Math.max(1, Math.round(s.price * mult));
+      }
+    }
+    maybeNews() {
+      if (this.rng() >= 0.45) { this.lastNews = null; return; }
+      const r = this.rng();
+      if (r < 0.35) {
+        const s = this.stocks[Math.floor(this.rng() * this.stocks.length)];
+        const pct = 15 + Math.floor(this.rng() * 20);
+        s.price = Math.max(1, Math.round(s.price * (1 + pct / 100)));
+        this.lastNews = `📰 Excellents résultats : ${s.name} bondit de ${pct} % !`;
+      } else if (r < 0.70) {
+        const s = this.stocks[Math.floor(this.rng() * this.stocks.length)];
+        const pct = 15 + Math.floor(this.rng() * 20);
+        s.price = Math.max(1, Math.round(s.price * (1 - pct / 100)));
+        this.lastNews = `📰 Scandale chez ${s.name} : le titre plonge de ${pct} % !`;
+      } else if (r < 0.85) {
+        for (const pl of this.activePlayers()) this.credit(pl, 100);
+        this.lastNews = `📰 Subvention de l’État : chaque joueur reçoit 100 € !`;
+      } else {
+        for (const pl of this.activePlayers()) {
+          const tax = Math.floor(Math.max(0, pl.money) * 0.05);
+          this.debit(pl, tax);
+        }
+        this.lastNews = `📰 Contrôle fiscal surprise : chacun paie 5 % de son liquide !`;
+      }
+      this.say(this.lastNews);
+    }
+
+    // ----- Banque ------------------------------------------------------------
+    depositMoney(amount) {
+      const p = this.player();
+      amount = Math.floor(amount);
+      if (amount < 1 || p.money < amount) return { error: 'Montant invalide.' };
+      this.debit(p, amount);
+      p.deposit += amount;
+      this.say(`🏦 ${p.name} dépose ${amount} € à la banque.`);
+      return { ok: true };
+    }
+    withdrawMoney(amount) {
+      const p = this.player();
+      amount = Math.floor(amount);
+      if (amount < 1 || p.deposit < amount) return { error: 'Montant invalide.' };
+      p.deposit -= amount;
+      this.credit(p, amount);
+      this.say(`🏦 ${p.name} retire ${amount} € de la banque.`);
+      return { ok: true };
+    }
+    applyInterest() {
+      for (const p of this.activePlayers()) {
+        if (p.deposit > 0) {
+          const gain = Math.floor(p.deposit * 0.05);
+          p.deposit += gain;
+          if (gain > 0) this.say(`🏦 ${p.name} touche ${gain} € d’intérêts.`);
+        }
+      }
+    }
+
+    // ----- Boutique de cartes ------------------------------------------------
+    buyCard(key) {
+      if (this.phase !== 'shop') return { error: 'La boutique est fermée.' };
+      const p = this.player();
+      const c = CARDS[key];
+      if (!c) return { error: 'Carte inconnue.' };
+      if (p.cards.length >= 4) return { error: 'Main pleine (4 cartes max).' };
+      if (p.money < c.price) return { error: 'Fonds insuffisants.' };
+      this.debit(p, c.price);
+      p.cards.push(key);
+      this.say(`🃏 ${p.name} achète la carte ${c.icon} ${c.name} (${c.price} €).`);
+      return { ok: true };
+    }
+    closeShop() {
+      if (this.phase !== 'shop') return { error: 'Pas en boutique.' };
+      const p = this.player();
+      this.phase = this.doublesCount > 0 && !p.inJail ? 'roll' : 'end';
+      return { ok: true };
+    }
+    grantRandomCard(p) {
+      if (p.cards.length >= 4) { this.credit(p, 100); this.say(`${p.name} a la main pleine : 100 € à la place.`); return; }
+      const keys = Object.keys(CARDS);
+      const key = keys[Math.floor(this.rng() * keys.length)];
+      p.cards.push(key);
+      this.say(`🃏 ${p.name} reçoit la carte ${CARDS[key].icon} ${CARDS[key].name}.`);
+    }
+
+    // ----- utilisation des cartes d'action ----------------------------------
+    useCard(key, arg = {}) {
+      const p = this.player();
+      const idx = p.cards.indexOf(key);
+      if (idx < 0) return { error: 'Vous n’avez pas cette carte.' };
+      if (this.phase !== 'roll' && this.phase !== 'end') return { error: 'Pas maintenant.' };
+      const c = CARDS[key];
+
+      switch (key) {
+        case 'des_pipes': {
+          if (this.phase !== 'roll' || p.inJail) return { error: 'Utilisable avant de lancer les dés, hors prison.' };
+          const total = Math.floor(arg.total);
+          if (!(total >= 2 && total <= 12)) return { error: 'Total entre 2 et 12.' };
+          p.forcedRoll = total;
+          this.say(`🎯 ${p.name} prépare ses dés pipés (total ${total}).`);
+          break;
+        }
+        case 'tortue': {
+          const t = this.players[arg.playerId];
+          if (!t || t.bankrupt || t.id === p.id) return { error: 'Cible invalide.' };
+          t.skipTurn = true;
+          this.say(`🐢 ${p.name} lance une tortue sur ${t.name} : il passera son tour !`);
+          break;
+        }
+        case 'missile': {
+          const t = this.board[arg.tileIdx];
+          if (!t || t.type !== 'property' || t.houses < 1 || t.owner == null || t.owner === p.id) return { error: 'Cible invalide.' };
+          t.houses--;
+          this.say(`🚀 ${p.name} envoie un missile sur ${t.name} : ${t.houses === 4 ? 'l’hôtel redevient 4 maisons' : 'une maison détruite'} !`);
+          break;
+        }
+        case 'barriere': {
+          const i = arg.tileIdx;
+          const t = this.board[i];
+          if (!t || i % 10 === 0 || t.barrier) return { error: 'Case invalide.' };
+          t.barrier = true;
+          this.say(`🚧 ${p.name} pose une barrière sur ${t.name}.`);
+          break;
+        }
+        case 'voleur': {
+          const t = this.players[arg.playerId];
+          if (!t || t.bankrupt || t.id === p.id) return { error: 'Cible invalide.' };
+          const amt = Math.floor(Math.max(0, t.money) * 0.10);
+          this.debit(t, amt);
+          this.credit(p, amt);
+          this.say(`🕵️ ${p.name} dérobe ${amt} € à ${t.name} !`);
+          break;
+        }
+        case 'rouge': {
+          const s = this.getStock(arg.stockKey);
+          if (!s) return { error: 'Action inconnue.' };
+          s.prev = s.price;
+          s.price = Math.max(1, Math.round(s.price * 1.2));
+          this.say(`🔺 ${p.name} joue une Carte Rouge : ${s.name} grimpe à ${s.price} € !`);
+          break;
+        }
+        case 'noire': {
+          const s = this.getStock(arg.stockKey);
+          if (!s) return { error: 'Action inconnue.' };
+          s.prev = s.price;
+          s.price = Math.max(1, Math.round(s.price * 0.8));
+          this.say(`🔻 ${p.name} joue une Carte Noire : ${s.name} chute à ${s.price} € !`);
+          break;
+        }
+        default:
+          return { error: 'Carte inconnue.' };
+      }
+      p.cards.splice(idx, 1);
+      return { ok: true };
+    }
+
+    // ----- Loterie -----------------------------------------------------------
+    buyLotteryTicket() {
+      if (this.phase !== 'lottery') return { error: 'Pas de guichet ici.' };
+      const p = this.player();
+      if (p.money < 50) return { error: 'Fonds insuffisants.' };
+      this.debit(p, 50);
+      this.lottery.pot += 100;
+      this.lottery.tickets.push(p.id);
+      this.say(`🎟️ ${p.name} achète un billet de loterie (cagnotte : ${this.lottery.pot} €).`);
+      return { ok: true };
+    }
+    closeLottery() {
+      if (this.phase !== 'lottery') return { error: 'Pas au guichet.' };
+      const p = this.player();
+      this.phase = this.doublesCount > 0 && !p.inJail ? 'roll' : 'end';
+      return { ok: true };
+    }
+    lotteryCheck() {
+      if (this.round - this.lastDrawRound < 5) return;
+      this.lastDrawRound = this.round;
+      const tk = this.lottery.tickets.filter(pid => !this.players[pid].bankrupt);
+      if (!tk.length) { this.say(`🎟️ Tirage de la loterie : aucun billet vendu, la cagnotte grossit.`); return; }
+      const winner = this.players[tk[Math.floor(this.rng() * tk.length)]];
+      this.credit(winner, this.lottery.pot);
+      this.say(`🎉 Tirage de la loterie : ${winner.name} gagne la cagnotte de ${this.lottery.pot} € !`);
+      this.lottery = { pot: 200, tickets: [] };
+    }
+
+    // ----- construction ------------------------------------------------------
+    canBuildOn(player, idx) {
+      const t = this.board[idx];
+      if (!t || t.type !== 'property') return false;
+      if (t.owner !== player.id) return false;
+      if (t.mortgaged) return false;
+      if (!this.ownsFullGroup(player, t.group)) return false;
+      if (t.houses >= 5) return false;
+      const tiles = this.groupTiles(t.group);
+      const minH = Math.min(...tiles.map(i => this.board[i].houses));
+      if (t.houses > minH) return false;
+      if (tiles.some(i => this.board[i].mortgaged)) return false;
+      return player.money >= GROUPS[t.group].house;
+    }
+    buildHouse(idx) {
+      const p = this.player();
+      if (!this.canBuildOn(p, idx)) return { error: 'Conditions de construction non remplies.' };
+      const t = this.board[idx];
+      const cost = GROUPS[t.group].house;
+      this.debit(p, cost);
+      t.houses++;
+      this.say(`${p.name} construit ${t.houses === 5 ? 'un hôtel' : 'la maison n°' + t.houses} sur ${t.name} (${cost} €).`);
+      return { ok: true };
+    }
+    canSellOn(player, idx) {
+      const t = this.board[idx];
+      if (!t || t.type !== 'property' || t.owner !== player.id || t.houses <= 0) return false;
+      const tiles = this.groupTiles(t.group);
+      const maxH = Math.max(...tiles.map(i => this.board[i].houses));
+      return t.houses >= maxH;
+    }
+    sellHouse(idx) {
+      const p = this.player();
+      if (!this.canSellOn(p, idx)) return { error: 'Conditions de démolition non remplies.' };
+      const t = this.board[idx];
+      const refund = Math.floor(GROUPS[t.group].house / 2);
+      t.houses--;
+      this.credit(p, refund);
+      this.say(`${p.name} démolit un bâtiment sur ${t.name} et récupère ${refund} €.`);
+      return { ok: true };
+    }
+
+    // ----- hypothèque --------------------------------------------------------
+    mortgage(idx) {
+      const p = this.player();
+      const t = this.board[idx];
+      if (!t || t.owner !== p.id || t.mortgaged) return { error: 'Hypothèque impossible.' };
+      if (t.type === 'property' && t.houses > 0) return { error: 'Démolissez d’abord les bâtiments.' };
+      const val = Math.floor(t.price / 2);
+      t.mortgaged = true;
+      this.credit(p, val);
+      this.say(`${p.name} hypothèque ${t.name} et reçoit ${val} €.`);
+      return { ok: true };
+    }
+    unmortgage(idx) {
+      const p = this.player();
+      const t = this.board[idx];
+      if (!t || t.owner !== p.id || !t.mortgaged) return { error: 'Rachat impossible.' };
+      const cost = Math.ceil(t.price / 2 * 1.1);
+      if (p.money < cost) return { error: 'Fonds insuffisants.' };
+      t.mortgaged = false;
+      this.debit(p, cost);
+      this.say(`${p.name} lève l’hypothèque de ${t.name} pour ${cost} €.`);
+      return { ok: true };
+    }
+
+    // ----- aides des cartes Chance/Communauté --------------------------------
+    sendToJail(p) {
+      p.position = 10;
+      p.inJail = true;
+      p.jailTurns = 0;
+      this.doublesCount = 0;
+      this.say(`${p.name} est envoyé en prison.`);
+    }
+    repairs(p, perHouse, perHotel) {
+      let total = 0;
+      for (const i of this.playerProperties(p)) {
+        const t = this.board[i];
+        if (t.type === 'property' && t.houses > 0) {
+          total += t.houses === 5 ? perHotel : t.houses * perHouse;
+        }
+      }
+      if (total > 0) { this.say(`${p.name} paie ${total} € de travaux.`); this.debit(p, total); }
+    }
+    collectFromAll(p, amount) {
+      for (const other of this.activePlayers()) {
+        if (other.id === p.id) continue;
+        this.debit(other, amount);
+        this.credit(p, amount);
+      }
+      this.say(`${p.name} collecte ${amount} € auprès de chaque joueur.`);
+    }
+
+    // ----- prison ------------------------------------------------------------
+    payJail() {
+      const p = this.player();
+      if (!p.inJail) return { error: 'Pas en prison.' };
+      if (p.money < 50) return { error: 'Fonds insuffisants.' };
+      this.debit(p, 50);
+      p.inJail = false; p.jailTurns = 0;
+      this.say(`${p.name} paie 50 € et sort de prison.`);
+      return { ok: true };
+    }
+    useJailCard() {
+      const p = this.player();
+      if (!p.inJail || p.getOutCards < 1) return { error: 'Pas de carte de sortie.' };
+      p.getOutCards--;
+      p.inJail = false; p.jailTurns = 0;
+      this.say(`${p.name} utilise sa carte « Sortez de prison ».`);
+      return { ok: true };
+    }
+
+    // ----- solvabilité / faillite --------------------------------------------
+    checkSolvency(player, creditor) {
+      if (player.money >= 0) return;
+      this.raiseCash(player);
+      if (player.money < 0) this.bankrupt(player, creditor);
+    }
+    raiseCash(player) {
+      // 1. vendre les actions
+      for (const s of this.stocks) {
+        if (player.money >= 0) break;
+        const owned = player.stocks[s.key] || 0;
+        if (owned > 0) {
+          player.money += owned * s.price;
+          this.say(`📉 ${player.name} liquide ${owned} action${owned > 1 ? 's' : ''} ${s.name} (+${owned * s.price} €).`);
+          delete player.stocks[s.key];
+        }
+      }
+      // 2. retirer le dépôt bancaire
+      if (player.money < 0 && player.deposit > 0) {
+        this.say(`🏦 ${player.name} vide son compte (${player.deposit} €).`);
+        player.money += player.deposit;
+        player.deposit = 0;
+      }
+      // 3. vendre les bâtiments puis hypothéquer
+      let guard = 0;
+      while (player.money < 0 && guard++ < 200) {
+        let acted = false;
+        for (const i of this.playerProperties(player)) {
+          const t = this.board[i];
+          if (t.type === 'property' && t.houses > 0 && this.canSellOn(player, i)) {
+            const refund = Math.floor(GROUPS[t.group].house / 2);
+            t.houses--; player.money += refund;
+            this.say(`${player.name} démolit un bâtiment sur ${t.name} et récupère ${refund} €.`);
+            acted = true; break;
+          }
+        }
+        if (acted) continue;
+        for (const i of this.playerProperties(player)) {
+          const t = this.board[i];
+          if (!t.mortgaged && (t.type !== 'property' || t.houses === 0)) {
+            const val = Math.floor(t.price / 2);
+            t.mortgaged = true; player.money += val;
+            this.say(`${player.name} hypothèque ${t.name} et reçoit ${val} €.`);
+            acted = true; break;
+          }
+        }
+        if (!acted) break;
+      }
+    }
+    bankrupt(player, creditor) {
+      player.bankrupt = true;
+      this.say(`💥 ${player.name} fait faillite !`);
+      for (const i of this.playerProperties(player)) {
+        const t = this.board[i];
+        if (creditor) {
+          t.owner = creditor.id;
+          if (t.type === 'property') t.houses = 0;
+        } else {
+          t.owner = null; t.mortgaged = false;
+          if (t.type === 'property') t.houses = 0;
+        }
+      }
+      if (creditor && player.money > 0) this.credit(creditor, player.money);
+      player.money = 0;
+      player.deposit = 0;
+      player.stocks = {};
+      player.cards = [];
+      player.getOutCards = 0;
+      this.checkGameOver();
+    }
+    checkGameOver() {
+      const alive = this.activePlayers();
+      if (alive.length <= 1) {
+        this.winner = alive[0] || null;
+        this.phase = 'gameover';
+        if (this.winner) this.say(`🏆 ${this.winner.name} remporte la partie !`);
+      }
+    }
+
+    // ----- contrôle du tour --------------------------------------------------
+    endTurn() {
+      if (this.phase === 'gameover') return { error: 'La partie est terminée.' };
+      this.pendingTile = null;
+      this.doublesCount = 0;
+      this.turnCount++;
+
+      // joueur suivant : ni failli, ni « tortue »
+      let next = this.current;
+      let wraps = 0;
+      for (let k = 0; k < this.players.length * 2 + 1; k++) {
+        next = (next + 1) % this.players.length;
+        if (next === 0) wraps++;
+        const pl = this.players[next];
+        if (pl.bankrupt) continue;
+        if (pl.skipTurn) {
+          pl.skipTurn = false;
+          this.say(`🐢 ${pl.name} passe son tour (effet tortue).`);
+          continue;
+        }
+        break;
+      }
+      this.current = next;
+
+      // événements de fin de tour de table
+      for (let w = 0; w < wraps; w++) {
+        this.round++;
+        this.updateMarket();
+        this.applyInterest();
+        this.maybeNews();
+        this.lotteryCheck();
+      }
+      // les événements peuvent avoir ruiné quelqu'un (contrôle fiscal)
+      for (const pl of this.activePlayers()) this.checkSolvency(pl, null);
+      if (this.phase === 'gameover') return { ok: true, current: this.current };
+
+      if (this.roundLimit > 0 && this.round > this.roundLimit) {
+        this.endByNetWorth();
+        return { ok: true, current: this.current, roundLimit: true };
+      }
+
+      this.phase = 'roll';
+      const p = this.player();
+      this.say(`— Tour ${this.round} · à ${p.token} ${p.name} de jouer —`);
+      return { ok: true, current: this.current };
+    }
+
+    endByNetWorth() {
+      const alive = this.activePlayers();
+      alive.sort((a, b) => this.netWorth(b) - this.netWorth(a));
+      this.winner = alive[0] || null;
+      this.phase = 'gameover';
+      this.say(`⏱️ Limite de tours atteinte : décompte du patrimoine.`);
+      if (this.winner) this.say(`🏆 ${this.winner.name} gagne avec un patrimoine de ${this.netWorth(this.winner)} € !`);
+    }
+
+    // ----- IA ---------------------------------------------------------------
+    aiBuyDecision() {
+      const p = this.player();
+      if (this.pendingTile == null) return false;
+      const t = this.board[this.pendingTile];
+      if (p.money < t.price) return false;
+      let buffer = 60;
+      if (t.type === 'property') {
+        const owned = this.groupTiles(t.group).filter(i => this.board[i].owner === p.id).length;
+        if (owned >= 1) buffer = 20;
+      }
+      return p.money - t.price >= buffer;
+    }
+    aiManageBuild() {
+      const p = this.player();
+      let guard = 0, built = true;
+      while (built && guard++ < 60) {
+        built = false;
+        const candidates = this.board
+          .map((t, i) => i)
+          .filter(i => this.canBuildOn(p, i))
+          .sort((a, b) => GROUPS[this.board[a].group].house - GROUPS[this.board[b].group].house);
+        for (const i of candidates) {
+          if (p.money - GROUPS[this.board[i].group].house >= 120) {
+            this.buildHouse(i); built = true; break;
+          }
+        }
+      }
+    }
+    aiManageFinance() {
+      const p = this.player();
+      // investir l'excédent en bourse
+      if (p.money > 700 && this.rng() < 0.6) {
+        const s = this.stocks[Math.floor(this.rng() * this.stocks.length)];
+        const qty = Math.floor((p.money - 500) / s.price);
+        if (qty > 0) this.buyStock(s.key, qty);
+      }
+      // déposer une partie à la banque
+      if (p.money > 900 && this.rng() < 0.4) {
+        this.depositMoney(Math.floor((p.money - 600) / 2));
+      }
+    }
+    aiJailDecision() {
+      const p = this.player();
+      if (!p.inJail) return;
+      if (p.getOutCards > 0) { this.useJailCard(); return; }
+      if (p.money > 100) this.payJail();
+    }
+    aiShopBuy() {
+      const p = this.player();
+      if (this.phase !== 'shop') return;
+      if (p.cards.length >= 4 || p.money < 400) return;
+      const pool = ['tortue', 'missile', 'barriere', 'voleur', 'rouge'].filter(k => CARDS[k].price <= p.money - 200);
+      if (!pool.length) return;
+      this.buyCard(pool[Math.floor(this.rng() * pool.length)]);
+    }
+    aiLotteryDecision() {
+      const p = this.player();
+      if (this.phase !== 'lottery') return;
+      if (p.money > 300) this.buyLotteryTicket();
+    }
+    aiUseCards() {
+      const p = this.player();
+      if (!p.cards.length || this.rng() < 0.35) return;
+      const others = this.activePlayers().filter(o => o.id !== p.id);
+      if (!others.length) return;
+      const leader = others.slice().sort((a, b) => this.netWorth(b) - this.netWorth(a))[0];
+      const richest = others.slice().sort((a, b) => b.money - a.money)[0];
+
+      for (const key of p.cards.slice()) {
+        if (key === 'missile') {
+          let best = -1, bestH = 0;
+          this.board.forEach((t, i) => {
+            if (t.type === 'property' && t.houses > bestH && t.owner != null && t.owner !== p.id) { best = i; bestH = t.houses; }
+          });
+          if (best >= 0) { this.useCard('missile', { tileIdx: best }); return; }
+        } else if (key === 'tortue') {
+          if (!leader.skipTurn) { this.useCard('tortue', { playerId: leader.id }); return; }
+        } else if (key === 'voleur') {
+          if (richest.money >= 300) { this.useCard('voleur', { playerId: richest.id }); return; }
+        } else if (key === 'rouge') {
+          let bestK = null, bestQ = 0;
+          for (const s of this.stocks) {
+            const q = p.stocks[s.key] || 0;
+            if (q > bestQ) { bestQ = q; bestK = s.key; }
+          }
+          if (bestK) { this.useCard('rouge', { stockKey: bestK }); return; }
+        } else if (key === 'noire') {
+          const notOwned = this.stocks.filter(s => !(p.stocks[s.key] > 0));
+          if (notOwned.length) { this.useCard('noire', { stockKey: notOwned[Math.floor(this.rng() * notOwned.length)].key }); return; }
+        } else if (key === 'barriere') {
+          let best = -1, bestH = 0;
+          this.board.forEach((t, i) => {
+            if (t.type === 'property' && t.owner === p.id && t.houses > bestH && !t.barrier && i % 10 !== 0) { best = i; bestH = t.houses; }
+          });
+          if (best >= 0) { this.useCard('barriere', { tileIdx: best }); return; }
+        }
+      }
+    }
+  }
+
+  // ---------------------------------------------------------------------------
+  const api = { Game, GROUPS, TOKENS, CARDS, buildBoard, buildStocks, mulberry32 };
+  if (typeof module !== 'undefined' && module.exports) module.exports = api;
+  root.FortuneTycoon = api;
+})(typeof window !== 'undefined' ? window : globalThis);
+
+</script>
+<script>
+/* Interface navigateur de Fortune Tycoon. Dépend de engine.js (window.FortuneTycoon). */
+(function () {
+  'use strict';
+  const { Game, GROUPS, CARDS } = window.FortuneTycoon;
+
+  const PLAYER_COLORS = ['#e74c3c', '#2e86de', '#27ae60', '#f39c12', '#8e44ad', '#16a085'];
+  let game = null;
+  let busy = false;
+  let aiSpeed = 1;                                   // ×1 / ×3 / ×10
+  const dly = (ms) => Math.max(30, Math.round(ms / aiSpeed));
+  const els = {};
+
+  // ---- correspondance case -> grille 11x11 ---------------------------------
+  function tilePos(i) {
+    if (i <= 10) return { row: 11, col: 11 - i };
+    if (i <= 20) return { row: 11 - (i - 10), col: 1 };
+    if (i <= 30) return { row: 1, col: 1 + (i - 20) };
+    return { row: 1 + (i - 30), col: 11 };
+  }
+  function edgeOf(i) {
+    if (i < 10) return 'bottom';
+    if (i < 20) return 'left';
+    if (i < 30) return 'top';
+    return 'right';
+  }
+  const isCorner = (i) => i % 10 === 0;
+
+  function money(n) { return n.toLocaleString('fr-FR') + ' €'; }
+
+  // ---- création de partie ---------------------------------------------------
+  function newGame() {
+    const humanName = els.humanName.value.trim() || 'Margaux';
+    const aiCount = parseInt(els.aiCount.value, 10);
+    const roundLimit = parseInt(els.roundLimit.value, 10) || 0;
+    const aiNames = ['Constance', 'Basile', 'Océane', 'Théo', 'Juliette'];
+    const players = [{ name: humanName, isAI: false }];
+    for (let i = 0; i < aiCount; i++) players.push({ name: aiNames[i], isAI: true });
+    const seed = (Date.now() & 0x7fffffff) ^ Math.floor(Math.random() * 1e9);
+    game = new Game({ players, roundLimit, seed });
+    game.players.forEach((p, i) => { p.color = PLAYER_COLORS[i % PLAYER_COLORS.length]; });
+    busy = false;
+    buildBoardDOM();
+    render();
+    els.setup.classList.add('hidden');
+    els.game.classList.remove('hidden');
+    game.say('La partie commence, bonne chance !');
+    maybeAdvanceAI();
+  }
+
+  // ---- plateau DOM ----------------------------------------------------------
+  function buildBoardDOM() {
+    const board = els.board;
+    board.innerHTML = '';
+    game.board.forEach((t, i) => {
+      const pos = tilePos(i);
+      const cell = document.createElement('div');
+      cell.className = 'tile ' + edgeOf(i) + (isCorner(i) ? ' corner' : '');
+      cell.style.gridRow = pos.row;
+      cell.style.gridColumn = pos.col;
+      cell.dataset.idx = i;
+
+      if (t.type === 'property') {
+        const bar = document.createElement('div');
+        bar.className = 'colorbar';
+        bar.style.background = GROUPS[t.group].color;
+        cell.appendChild(bar);
+      }
+      const label = document.createElement('div');
+      label.className = 'tile-label';
+      label.innerHTML = tileLabelHTML(t, i);
+      cell.appendChild(label);
+
+      const badge = document.createElement('div');
+      badge.className = 'tile-badge';
+      cell.appendChild(badge);
+
+      const tokens = document.createElement('div');
+      tokens.className = 'tile-tokens';
+      cell.appendChild(tokens);
+
+      cell.addEventListener('click', () => showTileInfo(i));
+      board.appendChild(cell);
+    });
+
+    const center = document.createElement('div');
+    center.className = 'board-center';
+    center.style.gridRow = '2 / 11';
+    center.style.gridColumn = '2 / 11';
+    center.id = 'boardCenter';
+    center.innerHTML = `
+      <div class="brand">Fortune<span>Tycoon</span></div>
+      <div id="diceArea" class="dice-area"><div class="die" id="die0">?</div><div class="die" id="die1">?</div></div>
+      <div id="turnBanner" class="turn-banner"></div>
+      <div id="centerMsg" class="center-msg"></div>`;
+    board.appendChild(center);
+  }
+
+  function tileLabelHTML(t, i) {
+    if (t.type === 'property') return `<div class="tn">${t.name}</div><div class="tp">${money(t.price)}</div>`;
+    if (t.type === 'station') return `<div class="ticon">🚉</div><div class="tn">${t.name}</div><div class="tp">${money(t.price)}</div>`;
+    if (t.type === 'utility') return `<div class="ticon">${t.name.includes('Élec') ? '💡' : '🚰'}</div><div class="tn">${t.name}</div><div class="tp">${money(t.price)}</div>`;
+    if (t.type === 'go') return `<div class="ticon">➡️</div><div class="tn">Départ</div><div class="tsub">+200 €</div>`;
+    if (t.type === 'jail') return `<div class="ticon">🔒</div><div class="tn">Prison</div><div class="tsub">visite</div>`;
+    if (t.type === 'gotojail') return `<div class="ticon">👮</div><div class="tn">En Prison !</div>`;
+    if (t.type === 'bourse') return `<div class="ticon">📈</div><div class="tn">Bourse</div><div class="tsub">dividendes</div>`;
+    if (t.type === 'cardshop') return `<div class="ticon">🃏</div><div class="tn">Boutique</div><div class="tsub">cartes</div>`;
+    if (t.type === 'lottery') return `<div class="ticon">🎟️</div><div class="tn">Loterie</div>`;
+    if (t.type === 'chance') return `<div class="ticon">❓</div><div class="tn">Chance</div>`;
+    if (t.type === 'fate') return `<div class="ticon">🎴</div><div class="tn">Communauté</div>`;
+    if (t.type === 'tax') return `<div class="ticon">💸</div><div class="tn">${t.name}</div><div class="tsub">${money(t.amount)}</div>`;
+    return t.name;
+  }
+
+  // ---- rendu ----------------------------------------------------------------
+  function render() {
+    if (!game) return;
+    game.board.forEach((t, i) => {
+      const cell = els.board.querySelector(`.tile[data-idx="${i}"]`);
+      if (!cell) return;
+      const badge = cell.querySelector('.tile-badge');
+      const tokens = cell.querySelector('.tile-tokens');
+      badge.innerHTML = '';
+      cell.classList.toggle('owned', t.owner != null);
+      let badgeHTML = '';
+      if (t.barrier) badgeHTML += '<span class="barrier">🚧</span>';
+      if (t.owner != null) {
+        const owner = game.players[t.owner];
+        cell.style.setProperty('--owner', owner.color);
+        let h = '';
+        if (t.type === 'property' && t.houses > 0) {
+          h = t.houses === 5 ? '<span class="hotel">🏨</span>' : '<span class="houses">' + '🏠'.repeat(t.houses) + '</span>';
+        }
+        badgeHTML += `<span class="ownerdot" style="background:${owner.color}"></span>${t.mortgaged ? '<span class="mort">hyp</span>' : ''}${h}`;
+      } else {
+        cell.style.removeProperty('--owner');
+      }
+      badge.innerHTML = badgeHTML;
+      tokens.innerHTML = '';
+      game.players.forEach(p => {
+        if (!p.bankrupt && p.position === i) {
+          const tok = document.createElement('span');
+          tok.className = 'token' + (game.current === p.id ? ' active' : '');
+          tok.style.background = p.color;
+          tok.textContent = p.token;
+          tokens.appendChild(tok);
+        }
+      });
+    });
+
+    document.getElementById('die0').textContent = game.lastDice[0] || '?';
+    document.getElementById('die1').textContent = game.lastDice[1] || '?';
+
+    const cur = game.player();
+    const tb = document.getElementById('turnBanner');
+    if (game.phase === 'gameover') {
+      tb.innerHTML = `🏆 <b>${game.winner ? game.winner.name : 'Personne'}</b> gagne !`;
+    } else {
+      tb.innerHTML = `<span class="tbtok" style="background:${cur.color}">${cur.token}</span> Tour ${game.round} · <b>${cur.name}</b>${cur.isAI ? ' (ordi)' : ''}`;
+    }
+    document.getElementById('centerMsg').textContent = game.lastNews || '';
+
+    renderPlayers();
+    renderControls();
+    renderLog();
+  }
+
+  function renderPlayers() {
+    els.players.innerHTML = '';
+    game.players.forEach(p => {
+      const card = document.createElement('div');
+      card.className = 'pcard' + (game.current === p.id ? ' current' : '') + (p.bankrupt ? ' bankrupt' : '');
+      card.style.borderColor = p.color;
+      const props = game.playerProperties(p).length;
+      const sv = game.stockValue(p);
+      card.innerHTML = `
+        <div class="pcard-top"><span class="ptok" style="background:${p.color}">${p.token}</span>
+          <span class="pname">${p.name}${p.isAI ? ' 🤖' : ''}</span>
+          ${p.inJail ? '<span class="jailtag">🔒 prison</span>' : ''}
+          ${p.skipTurn ? '<span class="jailtag">🐢</span>' : ''}
+          ${p.getOutCards ? '<span class="cardtag">sortie ×' + p.getOutCards + '</span>' : ''}
+        </div>
+        <div class="pmoney">${p.bankrupt ? 'Faillite' : money(p.money)}</div>
+        <div class="pmeta">🏘️ ${props} · 🏦 ${money(p.deposit)} · 📈 ${money(sv)} · 🃏 ${p.cards.length}</div>
+        <div class="pmeta">patrimoine ${money(game.netWorth(p))}</div>`;
+      els.players.appendChild(card);
+    });
+  }
+
+  function btn(label, cls, onclick, disabled) {
+    const b = document.createElement('button');
+    b.className = 'btn ' + (cls || '');
+    b.textContent = label;
+    if (disabled) b.disabled = true;
+    else b.addEventListener('click', onclick);
+    return b;
+  }
+
+  function renderControls() {
+    const c = els.controls;
+    c.innerHTML = '';
+    if (!game) return;
+    const p = game.player();
+
+    if (game.phase === 'gameover') {
+      c.appendChild(btn('Rejouer', 'primary', () => { els.game.classList.add('hidden'); els.setup.classList.remove('hidden'); }));
+      return;
+    }
+    if (p.isAI || busy) {
+      const s = document.createElement('div');
+      s.className = 'ai-thinking';
+      s.textContent = busy ? 'L’ordinateur réfléchit…' : '';
+      c.appendChild(s);
+      return;
+    }
+
+    if (game.phase === 'roll') {
+      if (p.inJail) {
+        c.appendChild(btn('Lancer (viser un double)', 'primary', doRoll));
+        c.appendChild(btn('Payer 50 € pour sortir', '', () => { game.payJail(); render(); }, p.money < 50));
+        if (p.getOutCards > 0) c.appendChild(btn('Utiliser la carte de sortie', '', () => { game.useJailCard(); render(); }));
+      } else {
+        c.appendChild(btn('🎲 Lancer les dés', 'primary', doRoll));
+      }
+    } else if (game.phase === 'action' && game.pendingTile != null) {
+      const t = game.board[game.pendingTile];
+      c.appendChild(btn(`Acheter (${money(t.price)})`, 'primary', () => { game.buyPending(); afterHumanAction(); }, p.money < t.price));
+      c.appendChild(btn('Mettre aux enchères', '', () => { game.skipPending(true); render(); runAuction(); }));
+    } else if (game.phase === 'shop') {
+      c.appendChild(btn('🃏 Entrer dans la boutique', 'primary', openShop));
+      c.appendChild(btn('Continuer', '', () => { game.closeShop(); afterHumanAction(); }));
+    } else if (game.phase === 'lottery') {
+      c.appendChild(btn(`🎟️ Billet 50 € (cagnotte ${money(game.lottery.pot)})`, 'primary', () => { game.buyLotteryTicket(); render(); }, p.money < 50));
+      c.appendChild(btn('Continuer', '', () => { game.closeLottery(); afterHumanAction(); }));
+    } else if (game.phase === 'end') {
+      c.appendChild(btn('Fin du tour', 'primary', () => { game.endTurn(); render(); maybeAdvanceAI(); }));
+    }
+
+    if (game.phase === 'roll' || game.phase === 'end') {
+      c.appendChild(btn('📈 Bourse', 'ghost', openBourse));
+      c.appendChild(btn('🏦 Banque', 'ghost', openBank));
+      c.appendChild(btn(`🃏 Cartes (${p.cards.length})`, 'ghost', openCards, p.cards.length === 0));
+      c.appendChild(btn('🏗️ Propriétés', 'ghost', openManage));
+    }
+  }
+
+  function afterHumanAction() {
+    render();
+    if (game.phase === 'roll') maybeAdvanceAI();
+  }
+
+  // ---- dés animés -----------------------------------------------------------
+  function doRoll() {
+    if (busy) return;
+    busy = true; renderControls();
+    const diceArea = document.getElementById('diceArea');
+    diceArea.classList.add('rolling');
+    let ticks = 0;
+    const anim = setInterval(() => {
+      document.getElementById('die0').textContent = 1 + Math.floor(Math.random() * 6);
+      document.getElementById('die1').textContent = 1 + Math.floor(Math.random() * 6);
+      if (++ticks > 8) {
+        clearInterval(anim);
+        diceArea.classList.remove('rolling');
+        game.rollDice();
+        busy = false;
+        render();
+        if (game.player().isAI) maybeAdvanceAI();
+      }
+    }, 60);
+  }
+
+  // ---- tours IA -------------------------------------------------------------
+  function maybeAdvanceAI() {
+    if (!game || game.phase === 'gameover') { render(); return; }
+    const p = game.player();
+    if (!p.isAI) { render(); return; }
+    busy = true; render();
+    stepAI();
+  }
+
+  function stepAI() {
+    if (!game || game.phase === 'gameover') { busy = false; render(); return; }
+    const p = game.player();
+    if (!p.isAI) { busy = false; render(); return; }
+
+    setTimeout(() => {
+      if (game.phase === 'roll') {
+        game.aiUseCards();
+        if (p.inJail) game.aiJailDecision();
+        if (game.phase === 'roll') game.rollDice();
+        render();
+        setTimeout(stepAI, dly(500));
+        return;
+      }
+      if (game.phase === 'action' && game.pendingTile != null) {
+        if (game.aiBuyDecision()) game.buyPending();
+        else { game.skipPending(true); runAuction(true); }
+        render();
+        setTimeout(stepAI, dly(500));
+        return;
+      }
+      if (game.phase === 'auction') return; // résolu par runAuction
+      if (game.phase === 'shop') {
+        game.aiShopBuy();
+        game.closeShop();
+        render();
+        setTimeout(stepAI, dly(400));
+        return;
+      }
+      if (game.phase === 'lottery') {
+        game.aiLotteryDecision();
+        game.closeLottery();
+        render();
+        setTimeout(stepAI, dly(400));
+        return;
+      }
+      // phase end : gérer puis terminer
+      game.aiManageBuild();
+      game.aiManageFinance();
+      render();
+      setTimeout(() => {
+        if (game.phase !== 'gameover') game.endTurn();
+        busy = false;
+        render();
+        maybeAdvanceAI();
+      }, 400);
+    }, dly(550));
+  }
+
+  // ---- enchères --------------------------------------------------------------
+  function runAuction(fromAI) {
+    if (!game.auction) return;
+    const t = game.board[game.auction.tile];
+    const human = game.players.find(pl => !pl.isAI && !pl.bankrupt);
+    const bids = {};
+    game.auction.bidders.forEach(pid => {
+      const pl = game.players[pid];
+      if (pl.isAI) bids[pid] = game.aiAuctionBid(pl);
+    });
+    if (!human || game.auction.bidders.indexOf(human.id) < 0) {
+      finishAuction(bids);
+      return;
+    }
+    openModal(`🔨 Enchère : ${t.name}`, `
+      <p>Prix affiché : ${money(t.price)}. Entrez votre offre maximale (0 pour passer). Votre argent : ${money(human.money)}.</p>
+      <input id="bidInput" type="number" min="0" max="${human.money}" value="0" class="bid-input" />
+      <p class="hint">L’offre la plus élevée l’emporte et paie son montant.</p>`,
+      [{ label: 'Valider l’offre', cls: 'primary', onclick: () => {
+        const v = Math.max(0, Math.min(human.money, parseInt(document.getElementById('bidInput').value, 10) || 0));
+        bids[human.id] = v;
+        closeModal();
+        finishAuction(bids);
+      } }]);
+  }
+  function finishAuction(bids) {
+    game.resolveAuction(bids);
+    render();
+    if (game.player().isAI) setTimeout(stepAI, dly(400));
+  }
+
+  // ---- Bourse ----------------------------------------------------------------
+  function openBourse() {
+    const p = game.player();
+    const rows = game.stocks.map(s => {
+      const delta = s.price - s.prev;
+      const pct = s.prev ? Math.round(delta / s.prev * 100) : 0;
+      const arrow = delta > 0 ? `<span class="up">▲ +${pct}%</span>` : delta < 0 ? `<span class="down">▼ ${pct}%</span>` : '<span class="flat">=</span>';
+      const owned = p.stocks[s.key] || 0;
+      return `<div class="srow">
+        <div class="sname">${s.name}</div>
+        <div class="sprice">${money(s.price)} ${arrow}</div>
+        <div class="sown">${owned} détenue${owned > 1 ? 's' : ''} (${money(owned * s.price)})</div>
+        <div class="sbtns">
+          <input type="number" min="1" value="1" id="q_${s.key}" class="qty-input">
+          <button class="mini" data-act="buy" data-k="${s.key}">Acheter</button>
+          <button class="mini" data-act="sell" data-k="${s.key}" ${owned < 1 ? 'disabled' : ''}>Vendre</button>
+        </div>
+      </div>`;
+    }).join('');
+    openModal(`📈 Bourse · liquide : ${money(p.money)} · portefeuille : ${money(game.stockValue(p))}`,
+      `${game.lastNews ? `<p class="news">${game.lastNews}</p>` : ''}<div class="slist">${rows}</div>
+       <p class="hint">Les cours évoluent à chaque tour de table (±10 %) et selon les actualités. La case Bourse verse 5 % de dividendes.</p>`,
+      [{ label: 'Fermer', cls: 'primary', onclick: closeModal }]);
+    els.modalBody.querySelectorAll('.mini').forEach(b => {
+      b.addEventListener('click', () => {
+        const k = b.dataset.k;
+        const qty = parseInt(document.getElementById('q_' + k).value, 10) || 1;
+        const r = b.dataset.act === 'buy' ? game.buyStock(k, qty) : game.sellStock(k, qty);
+        if (r.error) game.say('⚠️ ' + r.error);
+        render();
+        openBourse();
+      });
+    });
+  }
+
+  // ---- Banque ----------------------------------------------------------------
+  function openBank() {
+    const p = game.player();
+    openModal(`🏦 Banque`, `
+      <p>Liquide : <b>${money(p.money)}</b> · En dépôt : <b>${money(p.deposit)}</b></p>
+      <p class="hint">Les dépôts rapportent 5 % d’intérêts à chaque tour de table et sont à l’abri du Voleur.</p>
+      <input id="bankAmt" type="number" min="1" value="100" class="bid-input">`,
+      [
+        { label: 'Déposer', cls: '', onclick: () => { const v = parseInt(document.getElementById('bankAmt').value, 10) || 0; const r = game.depositMoney(v); if (r.error) game.say('⚠️ ' + r.error); render(); openBank(); } },
+        { label: 'Retirer', cls: '', onclick: () => { const v = parseInt(document.getElementById('bankAmt').value, 10) || 0; const r = game.withdrawMoney(v); if (r.error) game.say('⚠️ ' + r.error); render(); openBank(); } },
+        { label: 'Fermer', cls: 'primary', onclick: closeModal },
+      ]);
+  }
+
+  // ---- Cartes ----------------------------------------------------------------
+  function openCards() {
+    const p = game.player();
+    if (!p.cards.length) { closeModal(); return; }
+    const rows = p.cards.map((k, i) => {
+      const c = CARDS[k];
+      return `<div class="mrow"><div class="mname">${c.icon} ${c.name}</div>
+        <div class="mmeta">${c.desc}</div>
+        <div class="mbtns"><button class="mini" data-k="${k}" data-i="${i}">Utiliser</button></div></div>`;
+    }).join('');
+    openModal('🃏 Mes cartes', `<div class="mlist">${rows}</div>`, [{ label: 'Fermer', cls: 'primary', onclick: closeModal }]);
+    els.modalBody.querySelectorAll('.mini').forEach(b => {
+      b.addEventListener('click', () => pickCardTarget(b.dataset.k));
+    });
+  }
+
+  function pickCardTarget(key) {
+    const p = game.player();
+    const c = CARDS[key];
+    const done = (r) => {
+      if (r && r.error) { game.say('⚠️ ' + r.error); }
+      render();
+      closeModal();
+    };
+    if (key === 'des_pipes') {
+      const opts = [];
+      for (let t = 2; t <= 12; t++) opts.push(`<button class="mini tbtn" data-v="${t}">${t}</button>`);
+      openModal(`${c.icon} ${c.name}`, `<p>${c.desc}</p><div class="tgrid">${opts.join('')}</div>`,
+        [{ label: 'Annuler', cls: '', onclick: () => { closeModal(); openCards(); } }]);
+      els.modalBody.querySelectorAll('.tbtn').forEach(b => b.addEventListener('click', () => done(game.useCard(key, { total: parseInt(b.dataset.v, 10) }))));
+    } else if (key === 'tortue' || key === 'voleur') {
+      const targets = game.activePlayers().filter(o => o.id !== p.id);
+      const opts = targets.map(o => `<button class="mini tbtn" data-v="${o.id}">${o.token} ${o.name} (${money(o.money)})</button>`).join('');
+      openModal(`${c.icon} ${c.name}`, `<p>${c.desc}</p><div class="tgrid">${opts}</div>`,
+        [{ label: 'Annuler', cls: '', onclick: () => { closeModal(); openCards(); } }]);
+      els.modalBody.querySelectorAll('.tbtn').forEach(b => b.addEventListener('click', () => done(game.useCard(key, { playerId: parseInt(b.dataset.v, 10) }))));
+    } else if (key === 'missile') {
+      const targets = [];
+      game.board.forEach((t, i) => { if (t.type === 'property' && t.houses > 0 && t.owner != null && t.owner !== p.id) targets.push(i); });
+      if (!targets.length) { game.say('⚠️ Aucune cible : personne n’a de maison.'); closeModal(); render(); return; }
+      const opts = targets.map(i => {
+        const t = game.board[i];
+        return `<button class="mini tbtn" data-v="${i}">${t.name} (${t.houses === 5 ? 'hôtel' : t.houses + ' maisons'}, ${game.players[t.owner].name})</button>`;
+      }).join('');
+      openModal(`${c.icon} ${c.name}`, `<p>${c.desc}</p><div class="tgrid">${opts}</div>`,
+        [{ label: 'Annuler', cls: '', onclick: () => { closeModal(); openCards(); } }]);
+      els.modalBody.querySelectorAll('.tbtn').forEach(b => b.addEventListener('click', () => done(game.useCard(key, { tileIdx: parseInt(b.dataset.v, 10) }))));
+    } else if (key === 'barriere') {
+      const opts = game.board.map((t, i) => (i % 10 !== 0 && !t.barrier) ? `<option value="${i}">${i} · ${t.name}</option>` : '').join('');
+      openModal(`${c.icon} ${c.name}`, `<p>${c.desc}</p><select id="barSel" class="bid-input">${opts}</select>`,
+        [
+          { label: 'Poser', cls: 'primary', onclick: () => done(game.useCard(key, { tileIdx: parseInt(document.getElementById('barSel').value, 10) })) },
+          { label: 'Annuler', cls: '', onclick: () => { closeModal(); openCards(); } },
+        ]);
+    } else if (key === 'rouge' || key === 'noire') {
+      const opts = game.stocks.map(s => `<button class="mini tbtn" data-v="${s.key}">${s.name} (${money(s.price)})</button>`).join('');
+      openModal(`${c.icon} ${c.name}`, `<p>${c.desc}</p><div class="tgrid">${opts}</div>`,
+        [{ label: 'Annuler', cls: '', onclick: () => { closeModal(); openCards(); } }]);
+      els.modalBody.querySelectorAll('.tbtn').forEach(b => b.addEventListener('click', () => done(game.useCard(key, { stockKey: b.dataset.v }))));
+    }
+  }
+
+  // ---- Boutique --------------------------------------------------------------
+  function openShop() {
+    const p = game.player();
+    const rows = Object.entries(CARDS).map(([k, c]) => `
+      <div class="mrow"><div class="mname">${c.icon} ${c.name} — ${money(c.price)}</div>
+      <div class="mmeta">${c.desc}</div>
+      <div class="mbtns"><button class="mini" data-k="${k}" ${p.money < c.price || p.cards.length >= 4 ? 'disabled' : ''}>Acheter</button></div></div>`).join('');
+    openModal(`🃏 Boutique de cartes · liquide : ${money(p.money)} · main : ${p.cards.length}/4`,
+      `<div class="mlist">${rows}</div>`,
+      [{ label: 'Quitter la boutique', cls: 'primary', onclick: () => { closeModal(); render(); } }]);
+    els.modalBody.querySelectorAll('.mini').forEach(b => {
+      b.addEventListener('click', () => {
+        const r = game.buyCard(b.dataset.k);
+        if (r.error) game.say('⚠️ ' + r.error);
+        render();
+        openShop();
+      });
+    });
+  }
+
+  // ---- gestion des propriétés ------------------------------------------------
+  function openManage() {
+    const p = game.player();
+    const props = game.playerProperties(p).sort((a, b) => a - b);
+    let rows = props.map(i => {
+      const t = game.board[i];
+      const grp = t.type === 'property' ? `<span class="chip" style="background:${GROUPS[t.group].color}"></span>` : '';
+      const houseInfo = t.type === 'property' ? (t.houses === 5 ? 'hôtel' : t.houses + ' maison' + (t.houses > 1 ? 's' : '')) : '';
+      const canBuild = game.canBuildOn(p, i);
+      const canSell = game.canSellOn(p, i);
+      const buildCost = t.type === 'property' ? money(GROUPS[t.group].house) : '';
+      return `<div class="mrow">
+        <div class="mname">${grp}${t.name} ${t.mortgaged ? '<em>(hypothéquée)</em>' : ''}</div>
+        <div class="mmeta">${houseInfo}</div>
+        <div class="mbtns">
+          ${t.type === 'property' ? `<button class="mini" data-act="build" data-i="${i}" ${canBuild ? '' : 'disabled'}>Construire ${buildCost}</button>
+          <button class="mini" data-act="sell" data-i="${i}" ${canSell ? '' : 'disabled'}>Démolir</button>` : ''}
+          ${!t.mortgaged ? `<button class="mini" data-act="mort" data-i="${i}" ${(t.type === 'property' && t.houses > 0) ? 'disabled' : ''}>Hypothéquer ${money(Math.floor(t.price / 2))}</button>`
+          : `<button class="mini" data-act="unmort" data-i="${i}" ${p.money < Math.ceil(t.price / 2 * 1.1) ? 'disabled' : ''}>Racheter ${money(Math.ceil(t.price / 2 * 1.1))}</button>`}
+        </div>
+      </div>`;
+    }).join('');
+    if (!props.length) rows = '<p class="hint">Vous ne possédez encore aucune propriété.</p>';
+    openModal('🏗️ Mes propriétés · liquide : ' + money(p.money), `<div class="mlist">${rows}</div>`, [{ label: 'Terminé', cls: 'primary', onclick: closeModal }]);
+    els.modalBody.querySelectorAll('.mini').forEach(b => {
+      b.addEventListener('click', () => {
+        const i = parseInt(b.dataset.i, 10);
+        const act = b.dataset.act;
+        if (act === 'build') game.buildHouse(i);
+        else if (act === 'sell') game.sellHouse(i);
+        else if (act === 'mort') game.mortgage(i);
+        else if (act === 'unmort') game.unmortgage(i);
+        render();
+        openManage();
+      });
+    });
+  }
+
+  // ---- fiche case ------------------------------------------------------------
+  function showTileInfo(i) {
+    const t = game.board[i];
+    let body = `<div class="ti-name">${t.name}${t.barrier ? ' 🚧' : ''}</div>`;
+    if (t.type === 'property') {
+      const owner = t.owner != null ? game.players[t.owner].name : 'personne';
+      const labels = ['Terrain nu', '1 maison', '2 maisons', '3 maisons', '4 maisons', 'Hôtel'];
+      const rows = labels.map((lbl, k) => `<tr><td>${lbl}</td><td>${money(t.rents[k])}</td></tr>`).join('');
+      body += `<table class="ti-rent"><tr><th>État</th><th>Loyer</th></tr>${rows}</table>
+        <p>Prix ${money(t.price)} · construction ${money(GROUPS[t.group].house)}/maison · hypothèque ${money(Math.floor(t.price / 2))}</p>
+        <p>Propriétaire : <b>${owner}</b>${t.mortgaged ? ' (hypothéquée)' : ''}${t.houses ? ' · ' + (t.houses === 5 ? 'hôtel' : t.houses + ' maison(s)') : ''}</p>`;
+    } else if (t.type === 'station') {
+      body += `<p>Prix ${money(t.price)}</p><table class="ti-rent"><tr><th>Gares possédées</th><th>Loyer</th></tr>
+        <tr><td>1</td><td>25 €</td></tr><tr><td>2</td><td>50 €</td></tr><tr><td>3</td><td>100 €</td></tr><tr><td>4</td><td>200 €</td></tr></table>
+        <p>Propriétaire : <b>${t.owner != null ? game.players[t.owner].name : 'personne'}</b></p>`;
+    } else if (t.type === 'utility') {
+      body += `<p>Prix ${money(t.price)}</p><p>Loyer = dés × 4 (une compagnie) ou × 10 (les deux).</p>
+        <p>Propriétaire : <b>${t.owner != null ? game.players[t.owner].name : 'personne'}</b></p>`;
+    } else if (t.type === 'tax') {
+      body += `<p>Payez ${money(t.amount)}.</p>`;
+    } else {
+      body += `<p>${tileDesc(t)}</p>`;
+    }
+    openModal('Détails de la case', body, [{ label: 'Fermer', cls: 'primary', onclick: closeModal }]);
+  }
+  function tileDesc(t) {
+    switch (t.type) {
+      case 'go': return 'Recevez 200 € en passant ou en vous arrêtant ici.';
+      case 'jail': return 'Simple visite (sauf si l’on vous y envoie).';
+      case 'gotojail': return 'Allez directement en prison, sans passer par Départ.';
+      case 'bourse': return 'Dividendes : recevez 5 % de la valeur de votre portefeuille d’actions.';
+      case 'cardshop': return 'Achetez des cartes d’action (missile, tortue, barrière…).';
+      case 'lottery': return 'Achetez un billet à 50 € ; tirage tous les 5 tours de table.';
+      case 'chance': return 'Tirez une carte Chance.';
+      case 'fate': return 'Tirez une carte Caisse de Communauté.';
+      default: return '';
+    }
+  }
+
+  // ---- journal ---------------------------------------------------------------
+  function renderLog() {
+    const box = els.log;
+    box.innerHTML = game.log.slice(-60).map(m => `<div class="logline">${m}</div>`).join('');
+    box.scrollTop = box.scrollHeight;
+  }
+
+  // ---- modale ----------------------------------------------------------------
+  function openModal(title, bodyHTML, buttons) {
+    els.modalTitle.innerHTML = title;
+    els.modalBody.innerHTML = bodyHTML;
+    els.modalFooter.innerHTML = '';
+    (buttons || []).forEach(b => els.modalFooter.appendChild(btn(b.label, b.cls, b.onclick)));
+    els.modal.classList.remove('hidden');
+  }
+  function closeModal() { els.modal.classList.add('hidden'); }
+
+  // ---- démarrage -------------------------------------------------------------
+  function boot() {
+    ['setup', 'game', 'board', 'players', 'controls', 'log', 'modal', 'modalTitle', 'modalBody', 'modalFooter',
+     'humanName', 'aiCount', 'roundLimit'].forEach(id => { els[id] = document.getElementById(id); });
+    document.getElementById('startBtn').addEventListener('click', newGame);
+    document.getElementById('quitBtn').addEventListener('click', () => {
+      els.game.classList.add('hidden'); els.setup.classList.remove('hidden');
+    });
+    document.getElementById('speedBtn').addEventListener('click', (e) => {
+      aiSpeed = aiSpeed === 1 ? 3 : aiSpeed === 3 ? 10 : 1;
+      e.target.textContent = '⏩ ×' + aiSpeed;
+    });
+    window.__game = () => game;
+    window.__ui = { doRoll, newGame, maybeAdvanceAI };
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
+})();
+
+</script>
+</body>
+</html>

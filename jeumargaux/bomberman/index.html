@@ -1,0 +1,1195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Constance — Tesla Bomber</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{width:100%;height:100%;background:#050510;display:flex;justify-content:center;align-items:center;overflow:hidden}
+canvas{display:block;image-rendering:pixelated;image-rendering:crisp-edges}
+#fs{
+  position:fixed;top:14px;right:14px;z-index:10;
+  display:flex;align-items:center;gap:7px;
+  padding:8px 12px;
+  font:bold 13px monospace;letter-spacing:1px;
+  color:#00ffcc;background:rgba(6,10,24,0.72);
+  border:1px solid rgba(0,255,204,0.45);border-radius:4px;
+  cursor:pointer;opacity:0.35;transition:opacity .18s,box-shadow .18s,background .18s;
+}
+#fs:hover,#fs:focus-visible{opacity:1;background:rgba(0,255,204,0.14);box-shadow:0 0 14px rgba(0,255,204,0.45);outline:none}
+#fs .ic{font-size:16px;line-height:1}
+@media (max-width:640px){ #fs .tx{display:none} }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<button id="fs" type="button" title="Plein écran (F)" aria-label="Passer en plein écran">
+  <span class="ic">⛶</span><span class="tx">PLEIN ÉCRAN</span>
+</button>
+<script>
+'use strict';
+// ── Canvas ──────────────────────────────────────────────────────────────────
+const canvas = document.getElementById('c');
+const ctx    = canvas.getContext('2d');
+const COLS=21, ROWS=15, TILE=48, HUD=64;
+const WALL_INSET=6;   // interior pillars are drawn 2*6px smaller than their tile
+const GW=COLS*TILE, GH=ROWS*TILE;
+
+function resize(){
+  const s=Math.min(window.innerWidth/GW, window.innerHeight/(GH+HUD));
+  canvas.width=GW; canvas.height=GH+HUD;
+  canvas.style.width=(GW*s)+'px'; canvas.style.height=((GH+HUD)*s)+'px';
+}
+resize(); window.addEventListener('resize',resize);
+
+// ── Fullscreen ──────────────────────────────────────────────────────────────
+const fsBtn=document.getElementById('fs');
+const fsEl=()=>document.fullscreenElement||document.webkitFullscreenElement||null;
+function toggleFullscreen(){
+  const root=document.documentElement;
+  if(fsEl()){
+    const exit=document.exitFullscreen||document.webkitExitFullscreen;
+    if(exit) Promise.resolve(exit.call(document)).catch(()=>{});
+  }else{
+    const req=root.requestFullscreen||root.webkitRequestFullscreen;
+    if(req) Promise.resolve(req.call(root)).catch(()=>{});
+  }
+}
+function syncFsBtn(){
+  const on=!!fsEl();
+  fsBtn.querySelector('.ic').textContent=on?'⛗':'⛶';
+  fsBtn.querySelector('.tx').textContent=on?'QUITTER':'PLEIN ÉCRAN';
+  fsBtn.title=on?'Quitter le plein écran (F / Échap)':'Plein écran (F)';
+  fsBtn.setAttribute('aria-label',fsBtn.title);
+  resize();
+}
+// blur() so the button doesn't keep focus and swallow Space/Enter from the game
+fsBtn.addEventListener('click',()=>{ toggleFullscreen(); fsBtn.blur(); });
+['fullscreenchange','webkitfullscreenchange'].forEach(e=>document.addEventListener(e,syncFsBtn));
+
+// ── Audio ────────────────────────────────────────────────────────────────────
+let AC=null;
+function initAC(){ if(!AC) AC=new(window.AudioContext||window.webkitAudioContext)(); }
+
+// Master gain → compressor → out (glues the mix, stops explosions from clipping)
+let masterGain=null;
+function getMaster(){
+  if(!masterGain){
+    masterGain=AC.createGain(); masterGain.gain.value=0.5;
+    const comp=AC.createDynamicsCompressor();
+    comp.threshold.value=-14; comp.knee.value=14; comp.ratio.value=4;
+    comp.attack.value=0.004; comp.release.value=0.2;
+    masterGain.connect(comp); comp.connect(AC.destination);
+  }
+  return masterGain;
+}
+
+// One shared white-noise buffer (cheaper than rebuilding one per hit)
+let noiseBuf=null;
+function getNoise(){
+  if(!noiseBuf){
+    const sr=AC.sampleRate; noiseBuf=AC.createBuffer(1,sr*2,sr);
+    const d=noiseBuf.getChannelData(0);
+    for(let i=0;i<d.length;i++) d[i]=Math.random()*2-1;
+  }
+  return noiseBuf;
+}
+
+// SFX helpers
+function tone(freq,type,dur,vol=0.2,detune=0){
+  if(!AC)return;
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type; o.frequency.value=freq; o.detune.value=detune;
+  g.gain.setValueAtTime(vol,AC.currentTime);
+  g.gain.exponentialRampToValueAtTime(0.001,AC.currentTime+dur);
+  o.connect(g); g.connect(getMaster()); o.start(); o.stop(AC.currentTime+dur);
+}
+function noise(dur,vol=0.3,decay=0.05){
+  if(!AC)return;
+  const sr=AC.sampleRate, buf=AC.createBuffer(1,sr*dur,sr);
+  const d=buf.getChannelData(0);
+  for(let i=0;i<d.length;i++) d[i]=(Math.random()*2-1)*Math.exp(-i/(sr*decay));
+  const s=AC.createBufferSource(), g=AC.createGain();
+  g.gain.value=vol; s.buffer=buf;
+  s.connect(g); g.connect(getMaster()); s.start(); s.stop(AC.currentTime+dur);
+}
+
+const sfx={
+  bomb:  ()=>{ tone(180,'sine',0.12,0.18); },
+  boom:  ()=>{ noise(0.45,0.5,0.07); tone(60,'sawtooth',0.3,0.15); },
+  pick:  ()=>{ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.06,0.12),i*50)); },
+  die:   ()=>{ [440,330,220,110].forEach((f,i)=>setTimeout(()=>tone(f,'sawtooth',0.1,0.18),i*100)); },
+  tesla: ()=>{ tone(80,'sawtooth',0.25,0.22); tone(1200,'sawtooth',0.2,0.08,-1200); },
+  next:  ()=>{ [523,659,784,1047,1319].forEach((f,i)=>setTimeout(()=>tone(f,'square',0.12,0.15),i*60)); },
+};
+
+// ── Music ───────────────────────────────────────────────────────────────────
+// 8-bar chiptune/synthwave loop in C minor: i - VI - VII - v, played twice with
+// an A section (chord stabs) then a B section (running arpeggio + octave lead).
+let musicOn=false, musicTimer=null, nextBarT=0, songBar=0;
+let musicBus=null, delayIn=null, musicNodes=[];
+let bpm=138, S16=60/138/4;                 // S16 = one 16th note in seconds
+const midi=n=>440*Math.pow(2,(n-69)/12);   // MIDI note number → Hz
+const SWING=0.14;                          // shuffle amount on off-16ths (hats/arp)
+
+// Music bus with a tempo-synced feedback delay send
+function getMusicBus(){
+  if(musicBus) return musicBus;
+  musicBus=AC.createGain(); musicBus.gain.value=1;
+  musicBus.connect(getMaster());
+  delayIn=AC.createDelay(1.5);
+  const fb=AC.createGain(), damp=AC.createBiquadFilter(), wet=AC.createGain();
+  fb.gain.value=0.34; damp.type='lowpass'; damp.frequency.value=2400; wet.gain.value=0.5;
+  delayIn.connect(damp); damp.connect(fb); fb.connect(delayIn);
+  delayIn.connect(wet); wet.connect(musicBus);
+  return musicBus;
+}
+function keep(node,endT){ node.__end=endT; musicNodes.push(node); }
+
+// ── Voices ──
+function vLead(t,n,dur,vol,send=0.3){
+  const bus=getMusicBus();
+  const flt=AC.createBiquadFilter(); flt.type='lowpass'; flt.Q.value=1.2;
+  flt.frequency.setValueAtTime(4600,t);
+  flt.frequency.exponentialRampToValueAtTime(1700,t+dur);
+  const g=AC.createGain(), f=midi(n), rel=Math.min(0.08,dur*0.45);
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.006);
+  g.gain.setValueAtTime(vol,t+Math.max(0.007,dur-rel));
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  const vib=AC.createOscillator(), vg=AC.createGain();
+  vib.frequency.value=5.4; vg.gain.setValueAtTime(0,t);
+  vg.gain.linearRampToValueAtTime(7,t+dur);          // vibrato fades in over the note
+  vib.connect(vg);
+  [0,-8,9].forEach((det,i)=>{                        // 3 detuned squares = fat lead
+    const o=AC.createOscillator();
+    o.type=i===0?'square':'sawtooth'; o.frequency.value=f; o.detune.value=det;
+    vg.connect(o.detune); o.connect(flt);
+    o.start(t); o.stop(t+dur+0.02); keep(o,t+dur+0.05);
+  });
+  vib.start(t); vib.stop(t+dur+0.02); keep(vib,t+dur+0.05);
+  flt.connect(g); g.connect(bus);
+  if(send>0){ const s=AC.createGain(); s.gain.value=send; g.connect(s); s.connect(delayIn); }
+}
+function vBass(t,n,dur,vol){
+  const bus=getMusicBus(), f=midi(n);
+  const flt=AC.createBiquadFilter(); flt.type='lowpass'; flt.Q.value=6;
+  flt.frequency.setValueAtTime(Math.min(2600,f*16),t);
+  flt.frequency.exponentialRampToValueAtTime(Math.max(150,f*3.2),t+Math.min(dur,0.16));
+  const g=AC.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.005);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur*0.92);
+  const saw=AC.createOscillator(); saw.type='sawtooth'; saw.frequency.value=f;
+  const sub=AC.createOscillator(); sub.type='sine'; sub.frequency.value=f;
+  const sg=AC.createGain(); sg.gain.value=0.6;
+  saw.connect(flt); sub.connect(sg); sg.connect(g); flt.connect(g); g.connect(bus);
+  [saw,sub].forEach(o=>{ o.start(t); o.stop(t+dur+0.02); keep(o,t+dur+0.05); });
+}
+function vPluck(t,n,dur,vol,send=0.2){
+  const bus=getMusicBus();
+  const o=AC.createOscillator(); o.type='square'; o.frequency.value=midi(n);
+  const flt=AC.createBiquadFilter(); flt.type='lowpass';
+  flt.frequency.setValueAtTime(3400,t); flt.frequency.exponentialRampToValueAtTime(900,t+dur);
+  const g=AC.createGain();
+  g.gain.setValueAtTime(0.0001,t);
+  g.gain.exponentialRampToValueAtTime(vol,t+0.004);
+  g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  o.connect(flt); flt.connect(g); g.connect(bus);
+  if(send>0){ const s=AC.createGain(); s.gain.value=send; g.connect(s); s.connect(delayIn); }
+  o.start(t); o.stop(t+dur+0.02); keep(o,t+dur+0.05);
+}
+// ── Drums ──
+function dKick(t,vol=0.85){
+  const bus=getMusicBus();
+  const o=AC.createOscillator(); o.type='sine';
+  o.frequency.setValueAtTime(150,t); o.frequency.exponentialRampToValueAtTime(44,t+0.09);
+  const g=AC.createGain();
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.22);
+  o.connect(g); g.connect(bus); o.start(t); o.stop(t+0.24); keep(o,t+0.26);
+  const c=AC.createBufferSource(), cg=AC.createGain(), cf=AC.createBiquadFilter();
+  c.buffer=getNoise(); cf.type='lowpass'; cf.frequency.value=2200;
+  cg.gain.setValueAtTime(vol*0.35,t); cg.gain.exponentialRampToValueAtTime(0.0001,t+0.02);
+  c.connect(cf); cf.connect(cg); cg.connect(bus); c.start(t); c.stop(t+0.04); keep(c,t+0.06);
+}
+function dSnare(t,vol=0.4){
+  const bus=getMusicBus();
+  const s=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain();
+  s.buffer=getNoise(); f.type='bandpass'; f.frequency.value=1900; f.Q.value=0.8;
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+0.14);
+  s.connect(f); f.connect(g); g.connect(bus); s.start(t); s.stop(t+0.16); keep(s,t+0.18);
+  const b=AC.createOscillator(), bg=AC.createGain();      // body
+  b.type='triangle'; b.frequency.setValueAtTime(220,t);
+  b.frequency.exponentialRampToValueAtTime(150,t+0.08);
+  bg.gain.setValueAtTime(vol*0.5,t); bg.gain.exponentialRampToValueAtTime(0.0001,t+0.09);
+  b.connect(bg); bg.connect(bus); b.start(t); b.stop(t+0.1); keep(b,t+0.12);
+}
+function dHat(t,open,vol=0.16){
+  const bus=getMusicBus(), dur=open?0.16:0.035;
+  const s=AC.createBufferSource(), f=AC.createBiquadFilter(), g=AC.createGain();
+  s.buffer=getNoise(); f.type='highpass'; f.frequency.value=7800;
+  g.gain.setValueAtTime(vol,t); g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+  s.connect(f); f.connect(g); g.connect(bus); s.start(t); s.stop(t+dur+0.02); keep(s,t+dur+0.04);
+}
+
+// ── Song data ──  bars 0-3 = A section, bars 4-7 = B section
+const PROG=[                                     // Cm  Ab  Bb  Gm
+  {root:36,tri:[60,63,67]}, {root:32,tri:[56,60,63]},
+  {root:34,tri:[58,62,65]}, {root:31,tri:[55,58,62]},
+];
+const LEAD=[ // per bar: [midi note (0 = rest), length in 16ths] — each bar sums to 16
+  [[72,2],[75,2],[79,2],[75,2],[77,2],[75,2],[72,4]],
+  [[68,2],[72,2],[75,2],[72,2],[70,3],[68,1],[67,4]],
+  [[70,2],[74,2],[77,2],[74,2],[75,2],[74,2],[70,4]],
+  [[67,2],[70,2],[74,2],[70,2],[72,4],[0,4]],
+  [[0,1],[72,1],[75,1],[79,1],[84,2],[79,2],[80,2],[79,2],[77,2],[75,2]],
+  [[80,2],[79,2],[77,2],[75,2],[72,4],[75,4]],
+  [[70,1],[72,1],[74,1],[77,1],[82,2],[77,2],[79,2],[77,2],[75,2],[74,2]],
+  [[79,2],[77,2],[75,2],[74,2],[72,3],[74,1],[75,2],[0,2]],
+];
+const BASSP=[[0,2,0],[2,2,0],[4,2,12],[6,2,0],[8,2,0],[10,1,12],[11,1,0],[12,2,7],[14,2,0]];
+const KICKP=[0,6,8], SNAREP=[4,12];
+
+function scheduleBar(bar,t){
+  const ch=PROG[bar%4], B=bar>=4, sw=SWING*S16;
+  // lead (B section doubles an octave up, quietly)
+  let ct=t;
+  for(const [n,len] of LEAD[bar]){
+    if(n>0){
+      vLead(ct,n,len*S16*0.92,0.085);
+      if(B) vLead(ct,n+12,len*S16*0.6,0.022,0.15);
+    }
+    ct+=len*S16;
+  }
+  // bass
+  for(const [st,len,iv] of BASSP) vBass(t+st*S16,ch.root+iv,len*S16*0.9,0.24);
+  // harmony: A = offbeat chord stabs, B = running 16th arpeggio
+  if(!B){
+    for(const st of [2,6,10,14])
+      ch.tri.forEach(n=>vPluck(t+st*S16+sw,n,S16*1.3,0.045));
+  }else{
+    for(let st=0;st<16;st++){
+      const n=ch.tri[st%3]+(st%6>=3?12:0);
+      vPluck(t+st*S16+(st%2?sw:0),n,S16*0.9,0.038,0.25);
+    }
+  }
+  // drums
+  KICKP.forEach(st=>dKick(t+st*S16));
+  SNAREP.forEach(st=>dSnare(t+st*S16));
+  for(let st=0;st<16;st+=2){
+    const acc=st%4===0;
+    dHat(t+st*S16,false,acc?0.2:0.1);
+    if(!acc) dHat(t+(st+1)*S16+sw,false,0.06);   // swung ghost hat
+  }
+  dHat(t+14*S16,true,0.13);
+  if(bar===7) for(let i=0;i<4;i++) dSnare(t+(12+i)*S16,0.2+i*0.09);  // turnaround fill
+}
+
+function musicTick(){
+  if(!musicOn||!AC) return;
+  const barLen=16*S16;
+  while(nextBarT<AC.currentTime+1.2){
+    scheduleBar(songBar%8,nextBarT);
+    songBar++; nextBarT+=barLen;
+  }
+  musicNodes=musicNodes.filter(n=>n.__end>AC.currentTime);
+  musicTimer=setTimeout(musicTick,250);
+}
+function startMusic(){
+  if(!AC||musicOn) return;
+  bpm=Math.min(168,138+(level-1)*7);   // each level pushes the tempo, up to a cap
+  S16=60/bpm/4;
+  musicOn=true; songBar=0;
+  const bus=getMusicBus();
+  delayIn.delayTime.value=3*S16;       // dotted-8th-ish delay, locked to tempo
+  bus.gain.cancelScheduledValues(AC.currentTime);
+  bus.gain.setValueAtTime(1,AC.currentTime);
+  nextBarT=AC.currentTime+0.08;
+  musicTick();
+}
+function stopMusic(){
+  musicOn=false;
+  if(musicTimer){ clearTimeout(musicTimer); musicTimer=null; }
+  if(!AC) return;
+  const now=AC.currentTime;
+  if(musicBus){                        // fade out so cutting notes doesn't click
+    musicBus.gain.cancelScheduledValues(now);
+    musicBus.gain.setValueAtTime(musicBus.gain.value,now);
+    musicBus.gain.linearRampToValueAtTime(0.0001,now+0.12);
+  }
+  musicNodes.forEach(n=>{ try{ n.stop(now+0.14); }catch(e){} });
+  musicNodes=[];
+}
+
+// ── Constants ────────────────────────────────────────────────────────────────
+const T_EMPTY=0,T_WALL=1,T_BLOCK=2,T_TESLA=3,T_EXIT=4;
+const PU_FLAME=1,PU_BOMB=2,PU_SPEED=3,PU_TESLA=4,PU_SHIELD=5,PU_REMOTE=6,PU_KICK=7;
+
+// ── Level configs ────────────────────────────────────────────────────────────
+// Positions must avoid the pillar lattice (walls sit where gx and gy are both even)
+// and must never sit on EXIT, which would make the level impossible to finish.
+// Coils must also stay off row 7: it has no pillars, so a ray runs straight down
+// it and would zap the exit tile on every cycle.
+const LEVELS=[
+  // 1 — warm-up
+  { density:0.50, teslas:[{gx:10,gy:5}],                      zapRange:2, zapInterval:4.0,
+    enemies:[{t:'drone',gx:19,gy:1},{t:'drone',gx:19,gy:13},{t:'robo',gx:10,gy:13}] },
+  // 2 — chasers show up
+  { density:0.58, teslas:[{gx:7,gy:5},{gx:13,gy:9}],          zapRange:3, zapInterval:3.0,
+    enemies:[{t:'drone',gx:19,gy:1},{t:'robo',gx:19,gy:13},{t:'robo',gx:1,gy:13},
+             {t:'drone',gx:10,gy:3},{t:'drone',gx:15,gy:9}] },
+  // 3 — first hacker (walks through blocks, 2 HP)
+  { density:0.65, teslas:[{gx:5,gy:3},{gx:15,gy:11},{gx:10,gy:9}], zapRange:4, zapInterval:2.2,
+    enemies:[{t:'drone',gx:19,gy:1},{t:'robo',gx:19,gy:13},{t:'hacker',gx:10,gy:3},
+             {t:'robo',gx:1,gy:13},{t:'drone',gx:5,gy:9},{t:'robo',gx:15,gy:5}] },
+  // 4 — four coils box in the middle of the arena
+  { density:0.70, teslas:[{gx:5,gy:5},{gx:15,gy:5},{gx:5,gy:9},{gx:15,gy:9}], zapRange:4, zapInterval:2.0,
+    enemies:[{t:'drone',gx:19,gy:1},{t:'robo',gx:19,gy:13},{t:'robo',gx:1,gy:13},
+             {t:'hacker',gx:10,gy:3},{t:'hacker',gx:10,gy:11},{t:'robo',gx:15,gy:7},
+             {t:'drone',gx:5,gy:7}] },
+  // 5 — overload: dense maze, five coils, three hackers
+  { density:0.76, teslas:[{gx:3,gy:3},{gx:17,gy:3},{gx:3,gy:11},{gx:17,gy:11},{gx:10,gy:5}],
+    zapRange:5, zapInterval:1.7,
+    enemies:[{t:'robo',gx:19,gy:1},{t:'robo',gx:19,gy:13},{t:'robo',gx:1,gy:13},
+             {t:'hacker',gx:10,gy:3},{t:'hacker',gx:10,gy:11},{t:'hacker',gx:15,gy:7},
+             {t:'drone',gx:5,gy:7},{t:'drone',gx:13,gy:9}] },
+];
+
+// ── Game state ────────────────────────────────────────────────────────────────
+let state='menu'; // menu|play|dead|win|transit
+let level=1, score=0, hiScore=0;
+let grid=[], pickups=[], bombs=[], explosions=[], particles=[], arcs=[], floats=[];
+let player=null, enemies=[];
+let exitOpen=false; const EXIT={gx:10,gy:7};   // centre of the 21x15 arena
+let teslaTimer=0, teslaCharging=0, teslaWarn=false;
+let levelCfg=LEVELS[0];
+let tick=0, dt=0, lastT=0;
+let transitTimer=0;
+// Screen shake
+let shakeX=0, shakeY=0, shakePow=0;
+function addShake(p){ shakePow=Math.min(shakePow+p,12); }
+function updateShake(){ shakePow*=0.78; shakeX=(Math.random()-0.5)*2*shakePow; shakeY=(Math.random()-0.5)*2*shakePow; }
+// Floating score texts
+function addFloat(x,y,txt,col='#ffdd44'){ floats.push({x,y,txt,col,life:1.1,ml:1.1,vy:-0.8}); }
+
+// ── Player ────────────────────────────────────────────────────────────────────
+class Player{
+  constructor(){
+    this.x=TILE; this.y=TILE;
+    this.speed=2.6;
+    this.lives=3; this.bombs=1; this.flame=2;
+    this.activeBombs=0;
+    this.hasTesla=false; this.shield=false;
+    this.hasRemote=false; this.remoteBombRef=null;
+    this.hasKick=false;
+    this.dead=false; this.deathT=0;
+    this.inv=0;
+    this.animF=0; this.animT=0; this.dir='d';
+    this.moving=false;
+  }
+  get cx(){ return this.x+TILE/2; }
+  get cy(){ return this.y+TILE/2; }
+  get gx(){ return Math.floor(this.cx/TILE); }
+  get gy(){ return Math.floor(this.cy/TILE); }
+
+  update(){
+    if(this.dead){ this.deathT-=dt; if(this.deathT<=0) this.respawn(); return; }
+    if(this.inv>0) this.inv-=dt;
+
+    let mx=0,my=0;
+    if(keys['ArrowLeft']||keys['KeyA']) mx=-1;
+    else if(keys['ArrowRight']||keys['KeyD']) mx=1;
+    else if(keys['ArrowUp']||keys['KeyW']) my=-1;
+    else if(keys['ArrowDown']||keys['KeyS']) my=1;
+
+    this.moving=mx!==0||my!==0;
+    const spd=this.speed*(dt*60)*0.7;
+    // passable() re-fills these when we actually bump into a bomb this frame
+    this._kickGx=-1; this._kickGy=-1;
+
+    if(mx!==0){
+      const nx=this.x+mx*spd;
+      if(this.passable(nx,this.y)){ this.x=nx; }
+      else{ const snap=Math.round(this.y/TILE)*TILE; this.y+=(snap-this.y)*0.25; }
+      this.dir=mx<0?'l':'r';
+    }
+    if(my!==0){
+      const ny=this.y+my*spd;
+      if(this.passable(this.x,ny)){ this.y=ny; }
+      else{ const snap=Math.round(this.x/TILE)*TILE; this.x+=(snap-this.x)*0.25; }
+      this.dir=my<0?'u':'d';
+    }
+
+    this.x=Math.max(0,Math.min((COLS-1)*TILE,this.x));
+    this.y=Math.max(0,Math.min((ROWS-1)*TILE,this.y));
+
+    if(this.moving){ this.animT+=dt; if(this.animT>0.1){this.animF=(this.animF+1)%4;this.animT=0;} }
+    else this.animF=0;
+
+    // Pickups
+    pickups.forEach(p=>{ if(p.alive&&p.gx===this.gx&&p.gy===this.gy){ p.alive=false; this.applyPU(p.type); sfx.pick(); score+=50; addFloat(p.gx*TILE+TILE/2,p.gy*TILE,'PU+','#00ffcc'); } });
+    // Exit
+    if(exitOpen&&this.gx===EXIT.gx&&this.gy===EXIT.gy) goNextLevel();
+    // Clear justPlaced only once the player's whole hitbox has left that tile,
+    // otherwise the bomb turns solid while we still overlap it and we get stuck.
+    bombs.forEach(b=>{ if(b.justPlaced&&!this.overlapsTile(b.gx,b.gy)) b.justPlaced=false; });
+    // Kick bomb: slide bomb player just walked into
+    if(this.hasKick&&this.moving){
+      bombs.forEach(b=>{if(!b.justPlaced&&!b.sliding&&b.gx===this._kickGx&&b.gy===this._kickGy){
+        const ddx=b.gx-this.gx, ddy=b.gy-this.gy;
+        if(Math.abs(ddx)<=1&&Math.abs(ddy)<=1) kickBomb(b,ddx,ddy);
+      }});
+    }
+  }
+
+  // Does the hitbox still touch tile (gx,gy)? Same corner sampling as passable().
+  overlapsTile(gx,gy){
+    const m=5;
+    const xs=[this.x+m,this.x+TILE-m], ys=[this.y+m,this.y+TILE-m];
+    return xs.some(cx=>Math.floor(cx/TILE)===gx) && ys.some(cy=>Math.floor(cy/TILE)===gy);
+  }
+
+  passable(x,y){
+    const m=5;
+    const corners=[[x+m,y+m],[x+TILE-m,y+m],[x+m,y+TILE-m],[x+TILE-m,y+TILE-m]];
+    for(const[cx,cy]of corners){
+      const gx=Math.floor(cx/TILE), gy=Math.floor(cy/TILE);
+      if(gx<0||gx>=COLS||gy<0||gy>=ROWS) return false;
+      const t=grid[gy][gx];
+      if(t===T_WALL||t===T_BLOCK||t===T_TESLA) return false;
+      // justPlaced bombs are transparent (player can walk off them)
+      if(bombs.some(b=>!b.justPlaced&&b.gx===gx&&b.gy===gy)){
+        // Kick check: if player has kick power-up, record target
+        this._kickGx=gx; this._kickGy=gy;
+        if(!this.hasKick) return false;
+        // With kick, still block movement but kick will happen
+        return false;
+      }
+    }
+    return true;
+  }
+
+  applyPU(t){
+    if(t===PU_FLAME) this.flame=Math.min(6,this.flame+1);
+    else if(t===PU_BOMB) this.bombs=Math.min(5,this.bombs+1);
+    else if(t===PU_SPEED) this.speed=Math.min(4.5,this.speed+0.5);
+    else if(t===PU_TESLA) this.hasTesla=true;
+    else if(t===PU_SHIELD) this.shield=true;
+    else if(t===PU_REMOTE) this.hasRemote=true;
+    else if(t===PU_KICK) this.hasKick=true;
+  }
+
+  placeBomb(){
+    // Remote: if we have an active remote bomb, detonate it instead of placing
+    if(this.hasRemote&&this.remoteBombRef&&bombs.includes(this.remoteBombRef)){
+      this.remoteBombRef.timer=0.05; this.remoteBombRef=null; return;
+    }
+    if(this.activeBombs>=this.bombs) return;
+    if(bombs.some(b=>b.gx===this.gx&&b.gy===this.gy)) return;
+    const fuse = this.hasRemote ? 60 : 3; // remote = 60s fuse (manual detonate)
+    const b={gx:this.gx,gy:this.gy,timer:fuse,range:this.flame,tesla:this.hasTesla,remote:this.hasRemote,justPlaced:true,sliding:false,id:Math.random()};
+    bombs.push(b);
+    this.activeBombs++;
+    if(this.hasTesla) this.hasTesla=false;
+    if(this.hasRemote) this.remoteBombRef=b;
+    sfx.bomb();
+  }
+
+  hit(){
+    if(this.inv>0||this.dead) return;
+    if(this.shield){ this.shield=false; this.inv=2; return; }
+    this.dead=true; this.deathT=1.5; this.lives--;
+    sfx.die(); burst(this.cx,this.cy,'#ff69b4',20);
+  }
+
+  respawn(){
+    if(this.lives<=0){ state='dead'; stopMusic(); if(score>hiScore)hiScore=score; return; }
+    this.x=TILE; this.y=TILE; this.dead=false; this.inv=2; this.activeBombs=0;
+  }
+}
+
+// ── Enemy ─────────────────────────────────────────────────────────────────────
+const ECFG={
+  drone:{ col:'#00eeff', spd:1.1, hp:1, pts:100 },
+  robo: { col:'#ff3344', spd:0.9, hp:1, pts:200 },
+  hacker:{ col:'#aa44ff', spd:0.7, hp:2, pts:300 },
+};
+class Enemy{
+  constructor(t,gx,gy){
+    this.type=t; const c=ECFG[t];
+    this.col=c.col; this.spd=c.spd; this.hp=c.hp; this.maxHp=c.hp; this.pts=c.pts;
+    this.x=gx*TILE; this.y=gy*TILE;
+    this.dead=false; this.deathT=0;
+    this.dir=['l','r','u','d'][Math.floor(Math.random()*4)];
+    this.moveT=Math.random()*0.4; this.moveInt=0.45+Math.random()*0.25;
+    this.animF=0; this.animT=0;
+  }
+  get cx(){return this.x+TILE/2;} get cy(){return this.y+TILE/2;}
+  get gx(){return Math.floor(this.cx/TILE);} get gy(){return Math.floor(this.cy/TILE);}
+
+  update(){
+    if(this.dead){ this.deathT-=dt; return; }
+    this.animT+=dt; if(this.animT>0.12){this.animF=(this.animF+1)%4;this.animT=0;}
+    this.moveT+=dt;
+    if(this.moveT>=this.moveInt){ this.moveT=0; this.pickDir(); }
+    const spd=this.spd*(dt*60)*0.65;
+    const DX={l:-1,r:1,u:0,d:0}, DY={l:0,r:0,u:-1,d:1};
+    const nx=this.x+DX[this.dir]*spd, ny=this.y+DY[this.dir]*spd;
+    if(this.passable(nx,ny)){ this.x=nx; this.y=ny; }
+    else this.pickDir();
+    // slide
+    if(DX[this.dir]!==0){ const s=Math.round(this.y/TILE)*TILE; this.y+=(s-this.y)*0.3; }
+    if(DY[this.dir]!==0){ const s=Math.round(this.x/TILE)*TILE; this.x+=(s-this.x)*0.3; }
+    // hurt player
+    if(player&&!player.dead){
+      const dx=Math.abs(this.cx-player.cx), dy=Math.abs(this.cy-player.cy);
+      if(dx<TILE*0.65&&dy<TILE*0.65) player.hit();
+    }
+  }
+
+  passable(x,y){
+    const m=5;
+    const corners=[[x+m,y+m],[x+TILE-m,y+m],[x+m,y+TILE-m],[x+TILE-m,y+TILE-m]];
+    for(const[cx,cy]of corners){
+      const gx=Math.floor(cx/TILE),gy=Math.floor(cy/TILE);
+      if(gx<0||gx>=COLS||gy<0||gy>=ROWS) return false;
+      const t=grid[gy][gx];
+      if(t===T_WALL||t===T_TESLA) return false;
+      if(t===T_BLOCK&&this.type!=='hacker') return false;
+      if(bombs.some(b=>b.gx===gx&&b.gy===gy)) return false;
+    }
+    return true;
+  }
+
+  pickDir(){
+    const dirs=['l','r','u','d'];
+    if(this.type==='robo'&&player&&Math.random()<0.65){
+      const dx=player.cx-this.cx, dy=player.cy-this.cy;
+      this.dir=Math.abs(dx)>Math.abs(dy)?(dx>0?'r':'l'):(dy>0?'d':'u');
+      return;
+    }
+    this.dir=dirs[Math.floor(Math.random()*4)];
+  }
+
+  hit(){
+    this.hp--;
+    if(this.hp<=0){
+      this.dead=true; this.deathT=0.5; score+=this.pts;
+      burst(this.cx,this.cy,this.col,16);
+      addFloat(this.cx,this.cy-24,`+${this.pts}`,this.col);
+      if(enemies.every(e=>e.dead)) setTimeout(()=>exitOpen=true,600);
+    }
+  }
+}
+
+// ── Kick bomb helper ──────────────────────────────────────────────────────────
+function kickBomb(b, ddx, ddy){
+  if(!ddx&&!ddy) return;
+  // Find how far it slides
+  let slide=1;
+  while(slide<COLS){
+    const nx=b.gx+ddx*slide, ny=b.gy+ddy*slide;
+    if(nx<1||nx>=COLS-1||ny<1||ny>=ROWS-1) break;
+    if(grid[ny][nx]!==T_EMPTY) break;
+    if(bombs.some(ob=>ob!==b&&ob.gx===nx&&ob.gy===ny)) break;
+    slide++;
+  }
+  const destGx=b.gx+ddx*(slide-1), destGy=b.gy+ddy*(slide-1);
+  if(destGx===b.gx&&destGy===b.gy) return;
+  // Animate slide as a smooth pixel move
+  b.px=b.gx*TILE; b.py=b.gy*TILE;
+  b.gx=destGx; b.gy=destGy;
+  b.sliding=true; b.slideTargetPx=destGx*TILE; b.slideTargetPy=destGy*TILE;
+  b.slideVx=ddx*6; b.slideVy=ddy*6;
+  sfx.bomb();
+}
+
+// ── Level generation ──────────────────────────────────────────────────────────
+function genLevel(lvl){
+  levelCfg=LEVELS[Math.min(lvl-1,LEVELS.length-1)];
+  const cfg=levelCfg;
+  grid=Array.from({length:ROWS},(_,r)=>Array.from({length:COLS},(_,c)=>{
+    if(r===0||r===ROWS-1||c===0||c===COLS-1) return T_WALL;
+    if(r%2===0&&c%2===0) return T_WALL;
+    return T_EMPTY;
+  }));
+  // Tesla coils
+  cfg.teslas.forEach(({gx,gy})=>{ if(grid[gy][gx]===T_EMPTY) grid[gy][gx]=T_TESLA; });
+  // Clear zones
+  const clear=[[1,1],[2,1],[1,2],[2,2],[3,1],[1,3]];
+  cfg.enemies.forEach(e=>{ clear.push([e.gx,e.gy],[e.gx-1,e.gy],[e.gx+1,e.gy],[e.gx,e.gy-1],[e.gx,e.gy+1]); });
+  for(let r=1;r<ROWS-1;r++) for(let c=1;c<COLS-1;c++){
+    if(grid[r][c]===T_EMPTY&&!clear.some(([cc,cr])=>cc===c&&cr===r)&&Math.random()<cfg.density)
+      grid[r][c]=T_BLOCK;
+  }
+  enemies=cfg.enemies.map(e=>new Enemy(e.t,e.gx,e.gy));
+  pickups=[]; bombs=[]; explosions=[]; particles=[]; arcs=[]; floats=[];
+  exitOpen=false; teslaTimer=0; teslaCharging=0; teslaWarn=false;
+  if(!player||state==='menu') player=new Player();
+  else{ player.x=TILE; player.y=TILE; player.dead=false; player.inv=1.5; player.activeBombs=0; }
+}
+
+// ── Bombs & explosions ────────────────────────────────────────────────────────
+function updateBombs(){
+  bombs.forEach(b=>{
+    b.timer-=dt;
+    if(b.timer<=0){ detonate(b); return; }
+    // Slide animation
+    if(b.sliding){
+      b.px+=b.slideVx; b.py+=b.slideVy;
+      const done=(b.slideVx>0&&b.px>=b.slideTargetPx)||(b.slideVx<0&&b.px<=b.slideTargetPx)||
+                 (b.slideVy>0&&b.py>=b.slideTargetPy)||(b.slideVy<0&&b.py<=b.slideTargetPy)||
+                 (b.slideVx===0&&b.slideVy===0);
+      if(done){ b.px=b.slideTargetPx; b.py=b.slideTargetPy; b.sliding=false; }
+    }
+  });
+  bombs=bombs.filter(b=>b.timer>0);
+}
+
+function detonate(b){
+  sfx.boom(); addShake(b.tesla?7:4);
+  if(!b.owner) player.activeBombs=Math.max(0,player.activeBombs-1);
+  if(player.remoteBombRef===b) player.remoteBombRef=null;
+  const cells=[{gx:b.gx,gy:b.gy}];
+  const DIRS=[[-1,0],[1,0],[0,-1],[0,1]];
+  DIRS.forEach(([dx,dy])=>{
+    for(let i=1;i<=b.range;i++){
+      const nx=b.gx+dx*i, ny=b.gy+dy*i;
+      if(nx<0||nx>=COLS||ny<0||ny>=ROWS) break;
+      if(grid[ny][nx]===T_WALL) break;
+      cells.push({gx:nx,gy:ny});
+      if(grid[ny][nx]===T_BLOCK){
+        grid[ny][nx]=T_EMPTY;
+        if(Math.random()<0.3){
+          const pool=[PU_FLAME,PU_FLAME,PU_BOMB,PU_BOMB,PU_SPEED,PU_SPEED,PU_TESLA,PU_TESLA,PU_SHIELD,PU_REMOTE,PU_KICK];
+          pickups.push({gx:nx,gy:ny,type:pool[Math.floor(Math.random()*pool.length)],alive:true});
+          score+=10;
+        }
+        break;
+      }
+      if(grid[ny][nx]===T_TESLA) break;
+    }
+  });
+  explosions.push({cells,timer:0.65,tesla:b.tesla});
+  cells.forEach(c=>{
+    burst(c.gx*TILE+TILE/2,c.gy*TILE+TILE/2,b.tesla?'#00ffff':'#ff6600',6);
+    if(player&&!player.dead&&player.gx===c.gx&&player.gy===c.gy) player.hit();
+    enemies.forEach(e=>{ if(!e.dead&&e.gx===c.gx&&e.gy===c.gy) e.hit(); });
+    bombs.forEach(ob=>{ if(ob.gx===c.gx&&ob.gy===c.gy&&ob.timer>0.05) ob.timer=0.05; });
+  });
+  if(b.tesla){
+    cells.forEach(c=>{ arcs.push({x1:b.gx*TILE+TILE/2,y1:b.gy*TILE+TILE/2,x2:c.gx*TILE+TILE/2,y2:c.gy*TILE+TILE/2,life:0.5}); });
+    sfx.tesla();
+  }
+}
+
+// ── Tesla coils ───────────────────────────────────────────────────────────────
+function updateTesla(){
+  const interval=levelCfg.zapInterval||3;
+  const range=levelCfg.zapRange||3;
+  teslaTimer+=dt;
+  // Warning phase: last 0.8s before zap, coils glow red
+  teslaWarn = teslaTimer >= interval-0.8;
+  if(teslaTimer<interval) return;
+  teslaTimer=0; teslaWarn=false;
+  sfx.tesla();
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    if(grid[r][c]!==T_TESLA) continue;
+    // All 4 + diagonals for bigger tesla feel
+    [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[1,-1],[-1,1],[1,1]].forEach(([dx,dy])=>{
+      for(let i=1;i<=range;i++){
+        const nx=c+dx*i, ny=r+dy*i;
+        if(nx<0||nx>=COLS||ny<0||ny>=ROWS||grid[ny][nx]===T_WALL) break;
+        arcs.push({x1:c*TILE+TILE/2,y1:r*TILE+TILE/2,x2:nx*TILE+TILE/2,y2:ny*TILE+TILE/2,life:0.45});
+        if(player&&!player.dead&&player.gx===nx&&player.gy===ny) player.hit();
+        enemies.forEach(e=>{ if(!e.dead&&e.gx===nx&&e.gy===ny) e.hit(); });
+        if(grid[ny][nx]===T_BLOCK) break;
+      }
+    });
+  }
+  addShake(3);
+}
+
+// ── Particles ─────────────────────────────────────────────────────────────────
+function burst(x,y,col,n){
+  for(let i=0;i<n;i++){
+    const a=Math.random()*Math.PI*2, s=1+Math.random()*3.5;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:0.5+Math.random()*0.35,ml:0.85,col});
+  }
+}
+function updateParticles(){
+  particles.forEach(p=>{ p.x+=p.vx; p.y+=p.vy; p.vx*=0.93; p.vy*=0.93; p.life-=dt; });
+  particles=particles.filter(p=>p.life>0);
+  arcs.forEach(a=>a.life-=dt);
+  arcs=arcs.filter(a=>a.life>0);
+  explosions.forEach(e=>e.timer-=dt);
+  explosions=explosions.filter(e=>e.timer>0);
+  floats.forEach(f=>{ f.y+=f.vy; f.life-=dt; });
+  floats=floats.filter(f=>f.life>0);
+  updateShake();
+}
+
+// ── Input ─────────────────────────────────────────────────────────────────────
+const keys={};
+document.addEventListener('keydown',e=>{
+  if(['Space','ArrowUp','ArrowDown','ArrowLeft','ArrowRight','ControlLeft','ControlRight'].includes(e.code)) e.preventDefault();
+  if(keys[e.code]) return;
+  keys[e.code]=true;
+  // F = toggle fullscreen (keydown counts as the user gesture browsers require)
+  if(e.code==='KeyF'){ toggleFullscreen(); return; }
+  initAC();
+  // CTRL = place/detonate bomb
+  if((e.code==='ControlLeft'||e.code==='ControlRight'||e.code==='KeyZ')&&state==='play'&&player&&!player.dead) player.placeBomb();
+  if(e.code==='Enter'||e.code==='Space'){
+    if(state==='menu') startGame();
+    else if(state==='dead'||state==='win'){ state='menu'; stopMusic(); }
+  }
+});
+document.addEventListener('keyup',e=>{ keys[e.code]=false; });
+
+// ── State management ──────────────────────────────────────────────────────────
+function startGame(){
+  initAC(); level=1; score=0; player=null;
+  genLevel(level); state='play'; startMusic();
+}
+function goNextLevel(){
+  level++;
+  if(level>LEVELS.length){ state='win'; stopMusic(); if(score>hiScore)hiScore=score; sfx.next(); return; }
+  stopMusic();
+  const saved={lives:player.lives,bombs:player.bombs,flame:player.flame,speed:player.speed,shield:player.shield,hasRemote:player.hasRemote,hasKick:player.hasKick};
+  genLevel(level);
+  Object.assign(player,saved); player.x=TILE; player.y=TILE; player.dead=false; player.inv=1.5;
+  state='transit'; transitTimer=2.2;
+  setTimeout(()=>{ startMusic(); },300);
+}
+
+// ── Drawing ───────────────────────────────────────────────────────────────────
+function drawFloor(x,y){
+  ctx.fillStyle='#0a0a18'; ctx.fillRect(x,y,TILE,TILE);
+  ctx.strokeStyle='#0f0f22'; ctx.lineWidth=0.5; ctx.strokeRect(x,y,TILE,TILE);
+}
+
+// Interior pillars are drawn inset so the arena reads as open; the inset matches
+// the player's hitbox margin, so the visual edge lines up with where you stop.
+function drawWall(x,y,border){
+  const m=border?0:WALL_INSET, s=TILE-m*2;
+  const px=x+m, py=y+m;   // the floor under the inset is already drawn by render()
+  ctx.fillStyle='#14142a'; ctx.fillRect(px,py,s,s);
+  ctx.fillStyle='#1a1a36'; ctx.fillRect(px+2,py+2,s-4,s-4);
+  ctx.strokeStyle='#0c0c28'; ctx.lineWidth=1; ctx.strokeRect(px+4,py+4,s-8,s-8);
+  ctx.fillStyle='#0c0c28';
+  [[px+6,py+6],[px+s-6,py+6],[px+6,py+s-6],[px+s-6,py+s-6]].forEach(([cx,cy])=>{
+    ctx.beginPath(); ctx.arc(cx,cy,2,0,Math.PI*2); ctx.fill();
+  });
+  if(m){ // faint rim so the slimmer pillar still reads as solid
+    ctx.strokeStyle='rgba(90,90,180,0.28)'; ctx.lineWidth=1;
+    ctx.strokeRect(px+0.5,py+0.5,s-1,s-1);
+  }
+}
+
+function drawBlock(x,y){
+  const m=3, s=TILE-m*2, px=x+m, py=y+m;
+  ctx.fillStyle='#252540'; ctx.fillRect(px,py,s,s);
+  ctx.fillStyle='#30305a'; ctx.fillRect(px+2,py+2,s-4,s-4);
+  ctx.strokeStyle='#4444aa'; ctx.lineWidth=1;
+  for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(px+4,py+i*(s/4)); ctx.lineTo(px+s-4,py+i*(s/4)); ctx.stroke(); }
+  ctx.fillStyle='#00ff88'; ctx.beginPath(); ctx.arc(px+s-7,py+7,2.5,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#ff4444'; ctx.beginPath(); ctx.arc(px+s-13,py+7,2.5,0,Math.PI*2); ctx.fill();
+}
+
+function drawTeslaCoil(x,y){
+  // Warning flash: coil turns orange/red when charging
+  const warnPulse=teslaWarn?Math.sin(tick*0.5)*0.5+0.5:0;
+  ctx.fillStyle='#0a0a20'; ctx.fillRect(x,y,TILE,TILE);
+  if(teslaWarn){
+    ctx.fillStyle=`rgba(255,80,0,${warnPulse*0.35})`;
+    ctx.fillRect(x,y,TILE,TILE);
+  }
+  // base
+  const baseCol=teslaWarn?`rgb(${Math.floor(80+warnPulse*175)},${Math.floor(50*(1-warnPulse))},${Math.floor(50*(1-warnPulse))})` :'#333355';
+  ctx.fillStyle=baseCol; ctx.fillRect(x+8,y+TILE-14,TILE-16,14);
+  // pole
+  ctx.fillStyle=teslaWarn?`rgb(${Math.floor(100+warnPulse*155)},50,50)`:'#5555aa'; ctx.fillRect(x+TILE/2-4,y+10,8,TILE-24);
+  // rings
+  ctx.strokeStyle=teslaWarn?`rgba(255,${Math.floor(100*(1-warnPulse))},0,0.9)`:'#8855ff'; ctx.lineWidth=2;
+  [10,18].forEach(oy=>{ ctx.beginPath(); ctx.ellipse(x+TILE/2,y+oy,9,4,0,0,Math.PI*2); ctx.stroke(); });
+  // sparks animated — faster when warning
+  const sparkRate = teslaWarn ? 3 : 8;
+  if(tick%sparkRate<Math.floor(sparkRate/2)){
+    ctx.strokeStyle=teslaWarn?'#ff8800':'#cc88ff'; ctx.lineWidth=1.5;
+    ctx.beginPath(); ctx.moveTo(x+TILE/2,y+6); ctx.lineTo(x+TILE/2-5,y+14); ctx.lineTo(x+TILE/2+4,y+18); ctx.stroke();
+    if(teslaWarn){ // extra arcs while charging
+      ctx.beginPath(); ctx.moveTo(x+TILE/2+2,y+5); ctx.lineTo(x+TILE/2+6,y+13); ctx.lineTo(x+TILE/2-3,y+19); ctx.stroke();
+    }
+  }
+  // Glow overlay when warning
+  if(teslaWarn){
+    ctx.shadowBlur=10+warnPulse*15; ctx.shadowColor='#ff4400';
+    ctx.strokeStyle=`rgba(255,${Math.floor(100*(1-warnPulse))},0,${warnPulse*0.8})`; ctx.lineWidth=3;
+    ctx.beginPath(); ctx.arc(x+TILE/2,y+14,12,0,Math.PI*2); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+}
+
+function drawExit(x,y){
+  const p=Math.sin(tick*0.08)*0.3+0.7;
+  ctx.fillStyle='#001818'; ctx.fillRect(x,y,TILE,TILE);
+  for(let r=4;r>=0;r--){
+    ctx.strokeStyle=`rgba(0,255,180,${(0.15+r*0.12)*p})`;
+    ctx.lineWidth=2; ctx.beginPath(); ctx.arc(x+TILE/2,y+TILE/2,20-r*4,0,Math.PI*2); ctx.stroke();
+  }
+  ctx.fillStyle=`rgba(0,255,180,${0.4*p})`;
+  ctx.beginPath(); ctx.arc(x+TILE/2,y+TILE/2,6,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#00ffb4'; ctx.font='bold 11px monospace'; ctx.textAlign='center';
+  ctx.fillText('EXIT',x+TILE/2,y+TILE-6); ctx.textAlign='left';
+}
+
+function drawBomb(b){
+  const px=b.sliding?(b.px??b.gx*TILE):b.gx*TILE;
+  const py=b.sliding?(b.py??b.gy*TILE):b.gy*TILE;
+  const displayTimer=b.remote?3:b.timer; // remote always shows full ring
+  const frac=Math.min(1,displayTimer/3); const pulse=b.timer<1?0.8+Math.sin(tick*0.6)*0.15:1;
+  ctx.save(); ctx.translate(px+TILE/2,py+TILE/2); ctx.scale(pulse,pulse);
+  if(b.tesla){
+    const g=ctx.createRadialGradient(0,0,3,0,0,17);
+    g.addColorStop(0,'#ffffff'); g.addColorStop(0.4,'#88ffff'); g.addColorStop(1,'rgba(0,200,255,0)');
+    ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,17,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#00ffff'; ctx.lineWidth=1.5;
+    for(let i=0;i<4;i++){ const a=tick*0.2+i*Math.PI/2; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(Math.cos(a)*13,Math.sin(a)*13); ctx.stroke(); }
+  } else {
+    ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(0,2,13,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-3,-3,5,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle='#777'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.moveTo(3,-10); ctx.quadraticCurveTo(8,-16,3,-20); ctx.stroke();
+    ctx.fillStyle=b.timer<1?'#ff2222':'#ffaa00';
+    ctx.beginPath(); ctx.arc(3+Math.sin(tick*0.5)*2,-20+Math.cos(tick*0.5)*2,3,0,Math.PI*2); ctx.fill();
+    // Remote bomb: cyan ring; regular: orange/red
+    ctx.strokeStyle=b.remote?'#00ccff':(b.timer<1?'#ff0000':'#ffaa00'); ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(0,2,15,-Math.PI/2,-Math.PI/2+(1-frac)*Math.PI*2); ctx.stroke();
+    if(b.remote){ ctx.fillStyle='#00ccff'; ctx.font='6px monospace'; ctx.textAlign='center'; ctx.fillText('REM',0,8); ctx.textAlign='left'; }
+  }
+  ctx.restore();
+}
+
+function drawExplosion(exp){
+  const a=exp.timer/0.65;
+  exp.cells.forEach(c=>{
+    const x=c.gx*TILE, y=c.gy*TILE;
+    if(exp.tesla){ ctx.fillStyle=`rgba(0,200,255,${a*0.75})`; }
+    else { ctx.fillStyle=`rgba(255,${Math.floor(80+140*a)},20,${a*0.85})`; }
+    ctx.fillRect(x,y,TILE,TILE);
+    ctx.fillStyle=`rgba(255,255,200,${a*0.5})`;
+    ctx.fillRect(x+TILE/4,y+TILE/4,TILE/2,TILE/2);
+  });
+}
+
+function drawPickup(p){
+  if(!p.alive) return;
+  const x=p.gx*TILE+TILE/2, y=p.gy*TILE+TILE/2+Math.sin(tick*0.1)*3;
+  const cols={[PU_FLAME]:'#ff4400',[PU_BOMB]:'#ffdd00',[PU_SPEED]:'#00ff66',[PU_TESLA]:'#00ccff',[PU_SHIELD]:'#4488ff',[PU_REMOTE]:'#ff88ff',[PU_KICK]:'#ffaa22'};
+  const col=cols[p.type]||'#fff';
+  ctx.save(); ctx.translate(x,y); ctx.shadowBlur=12; ctx.shadowColor=col; ctx.fillStyle=col;
+  switch(p.type){
+    case PU_FLAME:
+      ctx.beginPath(); ctx.moveTo(0,-11); ctx.bezierCurveTo(7,-3,7,4,0,8); ctx.bezierCurveTo(-7,4,-7,-3,0,-11); ctx.fill(); break;
+    case PU_BOMB:
+      ctx.beginPath(); ctx.arc(0,1,10,0,Math.PI*2); ctx.fill();
+      ctx.fillStyle='#333'; ctx.beginPath(); ctx.arc(-3,-2,4,0,Math.PI*2); ctx.fill();
+      ctx.strokeStyle='#888'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(2,-8); ctx.lineTo(3,-13); ctx.stroke(); break;
+    case PU_SPEED:
+      ctx.beginPath(); ctx.moveTo(3,-11); ctx.lineTo(-2,0); ctx.lineTo(3,0); ctx.lineTo(-4,11); ctx.lineTo(2,2); ctx.lineTo(-3,2); ctx.closePath(); ctx.fill(); break;
+    case PU_TESLA:
+      ctx.fillRect(-8,-12,16,4); ctx.fillRect(-3,-8,6,18); break;
+    case PU_SHIELD:
+      ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(9,-5); ctx.lineTo(9,3); ctx.bezierCurveTo(9,8,0,13,0,13); ctx.bezierCurveTo(0,13,-9,8,-9,3); ctx.lineTo(-9,-5); ctx.closePath(); ctx.fill(); break;
+    case PU_REMOTE:
+      // Antenna + signal icon
+      ctx.fillRect(-2,-12,4,14); ctx.fillRect(-6,-12,12,4);
+      ctx.strokeStyle=col; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(0,-12,8,Math.PI*1.2,Math.PI*1.8); ctx.stroke();
+      ctx.beginPath(); ctx.arc(0,-12,13,Math.PI*1.1,Math.PI*1.9); ctx.stroke(); break;
+    case PU_KICK:
+      // Boot icon
+      ctx.fillRect(-8,-2,16,6); ctx.fillRect(-8,-8,10,8);
+      ctx.strokeStyle='#fff'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.moveTo(6,4); ctx.lineTo(12,-2); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(9,1); ctx.lineTo(14,-4); ctx.stroke(); break;
+  }
+  ctx.restore();
+}
+
+function drawArc(a){
+  const alpha=a.life/0.5;
+  ctx.save(); ctx.strokeStyle=`rgba(0,220,255,${Math.min(1,alpha)})`; ctx.lineWidth=2;
+  ctx.shadowBlur=10; ctx.shadowColor='#00ffff';
+  ctx.beginPath(); ctx.moveTo(a.x1,a.y1);
+  const segs=7, dx=(a.x2-a.x1)/segs, dy=(a.y2-a.y1)/segs;
+  for(let i=1;i<segs;i++){
+    ctx.lineTo(a.x1+dx*i+(Math.random()-0.5)*14, a.y1+dy*i+(Math.random()-0.5)*14);
+  }
+  ctx.lineTo(a.x2,a.y2); ctx.stroke(); ctx.restore();
+}
+
+function drawParticle(p){
+  ctx.globalAlpha=Math.max(0,p.life/p.ml);
+  ctx.fillStyle=p.col;
+  ctx.beginPath(); ctx.arc(p.x,p.y,3*(p.life/p.ml),0,Math.PI*2); ctx.fill();
+  ctx.globalAlpha=1;
+}
+
+// ── Constance sprite ──────────────────────────────────────────────────────────
+function drawConstance(p){
+  if(p.dead) return;
+  if(p.inv>0&&tick%6<3) return; // flicker when invincible
+  ctx.save(); ctx.translate(p.cx,p.cy);
+  // shadow
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0,14,11,3,0,0,Math.PI*2); ctx.fill();
+  // shield ring
+  if(p.shield){ ctx.strokeStyle='rgba(80,140,255,0.7)'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,0,22,0,Math.PI*2); ctx.stroke(); }
+  // Tesla glow
+  if(p.hasTesla){ ctx.strokeStyle='rgba(0,200,255,0.5)'; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,20,0,Math.PI*2); ctx.stroke(); }
+  const sw=p.moving?Math.sin(tick*0.35)*7:0;
+  // legs
+  ctx.fillStyle='#2244bb'; ctx.fillRect(-8,6,7,11+sw); ctx.fillRect(1,6,7,11-sw);
+  ctx.fillStyle='#111'; ctx.fillRect(-9,16+sw,8,5); ctx.fillRect(1,16-sw,8,5);
+  // body jacket (magenta-pink)
+  ctx.fillStyle='#bb1f66'; ctx.fillRect(-10,-8,20,18);
+  ctx.fillStyle='#e8307a'; ctx.fillRect(-10,-8,7,18);
+  ctx.fillStyle='#951550'; ctx.fillRect(3,-8,7,18);
+  // tech badge
+  ctx.fillStyle='#00ffcc'; ctx.fillRect(-4,-4,8,7);
+  ctx.fillStyle='#003322'; ctx.font='7px monospace'; ctx.textAlign='center'; ctx.fillText('TC',0,2); ctx.textAlign='left';
+  // arms
+  ctx.fillStyle='#bb1f66';
+  ctx.fillRect(10,-6+sw,6,13); ctx.fillRect(-16,-6-sw,6,13);
+  // head
+  ctx.fillStyle='#f4c07a'; ctx.beginPath(); ctx.arc(0,-14,12,0,Math.PI*2); ctx.fill();
+  // hair back (blonde)
+  ctx.fillStyle='#f5d020';
+  ctx.beginPath(); ctx.arc(0,-16,12,Math.PI,0); ctx.fill();
+  ctx.fillRect(-12,-17,24,9);
+  ctx.fillRect(-14,-20,7,12); ctx.fillRect(7,-20,7,12);
+  // ponytail
+  ctx.fillStyle='#e8c01a';
+  ctx.beginPath(); ctx.moveTo(9,-21); ctx.quadraticCurveTo(21,-14,17,-5); ctx.quadraticCurveTo(21,-1,14,1); ctx.quadraticCurveTo(7,-9,9,-21); ctx.fill();
+  ctx.fillStyle='#cc2266'; ctx.fillRect(7,-23,7,5); // hair tie
+  // eyes
+  ctx.fillStyle='#1a0a2e'; ctx.beginPath(); ctx.ellipse(-4,-14,3,3.5,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(4,-14,3,3.5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-3,-15,1.2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(5,-15,1.2,0,Math.PI*2); ctx.fill();
+  // mouth
+  ctx.strokeStyle='#b06050'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(0,-11,3.5,0.15,Math.PI-0.15); ctx.stroke();
+  ctx.restore();
+}
+
+// ── Enemy sprites ─────────────────────────────────────────────────────────────
+function drawEnemy(e){
+  if(e.dead) return;
+  ctx.save(); ctx.translate(e.cx,e.cy);
+  ctx.fillStyle='rgba(0,0,0,0.3)'; ctx.beginPath(); ctx.ellipse(0,14,11,3,0,0,Math.PI*2); ctx.fill();
+
+  if(e.type==='drone'){
+    const hov=Math.sin(tick*0.15)*4;
+    ctx.translate(0,hov);
+    const pa=tick*0.25;
+    ctx.strokeStyle=e.col; ctx.lineWidth=2;
+    for(let i=0;i<4;i++){
+      const a=pa+i*Math.PI/2;
+      ctx.beginPath(); ctx.moveTo(Math.cos(a)*14-3,Math.sin(a)*14-3); ctx.lineTo(Math.cos(a)*14+3,Math.sin(a)*14+3); ctx.stroke();
+    }
+    ctx.fillStyle='#0a1a2a'; ctx.beginPath(); ctx.arc(0,0,11,0,Math.PI*2); ctx.fill();
+    ctx.strokeStyle=e.col; ctx.lineWidth=2; ctx.beginPath(); ctx.arc(0,0,11,0,Math.PI*2); ctx.stroke();
+    ctx.fillStyle=e.col; ctx.beginPath(); ctx.arc(0,0,5,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#001122'; ctx.beginPath(); ctx.arc(0,0,3,0,Math.PI*2); ctx.fill();
+  }
+  else if(e.type==='robo'){
+    const sw=Math.sin(tick*0.28)*6;
+    ctx.fillStyle='#771111'; ctx.fillRect(-7,4,6,12+sw); ctx.fillRect(1,4,6,12-sw);
+    ctx.fillStyle='#550a0a'; ctx.fillRect(-10,-8,20,16); ctx.fillStyle='#aa1111'; ctx.fillRect(-8,-6,16,12);
+    ctx.fillStyle='#ff1111'; ctx.beginPath(); ctx.arc(0,-1,4,0,Math.PI*2); ctx.fill();
+    ctx.fillStyle='#aa1111'; ctx.fillRect(-16,-6,6,12); ctx.fillRect(10,-6,6,12);
+    ctx.fillStyle='#771111'; ctx.fillRect(-10,-22,20,16);
+    ctx.fillStyle='#ff3333'; ctx.fillRect(-8,-20,16,6);
+    ctx.strokeStyle='#ff6666'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(-8,-17); ctx.lineTo(8,-17); ctx.stroke();
+  }
+  else if(e.type==='hacker'){
+    const glitch=Math.random()>0.96?Math.floor(Math.random()*5)-2:0;
+    ctx.fillStyle='#330066';
+    ctx.beginPath(); ctx.moveTo(-14,16); ctx.lineTo(-12,-5); ctx.lineTo(-8,-17); ctx.lineTo(0,-19); ctx.lineTo(8,-17); ctx.lineTo(12,-5); ctx.lineTo(14,16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#1a0033'; ctx.beginPath(); ctx.moveTo(-7,16); ctx.lineTo(-5,1); ctx.lineTo(5,1); ctx.lineTo(7,16); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#440088'; ctx.beginPath(); ctx.arc(glitch,-11,13,Math.PI,0); ctx.fill(); ctx.fillRect(glitch-13,-11,26,8); ctx.fill();
+    ctx.shadowBlur=8; ctx.shadowColor='#aa00ff'; ctx.fillStyle='#cc44ff';
+    ctx.beginPath(); ctx.arc(glitch-4,-13,3,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(glitch+4,-13,3,0,Math.PI*2); ctx.fill();
+    ctx.shadowBlur=0;
+    // holo screen
+    ctx.save(); ctx.translate(14,-8);
+    ctx.fillStyle='rgba(170,68,255,0.25)'; ctx.fillRect(0,-8,18,14);
+    ctx.strokeStyle='#aa44ff'; ctx.lineWidth=1; ctx.strokeRect(0,-8,18,14);
+    ctx.fillStyle='#dd88ff'; ctx.font='4px monospace'; ctx.fillText('>_hack',2,-3);
+    ctx.restore();
+  }
+
+  // HP bar for hacker
+  if(ECFG[e.type].hp>1){
+    ctx.fillStyle='#333'; ctx.fillRect(-14,-30,28,4);
+    ctx.fillStyle='#00ff66'; ctx.fillRect(-14,-30,28*(e.hp/e.maxHp),4);
+  }
+  ctx.restore();
+}
+
+// ── HUD ───────────────────────────────────────────────────────────────────────
+function drawHUD(){
+  const y=GH;
+  ctx.fillStyle='#08081a'; ctx.fillRect(0,y,GW,HUD);
+  ctx.fillStyle='#1a1a35'; ctx.fillRect(0,y,GW,2);
+  ctx.fillStyle='#ff69b4'; ctx.font='bold 18px monospace'; ctx.fillText('♥',12,y+25);
+  ctx.fillStyle='#ffffff'; ctx.fillText(` x${player?player.lives:0}`,28,y+25);
+  ctx.fillStyle='#ffdd44'; ctx.font='bold 14px monospace'; ctx.textAlign='center'; ctx.fillText(`SCORE  ${String(score).padStart(6,'0')}`,GW/2,y+25); ctx.textAlign='left';
+  ctx.fillStyle='#00ffcc'; ctx.fillText(`LV ${level}`,GW-65,y+25);
+  // powerup row
+  if(player){
+    ctx.font='11px monospace';
+    ctx.fillStyle='#ff4400'; ctx.fillText(`FIRE:${player.flame}`,10,y+50);
+    ctx.fillStyle='#ffdd00'; ctx.fillText(`BOMB:${player.bombs}`,68,y+50);
+    ctx.fillStyle='#00ff66'; ctx.fillText(`SPD:${player.speed.toFixed(1)}`,130,y+50);
+    let px2=192;
+    if(player.shield){ ctx.fillStyle='#4488ff'; ctx.fillText('[SHLD]',px2,y+50); px2+=58; }
+    if(player.hasTesla){ ctx.fillStyle='#00ccff'; ctx.fillText('[TSLA]',px2,y+50); px2+=58; }
+    if(player.hasRemote){ ctx.fillStyle='#ff88ff'; ctx.fillText('[REM'+(player.remoteBombRef?'*':'')+']',px2,y+50); px2+=58; }
+    if(player.hasKick){ ctx.fillStyle='#ffaa22'; ctx.fillText('[KICK]',px2,y+50); }
+  }
+  ctx.fillStyle='#555577'; ctx.font='11px monospace'; ctx.fillText(`BEST ${String(hiScore).padStart(6,'0')}`,GW-90,y+50);
+}
+
+// ── Screens ───────────────────────────────────────────────────────────────────
+function drawMenu(){
+  ctx.fillStyle='#04040e'; ctx.fillRect(0,0,GW,GH+HUD);
+  ctx.strokeStyle='#0a0a22'; ctx.lineWidth=1;
+  for(let x=0;x<GW;x+=TILE){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,GH+HUD); ctx.stroke(); }
+  for(let y=0;y<GH+HUD;y+=TILE){ ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(GW,y); ctx.stroke(); }
+
+  // The menu art is laid out for a 688px-tall canvas — recentre it on taller arenas
+  ctx.save(); ctx.translate(0,(GH+HUD-688)/2);
+
+  const glow=Math.sin(tick*0.05)*12+16;
+  ctx.textAlign='center';
+  ctx.shadowBlur=glow; ctx.shadowColor='#ff44aa'; ctx.fillStyle='#ff99cc';
+  ctx.font='bold 52px monospace'; ctx.fillText('CONSTANCE',GW/2,100);
+  ctx.shadowBlur=glow; ctx.shadowColor='#00ffcc'; ctx.fillStyle='#00ffcc';
+  ctx.font='bold 22px monospace'; ctx.fillText('TESLA BOMBER',GW/2,140);
+  ctx.shadowBlur=0;
+
+  // mini Constance
+  ctx.save(); ctx.translate(GW/2,270); ctx.scale(1.6,1.6);
+  ctx.fillStyle='#f5d020'; ctx.beginPath(); ctx.arc(0,-16,12,Math.PI,0); ctx.fill(); ctx.fillRect(-12,-17,24,9); ctx.fillRect(-14,-20,7,12); ctx.fillRect(7,-20,7,12);
+  ctx.fillStyle='#e8c01a'; ctx.beginPath(); ctx.moveTo(9,-21); ctx.quadraticCurveTo(21,-14,17,-5); ctx.quadraticCurveTo(21,-1,14,1); ctx.quadraticCurveTo(7,-9,9,-21); ctx.fill();
+  ctx.fillStyle='#cc2266'; ctx.fillRect(7,-23,7,5);
+  ctx.fillStyle='#f4c07a'; ctx.beginPath(); ctx.arc(0,-14,12,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#1a0a2e'; ctx.beginPath(); ctx.ellipse(-4,-14,3,3.5,0,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.ellipse(4,-14,3,3.5,0,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(-3,-15,1.2,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(5,-15,1.2,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#b06050'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.arc(0,-11,3.5,0.15,Math.PI-0.15); ctx.stroke();
+  ctx.fillStyle='#bb1f66'; ctx.fillRect(-10,-8,20,18);
+  ctx.fillStyle='#e8307a'; ctx.fillRect(-10,-8,7,18); ctx.fillStyle='#951550'; ctx.fillRect(3,-8,7,18);
+  // bomb in hand
+  ctx.fillStyle='#1a1a1a'; ctx.beginPath(); ctx.arc(15,-2,9,0,Math.PI*2); ctx.fill();
+  ctx.strokeStyle='#ffaa00'; ctx.lineWidth=1.5; ctx.beginPath(); ctx.moveTo(21,-9); ctx.lineTo(23,-15); ctx.stroke();
+  ctx.fillStyle='#ffaa00'; ctx.beginPath(); ctx.arc(23,-15,2.5,0,Math.PI*2); ctx.fill();
+  ctx.restore();
+
+  ctx.fillStyle='#9999bb'; ctx.font='14px monospace';
+  ctx.fillText('ARROWS / WASD  to move',GW/2,352);
+  ctx.fillText('CTRL / Z  to plant bomb',GW/2,372);
+  ctx.fillText('CTRL again with [REM]  to remote-detonate!',GW/2,392);
+  ctx.fillText('F  for fullscreen',GW/2,412);
+  ctx.fillText('Destroy all enemies to open the exit!',GW/2,432);
+
+  const ba=Math.sin(tick*0.08)*0.5+0.5;
+  ctx.fillStyle=`rgba(255,210,50,${ba})`; ctx.font='bold 17px monospace';
+  ctx.fillText('— PRESS ENTER / SPACE TO START —',GW/2,460);
+
+  ctx.fillStyle='#555577'; ctx.font='11px monospace';
+  ctx.fillText('FIRE+ BOMB+ SPD+ TESLA SHIELD  — collect power-ups from blocks',GW/2,490);
+  ctx.restore();
+  ctx.textAlign='left';
+}
+
+function drawOverlay(title, col, sub){
+  ctx.fillStyle='rgba(0,0,10,0.72)'; ctx.fillRect(0,0,GW,GH+HUD);
+  ctx.textAlign='center';
+  const glow=Math.sin(tick*0.1)*10+14;
+  ctx.shadowBlur=glow; ctx.shadowColor=col; ctx.fillStyle=col;
+  ctx.font='bold 46px monospace'; ctx.fillText(title,GW/2,GH/2-30);
+  ctx.shadowBlur=0;
+  ctx.fillStyle='#ffdd44'; ctx.font='20px monospace'; ctx.fillText(`SCORE  ${score}`,GW/2,GH/2+20);
+  if(score>=hiScore&&score>0){ ctx.fillStyle='#ff69b4'; ctx.fillText('NEW HIGH SCORE!',GW/2,GH/2+52); }
+  const ba=Math.sin(tick*0.08)*0.5+0.5;
+  ctx.fillStyle=`rgba(200,200,255,${ba})`; ctx.font='15px monospace'; ctx.fillText(sub,GW/2,GH/2+90);
+  ctx.textAlign='left';
+}
+
+function drawTransit(){
+  ctx.fillStyle='rgba(0,0,10,0.65)'; ctx.fillRect(0,0,GW,GH+HUD);
+  ctx.textAlign='center';
+  ctx.fillStyle='#00ffcc'; ctx.font='bold 38px monospace'; ctx.fillText(`LEVEL  ${level}`,GW/2,GH/2-10);
+  ctx.fillStyle='#aaaacc'; ctx.font='18px monospace'; ctx.fillText('Get ready...',GW/2,GH/2+34);
+  ctx.textAlign='left';
+}
+
+// ── Main loop ─────────────────────────────────────────────────────────────────
+function update(){
+  tick++;
+  if(state!=='play'&&state!=='transit') return;
+  if(state==='transit'){ transitTimer-=dt; if(transitTimer<=0) state='play'; return; }
+  if(player) player.update();
+  enemies.forEach(e=>e.update());
+  enemies=enemies.filter(e=>!e.dead||e.deathT>0);
+  updateBombs(); updateTesla(); updateParticles();
+}
+
+function render(){
+  ctx.clearRect(0,0,GW,GH+HUD);
+  if(state==='menu'){ drawMenu(); return; }
+
+  // Apply screen shake
+  ctx.save();
+  ctx.translate(shakeX,shakeY);
+
+  // game world
+  for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){
+    drawFloor(c*TILE,r*TILE);
+    const t=grid[r][c];
+    if(t===T_WALL) drawWall(c*TILE,r*TILE,r===0||r===ROWS-1||c===0||c===COLS-1);
+    else if(t===T_BLOCK) drawBlock(c*TILE,r*TILE);
+    else if(t===T_TESLA) drawTeslaCoil(c*TILE,r*TILE);
+  }
+  if(exitOpen) drawExit(EXIT.gx*TILE,EXIT.gy*TILE);
+  explosions.forEach(e=>drawExplosion(e));
+  pickups.forEach(p=>drawPickup(p));
+  bombs.forEach(b=>drawBomb(b));
+  enemies.forEach(e=>drawEnemy(e));
+  if(player) drawConstance(player);
+  particles.forEach(p=>drawParticle(p));
+  arcs.forEach(a=>drawArc(a));
+  // Floating score texts
+  ctx.textAlign='center';
+  floats.forEach(f=>{ ctx.globalAlpha=Math.max(0,f.life/f.ml); ctx.fillStyle=f.col; ctx.font='bold 15px monospace'; ctx.fillText(f.txt,f.x,f.y); });
+  ctx.globalAlpha=1; ctx.textAlign='left';
+
+  ctx.restore(); // end shake
+  drawHUD();
+
+  if(state==='dead')   drawOverlay('GAME OVER','#ff4444','PRESS ENTER to return to menu');
+  else if(state==='win') drawOverlay('YOU WIN!','#00ffcc','PRESS ENTER to return to menu');
+  else if(state==='transit') drawTransit();
+}
+
+function loop(ts){
+  dt=Math.min((ts-lastT)/1000,0.05); lastT=ts;
+  update(); render();
+  requestAnimationFrame(loop);
+}
+
+lastT=performance.now();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>

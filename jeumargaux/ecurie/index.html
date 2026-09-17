@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐴 Centre Équestre de Margaux</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <header class="topbar">
+    <h1>🐴 Centre Équestre de Margaux</h1>
+    <div class="entete-ligne">
+      <label for="nomPerso">La cavalière&nbsp;:</label>
+      <input type="text" id="nomPerso" value="Margaux" maxlength="14">
+      <span class="score">Cœurs&nbsp;: <strong id="scoreCoeurs">0</strong> ❤️</span>
+    </div>
+  </header>
+
+  <div class="jeu">
+    <!-- La carte du centre équestre -->
+    <main class="scene" id="scene" tabindex="0">
+      <!-- Les lieux derrière l'écurie -->
+      <div class="zone foret" id="z-foret"><span class="zone-nom">🌲 Forêt</span></div>
+      <div class="zone terrain" id="z-terrain"><span class="zone-nom">🚩 Terrain d'entraînement</span></div>
+      <div class="zone pre" id="z-pre"><span class="zone-nom">🌿 Pré</span></div>
+      <div class="zone cour" id="z-cour"><span class="zone-nom">Cour</span></div>
+
+      <!-- L'écurie et ses 10 box -->
+      <div class="ecurie" id="ecurie"></div>
+
+      <!-- La cavalière (personnage principal) -->
+      <div class="perso" id="perso">🧑‍🌾</div>
+    </main>
+
+    <!-- Panneau d'info -->
+    <aside class="hud">
+      <p id="persoBulle" class="bulle">Bienvenue&nbsp;! Approche-toi d'un box et appuie sur <b>E</b> pour entrer. 🌿</p>
+
+      <div class="hud-carte">
+        <h3>Cheval sélectionné</h3>
+        <div id="hudCheval">Aucun</div>
+        <div class="jauges" id="hudJauges" hidden>
+          <div class="jauge-ligne faim"><span>🍎</span><div class="jauge-fond"><div class="jauge-remplissage" id="hFaim"></div></div></div>
+          <div class="jauge-ligne energie"><span>⚡</span><div class="jauge-fond"><div class="jauge-remplissage" id="hEnergie"></div></div></div>
+          <div class="jauge-ligne bonheur"><span>❤️</span><div class="jauge-fond"><div class="jauge-remplissage" id="hBonheur"></div></div></div>
+        </div>
+        <div id="hudEtat" class="etat"></div>
+      </div>
+
+      <div class="hud-carte">
+        <h3>🏁 Parcours d'obstacles</h3>
+        <div>Sauts réussis&nbsp;: <b id="sautsCount">0</b> 🏆</div>
+        <div id="parcoursInfo">Monte un cheval, puis « Départ » pour sauter les 4 🚧 du terrain.</div>
+        <div>Chrono&nbsp;: <b id="chrono">—</b> · Record&nbsp;: <b id="record">—</b></div>
+        <button id="btnParcours" class="btn-parcours">🏁 Départ parcours</button>
+      </div>
+
+      <div class="hud-carte">
+        <h3>🎮 Commandes</h3>
+        <ul class="touches">
+          <li><b>Flèches</b> se déplacer / diriger</li>
+          <li><b>E</b> entrer / sortir du box</li>
+          <li><b>A</b> nourrir 🍎</li>
+          <li><b>S</b> seller / dé-seller</li>
+          <li><b>M</b> monter · <b>D</b> descendre</li>
+          <li><b>P / T / G</b> pas · trot · galop</li>
+          <li><b>Espace</b> sauter 🚧 / franchir une rivière 💦</li>
+          <li><b>L</b> licol · laisser / reprendre au pré 🌿</li>
+          <li><b>K</b> attacher / détacher au poteau 🪢</li>
+          <li>Clique un cheval = câlin 🥰</li>
+        </ul>
+      </div>
+    </aside>
+  </div>
+
+  <footer class="pied">Clique dans l'écurie puis joue avec le clavier — fait avec ❤️ pour Margaux</footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
