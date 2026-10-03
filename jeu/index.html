@@ -1,15 +1,62 @@
 <!doctype html>
 <html lang="fr">
 <head>
-<meta charset="UTF-8">
+<meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex, nofollow">
-<meta http-equiv="refresh" content="0; url=https://claude.ai/artifact/W12QE1dMYVfsPQaxgB61eU">
 <title>Jeu</title>
-<style>body{margin:0;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif;background:#FFF8E1;color:#3E2723}a{color:#1565C0}</style>
+<style>
+  :root{ --bg:#FFF8E1; --fg:#3E2723; --carte:#FFFFFF; --bord:#E0C9A6; --accent:#E65100; --ko:#C62828; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#1E1A16; --fg:#F3E9DC; --carte:#2A241E; --bord:#4A3F33; --accent:#FFA040; --ko:#FF8A80; color-scheme:dark; } }
+  html,body{ height:100%; } body{ margin:0; background:var(--bg); color:var(--fg); font:18px/1.5 system-ui,sans-serif; display:flex; align-items:center; justify-content:center; padding:0 16px; }
+  form{ background:var(--carte); border:1px solid var(--bord); border-radius:18px; padding:24px; width:100%; max-width:360px; display:grid; gap:12px; text-align:center; }
+  .ico{ font-size:44px; } input{ font:inherit; padding:12px; border-radius:12px; border:1px solid var(--bord); background:var(--bg); color:var(--fg); }
+  button{ font:inherit; font-weight:700; padding:12px; border-radius:12px; border:0; background:var(--accent); color:#fff; cursor:pointer; } button:disabled{ opacity:.5; }
+  #msg{ min-height:1.5em; color:var(--ko); font-size:15px; } [hidden]{ display:none!important; }
+</style>
 </head>
 <body>
-<p>Ouverture… <a href="https://claude.ai/artifact/W12QE1dMYVfsPQaxgB61eU">continuer</a></p>
-<script>location.replace('https://claude.ai/artifact/W12QE1dMYVfsPQaxgB61eU');</script>
+<form id="f" hidden autocomplete="on">
+  <div class="ico">🔐</div>
+  <input id="u" type="text" autocomplete="username" value="jeu" hidden>
+  <input id="mdp" type="password" autocomplete="current-password" placeholder="Mot de passe" aria-label="Mot de passe" required>
+  <button id="go">Ouvrir</button>
+  <div id="msg"></div>
+</form>
+<p id="att">⏳</p>
+<script>
+(()=>{   // aucun nom global : le jeu, écrit ensuite dans cette même page, déclare les siens
+// Le jeu et les progrès sont chiffrés (AES-256-GCM). Le mot de passe ouvre la clé (PBKDF2-SHA256) ;
+// elle est ensuite gardée dans ce navigateur pour ne plus redemander le mot de passe ici.
+const LS='jeu-github-cle-v1';
+const $=id=>document.getElementById(id);
+function b64e(buf){ const u=new Uint8Array(buf); let s=''; for(let i=0;i<u.length;i+=0x8000) s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000)); return btoa(s); }
+function b64d(t){ const s=atob(t); const u=new Uint8Array(s.length); for(let i=0;i<s.length;i++) u[i]=s.charCodeAt(i); return u; }
+function lireLS(){ try{ return localStorage.getItem(LS); }catch(e){ return null; } }
+async function ouvrir(raw){
+  const K=await crypto.subtle.importKey('raw', b64d(raw), 'AES-GCM', false, ['decrypt']);
+  const o=await (await fetch('jeu.bin',{cache:'no-cache'})).json();
+  const html=new TextDecoder().decode(await crypto.subtle.decrypt({name:'AES-GCM', iv:b64d(o.iv)}, K, b64d(o.ct)));
+  document.open(); document.write(html); document.close();
+}
+function formulaire(t){ $('att').hidden=true; $('f').hidden=false; $('msg').textContent=t||''; $('mdp').focus(); }
+$('f').onsubmit=async e=>{ e.preventDefault(); const mdp=$('mdp').value; if(!mdp) return; $('go').disabled=true; $('msg').textContent='';
+  try{
+    const r=await fetch('cle.json',{cache:'no-cache'}); if(!r.ok){ formulaire('Le jeu n\'est pas encore prêt.'); $('go').disabled=false; return; }
+    const c=await r.json();
+    const base=await crypto.subtle.importKey('raw', new TextEncoder().encode(mdp), 'PBKDF2', false, ['deriveKey']);
+    const kek=await crypto.subtle.deriveKey({name:'PBKDF2', salt:b64d(c.sel), iterations:c.iter, hash:'SHA-256'}, base, {name:'AES-GCM', length:256}, false, ['decrypt']);
+    let raw; try{ raw=b64e(await crypto.subtle.decrypt({name:'AES-GCM', iv:b64d(c.cle.iv)}, kek, b64d(c.cle.ct))); }
+    catch(x){ $('msg').textContent='Mot de passe incorrect.'; $('go').disabled=false; $('mdp').select(); return; }
+    try{ localStorage.setItem(LS, raw); }catch(x){}
+    await ouvrir(raw);
+  }catch(x){ $('msg').textContent='Pas d\'internet ? Réessaie.'; $('go').disabled=false; }
+};
+(async()=>{ const raw=lireLS(); if(!raw) return formulaire();
+  try{ await ouvrir(raw); }
+  catch(e){ if(e && e.name==='OperationError'){ try{ localStorage.removeItem(LS); }catch(x){} formulaire('Entre le mot de passe.'); }
+            else { $('att').textContent='Pas d\'internet ? Recharge la page.'; } } })();
+})();
+</script>
 </body>
 </html>
