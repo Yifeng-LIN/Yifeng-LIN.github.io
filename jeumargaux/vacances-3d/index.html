@@ -647,7 +647,8 @@ let scene = new THREE.Scene(), sky = null, sun = null, sunGlow = null, sunDir = 
 const world = { h:(x,z) => 0, route:null };
 function resize() { renderer.setSize(innerWidth, innerHeight, false); camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); }
 addEventListener('resize', resize); resize();
-addEventListener('blur', () => { try { stickEnd(); } catch (e) {} Object.keys(keys).forEach(k => keys[k] = false); });
+addEventListener('blur', () => { try { stickEnd(); } catch (e) {} Object.keys(keys).forEach(k => keys[k] = false); if (typeof stopAllAudio === 'function') stopAllAudio(); });
+addEventListener('focus', () => { if (typeof restartAudio === 'function' && !document.hidden) restartAudio(); });
 initMats();
 const GLOW = glowTex();
 
@@ -851,7 +852,7 @@ const Snd = {
     this.applyLevel();
   },
   resume() { this.init(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
-  applyLevel() { if (!this.ctx) return; this.mus.gain.value = this.level === 2 ? .16 : 0; this.sfx.gain.value = this.level >= 1 ? .4 : 0; },
+  applyLevel() { if (!this.ctx) return; this.mus.gain.value = this.level === 2 ? .16 : 0; this.sfx.gain.value = this.level >= 1 ? .4 : 0; if (this.level === 0) { this.stopEngine(); this.stopAmbience(); } },
   setLevel(l) { this.level = l; try { localStorage.setItem('vac-snd', l); } catch (e) {} this.applyLevel(); },
   now() { return this.ctx ? this.ctx.currentTime : 0; },
   ok() { this.init(); return !!this.ctx; },
@@ -993,7 +994,7 @@ const THEMES = {
 };
 const Music = {
   name:null, rate:1, wanted:null, timer:null,
-  want(name, rate=1) { this.wanted = { name, rate }; if (Snd.ctx && Snd.ctx.state === 'running') this.play(name, rate); },
+  want(name, rate=1) { this.wanted = { name, rate }; if (Snd.level === 2 && !audioParked && Snd.ctx && Snd.ctx.state === 'running') this.play(name, rate); },
   play(name, rate=1) {
     const th = THEMES[name]; if (!th) return; if (this.name === name && this.rate === rate) return;
     this.stop(); if (!Snd.ok()) return;
@@ -1011,7 +1012,31 @@ const Music = {
   },
 };
 // le navigateur n'autorise le son qu'après un geste de l'utilisateur
-const wakeAudio = () => { Snd.resume(); if (Music.wanted && !Music.name) Music.play(Music.wanted.name, Music.wanted.rate); };
+let audioParked = false;
+// coupe TOUT le son : musique, moteur, ambiance, et met le contexte en pause
+function stopAllAudio() {
+  audioParked = true;
+  try {
+    Music.stop(); Snd.stopEngine(); Snd.stopAmbience();
+    if (Snd.ctx) { if (Snd.master) { Snd.master.gain.cancelScheduledValues(Snd.ctx.currentTime); Snd.master.gain.value = 0; } if (Snd.ctx.state === 'running') Snd.ctx.suspend(); }
+  } catch (e) {}
+}
+function restartAudio() {
+  audioParked = false;
+  try {
+    if (!Snd.ctx) return;
+    if (Snd.master) Snd.master.gain.value = 1;
+    if (Snd.ctx.state === 'suspended') { const p = Snd.ctx.resume(); if (p && p.catch) p.catch(() => {}); }
+    if (Snd.level === 2 && Music.wanted && !Music.name) Music.play(Music.wanted.name, Music.wanted.rate);
+  } catch (e) {}
+}
+const wakeAudio = () => { if (audioParked) return restartAudio(); Snd.resume(); if (Snd.level === 2 && Music.wanted && !Music.name) Music.play(Music.wanted.name, Music.wanted.rate); };
+// onglet caché, application quittée, retour en arrière, page fermée → silence
+document.addEventListener('visibilitychange', () => { if (document.hidden) stopAllAudio(); else restartAudio(); });
+addEventListener('pagehide', stopAllAudio);
+addEventListener('beforeunload', stopAllAudio);
+addEventListener('unload', stopAllAudio);
+addEventListener('pageshow', e => { if (e.persisted) stopAllAudio(); });   // page sortie du cache Safari : on ne redémarre qu'au prochain contact
 addEventListener('pointerdown', wakeAudio); addEventListener('keydown', wakeAudio);
 // bouton son (🔊 tout / 🎵 sans musique / 🔇 muet)
 const SND_ICONS = ['🔇','🔔','🔊'];
