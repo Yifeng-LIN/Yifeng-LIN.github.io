@@ -267,6 +267,6 @@ body {
     margin-bottom: calc(700px * (var(--ech, 1) - 1));
     margin-right: calc(1000px * (var(--ech, 1) - 1));
   }
-  .topbar { padding-left: 120px; }          /* place pour le bouton ✕ Menu */
+  .topbar { padding-left: 250px; padding-top: 4px; }   /* place pour la barre ✕ Menu / ⛶ / actions */
 }
 @media (max-width: 1060px) and (orientation: portrait) { body { padding-bottom: 20px; } }

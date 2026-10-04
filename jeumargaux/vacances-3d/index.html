@@ -148,7 +148,11 @@
                    background:radial-gradient(circle at 40% 35%, rgba(255,255,255,.95), rgba(214,226,240,.9)); box-shadow:0 6px 0 rgba(0,0,0,.25), 0 10px 22px rgba(0,0,0,.3); color:#1d3557; line-height:1; }
   #pedals button:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.25); }
   #pedals button small { display:block; font-size:11px; opacity:.75; }
-  #btn-quit { position:absolute; left:calc(12px + env(safe-area-inset-left)); top:calc(10px + env(safe-area-inset-top)); display:none; z-index:40; }
+  #btn-hub { position:absolute; left:calc(10px + env(safe-area-inset-left)); top:calc(10px + env(safe-area-inset-top)); z-index:45; font-size:16px; padding:9px 16px; pointer-events:auto; text-decoration:none; display:inline-block; }
+  #btn-quit { position:absolute; left:calc(104px + env(safe-area-inset-left)); top:calc(10px + env(safe-area-inset-top)); display:none; z-index:40; pointer-events:auto; }
+  #btn-quit.on { display:block; }
+  .topbar { padding-left:100px; }
+  body.modal #btn-hub { display:none !important; }
   #btn-quit.on { display:block; }
   body.modal #stick, body.modal #act-btn, body.modal #pedals, body.modal .hint, body.modal #btn-quit, body.modal #look-tip { display:none !important; }
   @media (max-width:520px) {
@@ -270,6 +274,7 @@
 
   <div id="dot"></div>
   <div id="lock-hint">🖱️ Clique pour regarder autour</div>
+  <a class="btn ghost" id="btn-hub" href="../">✕ Menu</a>
   <button class="btn ghost" id="btn-quit">✕ Quitter</button>
   <div id="stick"><i id="stick-knob"></i></div>
   <div id="pedals">
@@ -843,6 +848,7 @@ document.querySelectorAll('#pedals button').forEach(b => {
 });
 // bouton Quitter (en haut à gauche, jamais dans la zone des commandes)
 let quitTo = null;
+$('btn-hub').addEventListener('click', () => { try { stopAllAudio(); } catch (e) {} });
 $('btn-quit').addEventListener('click', () => { Snd.click(); const f = quitTo; quitTo = null; $('btn-quit').classList.remove('on'); if (f) f(); });
 function showQuit(fn) { quitTo = fn; $('btn-quit').classList.toggle('on', !!fn); }
 function updateModal() { document.body.classList.toggle('modal', $('gps').classList.contains('open') || $('buy-panel').classList.contains('on')); }
