@@ -153,6 +153,17 @@
   #btn-quit.on { display:block; }
   .topbar { padding-left:100px; }
   body.modal #btn-hub { display:none !important; }
+  @media (max-width:620px) {
+    #btn-hub { font-size:13px; padding:7px 10px; }
+    #btn-quit { left:calc(84px + env(safe-area-inset-left)); font-size:13px; padding:7px 10px; }
+    .topbar { padding-left:84px; gap:4px; }
+    .topbar .btn.ghost { font-size:13px; padding:7px 10px; }
+    .wallet { font-size:14px; padding:6px 10px; }
+    .sysbtn { width:36px; height:36px; font-size:17px; top:52px; }
+    #snd-btn { transform:translateX(-100%); margin-left:-3px; }
+    body.touch .hud, body.touch #speedo, body.touch #gps-arrow { top:calc(96px + env(safe-area-inset-top)); }
+    .bubble { top:96px; font-size:15px; padding:8px 12px; }
+  }
   #btn-quit.on { display:block; }
   body.modal #stick, body.modal #act-btn, body.modal #pedals, body.modal .hint, body.modal #btn-quit, body.modal #look-tip { display:none !important; }
   @media (max-width:520px) {
