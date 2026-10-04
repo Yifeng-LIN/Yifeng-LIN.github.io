@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Monde créatif</title>
 <style>
   html, body {
@@ -3905,6 +3905,51 @@ requestAnimationFrame(boucle);
 
 // Afficher l'écran de démarrage au lancement
 afficherMenu();
+</script>
+
+<style>body.tp-on #vies{margin-top:92px !important}body.tp-on #gps{top:62px !important}</style>
+<script src="../touch-pad.js"></script>
+<script>
+// --- tactile : relais du doigt vers les gestionnaires souris (caméra + construction) ---
+(function(){
+  var st = document.createElement('style');
+  st.textContent = 'canvas{touch-action:none}';
+  document.head.appendChild(st);
+  document.addEventListener('touchstart', function(e){
+    if (e.target && e.target.tagName === 'CANVAS') e.preventDefault();
+  }, { passive:false });
+  function inPad(e){ return e.target && e.target.closest && e.target.closest('#tpad'); }
+  function cv(e){ return (e.target && e.target.tagName === 'CANVAS') ? e.target : document.querySelector('canvas'); }
+  document.addEventListener('pointerdown', function(e){
+    if (e.pointerType === 'mouse' || inPad(e)) return;
+    var c = cv(e); if (!c) return;
+    try { c.setPointerCapture(e.pointerId); } catch(err){}
+    c.dispatchEvent(new MouseEvent('mousedown', { clientX:e.clientX, clientY:e.clientY, button:0, buttons:1, bubbles:true }));
+  }, true);
+  document.addEventListener('pointermove', function(e){
+    if (e.pointerType === 'mouse' || inPad(e)) return;
+    var c = cv(e); if (!c) return;
+    var ev = new MouseEvent('mousemove', { clientX:e.clientX, clientY:e.clientY, buttons:1, bubbles:true });
+    c.dispatchEvent(ev); window.dispatchEvent(ev);
+  }, true);
+  ['pointerup','pointercancel'].forEach(function(t){
+    document.addEventListener(t, function(e){
+      if (e.pointerType === 'mouse' || inPad(e)) return;
+      window.dispatchEvent(new MouseEvent('mouseup', { clientX:e.clientX, clientY:e.clientY, button:0, buttons:0, bubbles:true }));
+    }, true);
+  });
+})();
+TouchPad.init({
+  dpad: 'arrows', stick: 'joystick',
+  buttons: [{ label:'🥢', sub:'taper', code:'Space' }, { label:'🚃', sub:'wagon', code:'KeyE' }],
+  topButtons: [{ label:'🎯', sub:'recentrer', code:'KeyC' }],
+  menu: { label:'⚙', title:'Actions', items: [
+    { label:'🌉 Ponts', code:'KeyL', key:'l' }, { label:'🚃 Wagon', code:'KeyE' },
+    { label:'⬆️ Niveau +', code:'KeyR' }, { label:'⬇️ Niveau −', code:'KeyF' }
+  ]},
+  help: '🕹️ pour marcher · glisse un doigt pour tourner la caméra',
+  home: '../'
+});
 </script>
 </body>
 </html>

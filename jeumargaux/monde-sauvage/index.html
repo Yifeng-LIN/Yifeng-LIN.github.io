@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <title>Monde Sauvage</title>
   <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -2403,5 +2403,30 @@ requestAnimationFrame(() => {
   setTimeout(() => document.getElementById('loading').classList.add('hidden'), 400);
 });
   </script>
+
+<script src="../touch-pad.js"></script>
+<script>
+// --- tactile : faire tourner la caméra au doigt (relais vers le gestionnaire souris du jeu) ---
+(function(){
+  var st = document.createElement('style');
+  st.textContent = 'canvas{touch-action:none}';
+  document.head.appendChild(st);
+  // empêche le défilement / zoom et les faux clics de compatibilité sur le canvas
+  document.addEventListener('touchstart', function(e){
+    if (e.target && e.target.tagName === 'CANVAS') e.preventDefault();
+  }, { passive:false });
+  document.addEventListener('pointermove', function(e){
+    if (e.pointerType === 'mouse') return;
+    if (e.target && e.target.closest && e.target.closest('#tpad')) return;
+    window.dispatchEvent(new MouseEvent('mousemove', { clientX:e.clientX, clientY:e.clientY, bubbles:true }));
+  }, true);
+})();
+TouchPad.init({
+  dpad: 'arrows', stick: 'joystick',
+  buttons: [{ label:'🏃', sub:'courir', code:'ShiftLeft' }],
+  help: '🕹️ pour marcher · glisse un doigt sur le décor pour regarder',
+  home: '../'
+});
+</script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 <html lang="fr">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Cartes Collectors — Animaux terrestres</title>
 <style>
   :root {
@@ -359,6 +359,11 @@
     document.getElementById("filtres-rarete"), "rarete", "toutes", "Toutes raretés",
     ["commune", "rare", "epique", "legendaire"], LIBELLE_RARETE
   );
+</script>
+
+<script src="../touch-pad.js"></script>
+<script>
+TouchPad.init({ dpad:false, buttons:[], home:'../' });
 </script>
 </body>
 </html>

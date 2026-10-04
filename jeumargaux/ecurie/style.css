@@ -256,3 +256,17 @@ body {
 @media (max-width: 1360px) {
   .scene { transform-origin: top center; }
 }
+
+
+/* ===== Tablette & téléphone : la scène (1000x700) est mise à l'échelle ===== */
+@media (max-width: 1060px) {
+  .jeu { padding: 8px; }
+  .scene {
+    transform: scale(var(--ech, 1));
+    transform-origin: top left;
+    margin-bottom: calc(700px * (var(--ech, 1) - 1));
+    margin-right: calc(1000px * (var(--ech, 1) - 1));
+  }
+  .topbar { padding-left: 120px; }          /* place pour le bouton ✕ Menu */
+}
+@media (max-width: 1060px) and (orientation: portrait) { body { padding-bottom: 20px; } }

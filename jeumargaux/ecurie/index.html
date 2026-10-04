@@ -2,9 +2,9 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>🐴 Centre Équestre de Margaux</title>
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
 
@@ -76,6 +76,36 @@
 
   <footer class="pied">Clique dans l'écurie puis joue avec le clavier — fait avec ❤️ pour Margaux</footer>
 
-  <script src="script.js"></script>
+  <script src="script.js?v=2"></script>
+
+<script>
+// la scène fait 1000x700 : on l'adapte à la largeur de l'écran (tablette / téléphone)
+(function(){
+  function ech(){
+    var sc = document.querySelector('.scene'); if (!sc) return;
+    var dispo = Math.min(window.innerWidth - 20, 1000);
+    var k = Math.min(1, dispo / 1000);
+    document.documentElement.style.setProperty('--ech', k.toFixed(3));
+  }
+  addEventListener('resize', ech); addEventListener('orientationchange', ech);
+  if (document.readyState !== 'loading') ech(); else addEventListener('DOMContentLoaded', ech);
+  setTimeout(ech, 300);
+})();
+</script>
+<script src="../touch-pad.js"></script>
+<script>
+TouchPad.init({
+  dpad: 'arrows',
+  buttons: [{ label:'🚪', sub:'entrer', code:'KeyE' }, { label:'🦘', sub:'sauter', code:'Space' }],
+  menu: { label:'🐴', title:'Actions avec le cheval', items: [
+    { label:'🐴 Monter', code:'KeyM' }, { label:'⬇️ Descendre', code:'KeyD' },
+    { label:'🧺 Seller', code:'KeyS' }, { label:'🎀 Licol', code:'KeyL' },
+    { label:'🪢 Attacher', code:'KeyK' }, { label:'🍎 Nourrir', code:'KeyA' },
+    { label:'🚶 Au pas', code:'KeyP' }, { label:'🏇 Au trot', code:'KeyT' }
+  ]},
+  help: '◀▲▼▶ pour marcher · 🚪 entrer dans un box · 🐴 pour les autres actions',
+  home: '../'
+});
+</script>
 </body>
 </html>
