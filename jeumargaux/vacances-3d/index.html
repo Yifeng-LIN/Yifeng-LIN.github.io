@@ -43,7 +43,9 @@
   .wallet { background:#fff; border-radius:999px; padding:8px 18px; font-weight:700; font-size:19px; box-shadow:0 4px 12px rgba(0,0,0,.2); }
   .hint { position:absolute; bottom:14px; left:50%; transform:translateX(-50%); background:rgba(0,0,0,.45); color:#fff; border-radius:14px; padding:8px 16px; font-size:16px; white-space:nowrap; max-width:96vw; overflow:hidden; text-overflow:ellipsis; }
 
-  .card { background:rgba(255,255,255,.94); border-radius:26px; padding:18px 26px; width:min(680px,94vw); max-height:92vh; overflow-y:auto; box-shadow:0 12px 30px rgba(0,0,0,.3); }
+  .card { background:rgba(255,255,255,.94); border-radius:26px; padding:18px 26px; width:min(680px,94vw); max-height:92vh; overflow-y:auto; box-shadow:0 12px 30px rgba(0,0,0,.3); touch-action:pan-y; -webkit-overflow-scrolling:touch; }
+  body.touch .card { max-height:calc(100vh - 150px); }
+  body.touch #ov-arrive, body.touch #ov-end, body.touch #ov-hub, body.touch #ov-start { justify-content:flex-start; padding-top:calc(58px + env(safe-area-inset-top)); }
   .card h2 { color:#ff6b6b; text-shadow:none; }
   .card p { font-size:clamp(16px,2.2vw,21px); margin:8px 0 12px; }
   .actions { display:flex; gap:12px; flex-wrap:wrap; justify-content:center; margin-top:12px; }
@@ -52,7 +54,7 @@
   #buy-panel.on { display:block; }
 
   #ov-custom { justify-content:flex-start; align-items:flex-end; padding:70px 16px 16px; }
-  .panels { display:flex; flex-direction:column; gap:10px; width:min(400px,94vw); max-height:calc(100vh - 90px); overflow-y:auto; }
+  .panels { display:flex; flex-direction:column; gap:10px; width:min(400px,94vw); max-height:calc(100vh - 90px); overflow-y:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch; }
   .panel { background:rgba(255,255,255,.95); border-radius:18px; padding:10px 14px; box-shadow:0 6px 16px rgba(0,0,0,.15); text-align:left; }
   .panel h3 { font-size:18px; margin-bottom:6px; color:#6c3fa0; }
   .opts { display:flex; flex-wrap:wrap; gap:7px; }
@@ -67,10 +69,11 @@
   .bubble { position:absolute; top:70px; left:50%; transform:translateX(-50%); background:rgba(255,255,255,.95); border-radius:20px; padding:10px 20px; font-size:clamp(17px,2.6vw,24px); font-weight:700; box-shadow:0 6px 16px rgba(0,0,0,.2); max-width:92vw; }
   #hud-gps { position:absolute; right:16px; bottom:60px; display:none; }
   #hud-gps.on { display:block; animation:wobble 1s infinite; }
+  body.touch #hud-gps { right:12px; bottom:auto; top:calc(62px + env(safe-area-inset-top)); font-size:19px; padding:10px 22px; }
   @keyframes wobble { 0%,100%{transform:rotate(-4deg)} 50%{transform:rotate(4deg)} }
   .gps { position:absolute; inset:0; display:none; align-items:center; justify-content:center; background:rgba(0,0,0,.5); }
   .gps.open { display:flex; }
-  .gps-device { background:#222; border-radius:30px; padding:14px; width:min(720px,94vw); box-shadow:0 20px 50px rgba(0,0,0,.5); border:6px solid #444; }
+  .gps-device { background:#222; border-radius:30px; padding:14px; width:min(720px,94vw); max-height:88vh; overflow-y:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch; box-shadow:0 20px 50px rgba(0,0,0,.5); border:6px solid #444; }
   .gps-screen { background:#0f2a3f; border-radius:18px; padding:16px; }
   .gps-screen h3 { color:#7fffd4; font-size:clamp(20px,3.5vw,30px); margin-bottom:12px; }
   .dest-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(140px,1fr)); gap:10px; }
@@ -86,6 +89,7 @@
   #signal { display:none; margin-top:6px; }
   #signal.on { display:block; }
   #signal i { background:linear-gradient(90deg,#3498db,#e74c3c); }
+  .hint, .bubble, .hud, #crosshair, #viewfinder, #toast, #speedo, #gps-arrow, #look-tip, #lock-hint { pointer-events:none !important; }
   #crosshair { position:absolute; left:50%; top:50%; width:26px; height:26px; margin:-13px 0 0 -13px; border:3px solid #fff; border-radius:50%; box-shadow:0 0 0 2px rgba(0,0,0,.4); display:none; }
   #crosshair.on { display:block; }
   #viewfinder { position:absolute; left:50%; top:50%; width:min(46vw,360px); height:min(46vw,260px); transform:translate(-50%,-50%); display:none;
@@ -138,6 +142,20 @@
              pointer-events:auto; border:4px solid rgba(255,255,255,.9); background:radial-gradient(circle at 40% 35%, rgba(255,255,255,.95), rgba(214,226,240,.9)); box-shadow:0 6px 0 rgba(0,0,0,.25), 0 10px 22px rgba(0,0,0,.3); }
   #act-btn.on { display:block; }
   #act-btn:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.25); }
+  #pedals { position:absolute; right:calc(22px + env(safe-area-inset-right)); bottom:calc(26px + env(safe-area-inset-bottom)); display:none; flex-direction:column; gap:14px; }
+  #pedals.on { display:flex; }
+  #pedals button { pointer-events:auto; width:92px; height:92px; border-radius:50%; font-size:30px; font-family:inherit; font-weight:700; border:4px solid rgba(255,255,255,.9); cursor:pointer;
+                   background:radial-gradient(circle at 40% 35%, rgba(255,255,255,.95), rgba(214,226,240,.9)); box-shadow:0 6px 0 rgba(0,0,0,.25), 0 10px 22px rgba(0,0,0,.3); color:#1d3557; line-height:1; }
+  #pedals button:active { transform:translateY(4px); box-shadow:0 2px 0 rgba(0,0,0,.25); }
+  #pedals button small { display:block; font-size:11px; opacity:.75; }
+  #btn-quit { position:absolute; left:calc(12px + env(safe-area-inset-left)); top:calc(10px + env(safe-area-inset-top)); display:none; z-index:40; }
+  #btn-quit.on { display:block; }
+  body.modal #stick, body.modal #act-btn, body.modal #pedals, body.modal .hint, body.modal #btn-quit, body.modal #look-tip { display:none !important; }
+  @media (max-width:520px) {
+    #stick { width:118px; height:118px; } #stick-knob { width:52px; height:52px; margin:-26px 0 0 -26px; }
+    #act-btn { width:84px; height:84px; font-size:32px; } #pedals button { width:76px; height:76px; font-size:25px; }
+    body.touch .hint { bottom:calc(150px + env(safe-area-inset-bottom)); font-size:12.5px; max-width:78vw; }
+  }
   #look-tip { position:absolute; right:150px; bottom:46%; color:rgba(255,255,255,.9); font-size:15px; font-weight:700; text-shadow:0 2px 6px rgba(0,0,0,.6); display:none; pointer-events:none; }
   #look-tip.on { display:block; animation:pulse 2s infinite; }
   /* sur tablette/téléphone : on remonte le compteur et le GPS pour laisser la place aux manettes */
@@ -146,6 +164,9 @@
   body.touch #gps-arrow { width:92px; height:92px; left:calc(14px + env(safe-area-inset-left)); bottom:auto; top:calc(64px + env(safe-area-inset-top)); font-size:42px; }
   body.touch #gps-arrow span { font-size:13px; }
   body.touch .hint { bottom:calc(186px + env(safe-area-inset-bottom)); max-width:72vw; font-size:14px; padding:6px 12px; white-space:normal; text-align:center; }
+  body.touch #toast { bottom:auto; top:calc(150px + env(safe-area-inset-top)); }
+  body.touch .hint { transition:opacity .7s; }
+  body.touch .hint.faded { opacity:0; }
   body.touch .hud { top:calc(58px + env(safe-area-inset-top)); width:min(420px,56vw); }
   body.touch .topbar { top:calc(10px + env(safe-area-inset-top)); }
 </style>
@@ -249,7 +270,12 @@
 
   <div id="dot"></div>
   <div id="lock-hint">🖱️ Clique pour regarder autour</div>
+  <button class="btn ghost" id="btn-quit">✕ Quitter</button>
   <div id="stick"><i id="stick-knob"></i></div>
+  <div id="pedals">
+    <button data-k="up">▲<small>avancer</small></button>
+    <button data-k="down">▼<small>freiner</small></button>
+  </div>
   <div id="look-tip">👆 glisse ici<br>pour regarder</div>
   <button id="act-btn">✊</button>
   <button id="snd-btn" class="sysbtn" title="Son">🔊</button>
@@ -634,11 +660,17 @@ function hillsRing(h) { const g = new THREE.Group(); for (let i=0;i<h.n;i++) { c
    ========================================================= */
 const canvas = $('c');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias:true, powerPreference:'high-performance' });
-let isTouch = matchMedia('(any-pointer: coarse)').matches || (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
-let hasMouse = matchMedia('(any-pointer: fine)').matches && !isTouch;
+// tactile (iPad, téléphone) = écran tactile SANS souris ni trackpad ; sinon on reste en clavier/souris
+// et le premier contact du doigt bascule de toute façon vers les manettes.
+const coarsePointer = matchMedia('(any-pointer: coarse)').matches || (navigator.maxTouchPoints || 0) > 0 || 'ontouchstart' in window;
+const finePointer = matchMedia('(any-pointer: fine)').matches;
+let isTouch = coarsePointer && !finePointer;
+let hasMouse = finePointer;
 const Q = isTouch ? .6 : 1;   // qualité réduite sur tablette/téléphone
 if (isTouch) document.body.classList.add('touch');
 renderer.setPixelRatio(Math.min(devicePixelRatio, isTouch ? 1.5 : 2));
+// bascule définitive vers les manettes dès qu'un doigt touche l'écran
+function goTouchMode() { if (usedTouch) return; usedTouch = true; isTouch = true; hasMouse = false; document.body.classList.add('touch'); unlock(); updateLockHint(); showTouchUI(); }
 renderer.shadowMap.enabled = true; renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputEncoding = THREE.sRGBEncoding; renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = .95;
 const camera = new THREE.PerspectiveCamera(72, 1, .1, 900);
@@ -768,7 +800,7 @@ const look = { yaw:0, pitch:0, limitYaw:null };
 function applyLook() { camera.rotation.set(look.pitch, look.yaw, 0); }
 function turn(dx, dy) { look.yaw -= dx; look.pitch = clamp(look.pitch - dy, -1.35, 1.35); if (look.limitYaw != null) look.yaw = clamp(look.yaw, -look.limitYaw, look.limitYaw); }
 let locked = false, usedTouch = false;
-addEventListener('touchstart', () => { if (!usedTouch) { usedTouch = true; isTouch = true; hasMouse = false; document.body.classList.add('touch'); unlock(); updateLockHint(); showTouchUI(); } }, { passive:true });
+addEventListener('touchstart', () => goTouchMode(), { passive:true });
 const overlayOpen = () => ['buy-panel','gps'].some(id => $(id).classList.contains('on') || $(id).classList.contains('open')) || ['ov-arrive','ov-end','ov-custom','ov-start'].some(id => $(id).classList.contains('active'));
 function updateLockHint() { const want = hasMouse && !usedTouch && mode && mode.lock !== false && !overlayOpen(); $('lock-hint').classList.toggle('on', want && !locked); $('dot').classList.toggle('on', locked); }
 function lockNow() { if (!hasMouse || usedTouch || locked || !mode || mode.lock === false) return; try { const p = canvas.requestPointerLock(); if (p && p.catch) p.catch(() => {}); } catch (e) {} }
@@ -777,7 +809,7 @@ document.addEventListener('pointerlockchange', () => { locked = document.pointer
 document.addEventListener('mousemove', e => { if (locked) turn(e.movementX*.0022, e.movementY*.0022); });
 canvas.addEventListener('mousedown', e => { if (isTouch) return; if (locked) { if (mode && mode.click) mode.click({ clientX:innerWidth/2, clientY:innerHeight/2 }); } else lockNow(); });
 let lookId=null, dragMoved=false, lastX=0, lastY=0;
-canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; if (e.pointerId === stickId) return; if (!usedTouch) { usedTouch = true; isTouch = true; hasMouse = false; document.body.classList.add('touch'); unlock(); updateLockHint(); showTouchUI(); } lookId=e.pointerId; dragMoved=false; lastX=e.clientX; lastY=e.clientY; try { canvas.setPointerCapture(e.pointerId); } catch (err) {} });
+canvas.addEventListener('pointerdown', e => { if (e.pointerType === 'mouse') return; if (e.pointerId === stickId) return; goTouchMode(); lookId=e.pointerId; dragMoved=false; lastX=e.clientX; lastY=e.clientY; try { canvas.setPointerCapture(e.pointerId); } catch (err) {} });
 canvas.addEventListener('pointermove', e => { if (e.pointerId !== lookId) return; const dx=e.clientX-lastX, dy=e.clientY-lastY; lastX=e.clientX; lastY=e.clientY; if (Math.abs(dx)+Math.abs(dy) > 3) dragMoved = true; turn(dx*.005, dy*.005); });
 ['pointerup','pointercancel'].forEach(ev => canvas.addEventListener(ev, e => { if (e.pointerId !== lookId) return; lookId=null; if (ev === 'pointerup' && !dragMoved && mode && mode.click) mode.click(e); }));
 // --- manette virtuelle ---
@@ -801,12 +833,28 @@ document.addEventListener('dblclick', e => e.preventDefault());
 const ray = new THREE.Raycaster();
 function pick(e, objects) { const m = new THREE.Vector2((e.clientX/innerWidth)*2-1, -(e.clientY/innerHeight)*2+1); ray.setFromCamera(m, camera); return ray.intersectObjects(objects, true)[0]; }
 $('act-btn').addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Snd.resume(); if (mode && mode.action) mode.action(); else if (mode && mode.click) mode.click({ clientX:innerWidth/2, clientY:innerHeight/2 }); });
-let padState = { move:false, action:null };
-function showPad(on, action) { padState = { move:on, action }; showTouchUI(); }
+let padState = { move:false, action:null, pedals:false };
+function showPad(on, action, pedals) { padState = { move:on, action, pedals:!!pedals }; showTouchUI(); }
+// pédales tactiles : mêmes touches que ↑ et ↓
+document.querySelectorAll('#pedals button').forEach(b => {
+  const k = b.dataset.k;
+  b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); Snd.resume(); touchKeys[k] = true; try { b.setPointerCapture(e.pointerId); } catch (err) {} });
+  ['pointerup','pointercancel','pointerleave','lostpointercapture'].forEach(ev => b.addEventListener(ev, () => touchKeys[k] = false));
+});
+// bouton Quitter (en haut à gauche, jamais dans la zone des commandes)
+let quitTo = null;
+$('btn-quit').addEventListener('click', () => { Snd.click(); const f = quitTo; quitTo = null; $('btn-quit').classList.remove('on'); if (f) f(); });
+function showQuit(fn) { quitTo = fn; $('btn-quit').classList.toggle('on', !!fn); }
+function updateModal() { document.body.classList.toggle('modal', $('gps').classList.contains('open') || $('buy-panel').classList.contains('on')); }
+let hintTimer = null;
+function refreshHints() { clearTimeout(hintTimer); document.querySelectorAll('.hint').forEach(h => h.classList.remove('faded')); hintTimer = setTimeout(() => document.querySelectorAll('.hint').forEach(h => h.classList.add('faded')), 12000); }
 function showTouchUI() {
+  updateModal(); refreshHints();
   const show = !!(isTouch || usedTouch);
-  const wantAct = !!(padState.action || (mode && (mode.action || mode.click)));
+  const wantAct = !!(padState.action || (mode && (mode.action || mode.click))) && !padState.pedals;
   $('stick').classList.toggle('on', show && !!padState.move);
+  $('pedals').classList.toggle('on', show && !!padState.pedals);
+  if (!show || !padState.pedals) { touchKeys.up = touchKeys.down = false; }
   $('act-btn').classList.toggle('on', show && wantAct);
   $('act-btn').textContent = padState.action || (mode && mode.action ? '✊' : '👆');
   if (!show) stickEnd();
@@ -1223,7 +1271,7 @@ let life = [];
 function startMode() {
   detachCamera(); unlock(); life = buildWorld('plage', { rMin:8, n:70 });
   player.pos.set(0,2,6); camera.position.copy(player.pos); look.yaw = 0; look.pitch = -.05; look.limitYaw = null; colliders = [];
-  showOv('ov-start'); showPad(false);
+  showQuit(null); showOv('ov-start'); showPad(false);
   if (isTouch) $('start-hint').textContent = '👆 Glisse sur l\'écran pour regarder · 🕹️ manette en bas à gauche pour avancer · bouton rond = action';
   setMode({ lock:false, update(dt) { look.yaw += dt*.05; camera.position.y = world.h(0,6)+2; applyLook(); life.forEach(e => updateEntity(e, dt)); } });
   Music.want('menu');
@@ -1272,7 +1320,7 @@ function hubMode(o={}) {
   if (o.spawn === 'vehicle' && hubVeh) { player.pos.set(14, 1.7, 7); look.yaw = 0; } else if (o.spawn === 'shop') { player.pos.set(0, 1.7, -16); look.yaw = 0; } else { player.pos.set(0, 1.7, 10); look.yaw = 0; }
   look.pitch = 0; look.limitYaw = null; refreshCoins();
   $('buy-panel').classList.remove('on'); $('hud-gps').classList.remove('on'); $('gps').classList.remove('open');
-  showOv('ov-hub'); showPad(true);
+  showQuit(null); showOv('ov-hub'); showPad(true);
   let phase = 'walk', t = 0, from = null, fromYaw = 0, fromPitch = 0, hudTimer = null, wasIn = null;
   const seatWorld = hubVeh ? hubVeh.localToWorld(hubVeh.userData.seat.clone()) : null;
   const setMsg = () => {
@@ -1292,7 +1340,7 @@ function hubMode(o={}) {
     },
     click(e) {
       if (phase === 'walk') {
-        const hit = pick(e, clickables); if (hit) { let o2 = hit.object; while (o2 && !o2.userData.key) o2 = o2.parent; if (!o2) return; Snd.click(); shopSel = o2.userData.key; const v = VEHICLES[shopSel]; $('buy-title').textContent = `${v.emoji} ${v.name}`; $('buy-price').textContent = `Prix : ${v.price} pièces 🪙 — Tu as ${state.coins} pièces.`; $('buy-panel').classList.add('on'); unlock(); updateLockHint(); return; }
+        const hit = pick(e, clickables); if (hit) { let o2 = hit.object; while (o2 && !o2.userData.key) o2 = o2.parent; if (!o2) return; Snd.click(); shopSel = o2.userData.key; const v = VEHICLES[shopSel]; $('buy-title').textContent = `${v.emoji} ${v.name}`; $('buy-price').textContent = `Prix : ${v.price} pièces 🪙 — Tu as ${state.coins} pièces.`; $('buy-panel').classList.add('on'); updateModal(); unlock(); updateLockHint(); return; }
         const near = hubVeh && (() => { const to = V3().subVectors(hubVeh.position, player.pos); const dist = to.length(); to.y = 0; to.normalize(); const f = V3(-Math.sin(look.yaw),0,-Math.cos(look.yaw)); return dist < 9.5 && f.dot(to) > .55; })();
         if (hubVeh && (pick(e, [hubVeh]) || near)) { phase = 'board'; t = 0; from = camera.position.clone(); fromYaw = look.yaw; fromPitch = look.pitch; $('hub-msg').textContent = 'Tu montes à bord…'; Snd.whoosh(); showPad(false); }
       } else if (phase === 'aboard') { if (pick(e, [hubVeh.userData.gps]) || (isTouch && Math.abs(look.yaw) < .9)) openGPS(); }
@@ -1301,7 +1349,7 @@ function hubMode(o={}) {
   });
   Music.want('home'); Snd.startAmbience('home');
 }
-$('btn-buy-cancel').addEventListener('click', () => { Snd.click(); $('buy-panel').classList.remove('on'); lockNow(); updateLockHint(); });
+$('btn-buy-cancel').addEventListener('click', () => { Snd.click(); $('buy-panel').classList.remove('on'); updateModal(); lockNow(); updateLockHint(); });
 $('btn-buy').addEventListener('click', () => {
   const v = VEHICLES[shopSel];
   if (state.coins < v.price) { Snd.ouch(); $('buy-price').textContent = `Pas assez de pièces ! Il te faut ${v.price} pièces. Fais un voyage et joue pour en gagner.`; return; }
@@ -1310,11 +1358,11 @@ $('btn-buy').addEventListener('click', () => {
 function openGPS() {
   Snd.gps(); unlock();
   $('dest-grid').innerHTML = Object.entries(DESTS).map(([k,d]) => `<button class="dest" data-dest="${k}"><span>${d.emoji}</span>${cap(d.name)}</button>`).join('');
-  document.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { Snd.click(); state.dest = b.dataset.dest; $('gps').classList.remove('open'); travelMode(); lockNow(); });
-  $('gps').classList.add('open'); updateLockHint();
+  document.querySelectorAll('[data-dest]').forEach(b => b.onclick = () => { Snd.click(); state.dest = b.dataset.dest; $('gps').classList.remove('open'); updateModal(); travelMode(); lockNow(); });
+  $('gps').classList.add('open'); updateModal(); updateLockHint();
 }
 $('hud-gps').addEventListener('click', openGPS);
-$('gps').addEventListener('click', e => { if (e.target === $('gps')) { $('gps').classList.remove('open'); lockNow(); updateLockHint(); } });
+$('gps').addEventListener('click', e => { if (e.target === $('gps')) { $('gps').classList.remove('open'); updateModal(); lockNow(); updateLockHint(); } });
 
 /* =========================================================
    PERSONNALISATION (atelier)
@@ -1329,7 +1377,7 @@ function customMode() {
   for (let i=0;i<8;i++) { const s = sprite(pick1(['✨','⭐','🎨','🌈']),1.2); s.position.set(rnd(-8,8), rnd(2,6), rnd(-11,-7)); scene.add(s); }
   customVeh = null; rebuildCustom();
   camera.position.set(0,2.2, innerWidth < innerHeight ? 5 : 1.5); look.yaw = 0; look.pitch = innerWidth < 700 ? -.45 : -.18; look.limitYaw = .6; applyLook();
-  renderCustom(); showOv('ov-custom'); showPad(false);
+  showQuit(null); renderCustom(); showOv('ov-custom'); showPad(false);
   setMode({ lock:false, update(dt) { if (customVeh) customVeh.rotation.y += dt*.5; applyLook(); } });
   Music.want('shop');
 }
@@ -1386,7 +1434,7 @@ function travelMode() {
   if (veh.userData.flames) veh.userData.flames.forEach(f => f.visible = true);
   $('travel-txt').textContent = `${v.emoji} Direction ${d.name} ${d.emoji}`; $('travel-bar').style.width = '0%';
   const ctrlTxt = isTouch ? '🕹️ manette : haut = accélérer, bas = freiner, gauche/droite = tourner' : '↑ accélérer · ↓ freiner · ← → tourner'; $('travel-hint').textContent = ctrlTxt + (isAir ? ' · suis les anneaux jusqu\'à l\'arche' : isWater ? ' · reste entre les bouées' : ' · reste sur la route jusqu\'à l\'arche');
-  showOv('ov-travel'); showPad(true); Snd.vroom();
+  showOv('ov-travel'); showPad(true, null, true); showQuit(() => hubMode()); Snd.vroom();
   toast(isAir ? `${v.emoji} Accélère pour décoller !` : `${v.emoji} En route pour ${d.name} !`, 2500);
   let bumpT = 0, steerVis = 0;
   setMode({ lock:true,
@@ -1455,7 +1503,7 @@ function arriveMode(o={}) {
   $('acts').innerHTML = d.acts.map(([e,n]) => `<button class="act" data-act="${n}"><span>${e}</span>${n}</button>`).join('');
   $('act-msg').textContent = '';
   document.querySelectorAll('[data-act]').forEach(b => b.onclick = () => { const a = d.acts.find(x => x[1] === b.dataset.act); $('act-msg').textContent = a[2]; Snd.ding(); });
-  showOv('ov-arrive'); showPad(false); if (!o.back) Snd.fanfare();
+  showQuit(null); showOv('ov-arrive'); showPad(false); if (!o.back) Snd.fanfare();
   setMode({ lock:true, update(dt) { fpWalk(dt, 5, 40); life.forEach(e => updateEntity(e, dt, player.pos)); } });
   Music.want(state.dest); Snd.startAmbience(d.amb);
 }
@@ -1467,6 +1515,7 @@ function startGame() {
   $('g-title').textContent = g.title; $('g-hint').textContent = g.desc; $('crosshair').classList.remove('on'); $('viewfinder').classList.remove('on'); $('signal').classList.remove('on'); lastSec = -1;
   ({ collect:collectGame, run:runGame, throw:throwGame, fish:fishGame, photo:photoGame, treasure:treasureGame, dodge:dodgeGame, race:raceGame, coaster:coasterGame, bumper:bumperGame })[g.type](g);
   Music.want(state.dest, 1.25); Snd.startAmbience(DESTS[state.dest].amb);
+  showQuit(() => arriveMode({ back:true }));
   showOv('ov-game'); toast(`${g.icon} ${g.title} — C'est parti !`, 2200);
 }
 let lastSec = -1;
@@ -1477,7 +1526,7 @@ function endGame(score, bonus=0) {
   $('end-stars').textContent = score >= 12 ? '⭐⭐⭐' : score >= 6 ? '⭐⭐' : '⭐';
   $('end-msg').textContent = `Score : ${score} — Tu gagnes ${gain} pièces 🪙${bonus ? ' (bonus inclus !)' : ''}`;
   $('crosshair').classList.remove('on'); $('viewfinder').classList.remove('on'); $('signal').classList.remove('on');
-  showOv('ov-end'); showPad(false); if (score >= 6) Snd.jingleWin(); else Snd.jingleMeh();
+  showQuit(null); showOv('ov-end'); showPad(false); if (score >= 6) Snd.jingleWin(); else Snd.jingleMeh();
   setMode({ lock:false, update(dt) { applyLook(); life.forEach(e => updateEntity(e, dt)); } });
   Music.want(state.dest);
 }
@@ -1601,7 +1650,7 @@ function bumperGame(g) {
   const roof = new THREE.Mesh(new THREE.CylinderGeometry(R+1, R+1, .3, 48), std(0x333333)); roof.position.y = 6.2; scene.add(roof);
   const me = prop('bumper', 0x1d7bd1); scene.add(me); const car = { x:0, z:6, yaw:0, v:0 }; me.add(camera); camera.position.set(0,1.35,.3); look.yaw = 0; look.pitch = -.05; look.limitYaw = 2.6; applyLook();
   const ais = []; for (let i=0;i<5;i++) { const a = i/5*Math.PI*2; const b = prop('bumper'); b.position.set(Math.cos(a)*11, 0, Math.sin(a)*11); scene.add(b); ais.push({ obj:b, x:b.position.x, z:b.position.z, yaw:rnd(0,6), v:0, tx:rnd(-12,12), tz:rnd(-12,12), timer:rnd(1,3), cool:0 }); }
-  let score = 0, left = g.time, cool = 0; showPad(true);
+  let score = 0, left = g.time, cool = 0; showPad(true, null, true);
   Snd.startEngine('voiture');
   const keepIn = c => { const d = Math.hypot(c.x, c.z); if (d > R-1.4) { c.x *= (R-1.4)/d; c.z *= (R-1.4)/d; c.v *= -.4; return true; } return false; };
   setMode({ lock:true,
@@ -1765,7 +1814,7 @@ function raceGame(g) {
   const rings = []; const R = 38;
   for (let i=0;i<g.rings;i++) { const a = -Math.PI/2 + i/g.rings*Math.PI*2; const wob = Math.sin(i*1.7)*10; const x = Math.cos(a)*(R+wob), z = Math.sin(a)*(R+wob) - R; const y = isWater ? 2.5 : isAir ? world.h(x,z) + 14 + Math.sin(i*2.1)*5 : world.h(x,z) + 3.2; const r = new THREE.Mesh(new THREE.TorusGeometry(3.2, .3, 10, 32), M.ring); r.position.set(x, y, z); r.lookAt(V3(Math.cos(a + .3)*(R+wob), y, Math.sin(a + .3)*(R+wob) - R)); r.castShadow = true; scene.add(r); const num = label(String(i+1), 2); num.position.set(x, y+4.2, z); scene.add(num); rings.push(r); }
   const arrowG = new THREE.Group(); const arrow = cone(.06,.25,std(0xffd23f,{emissive:0xffa500}),8); arrow.rotation.x = Math.PI/2; arrowG.add(arrow); arrowG.position.set(0,-.28,-.9); camera.add(arrowG);
-  let next = 0, score = 0, left = g.time, done = false, steerVis = 0; rings[0].material = M.ringNext; showPad(true);
+  let next = 0, score = 0, left = g.time, done = false, steerVis = 0; rings[0].material = M.ringNext; showPad(true, null, true);
   setMode({ lock:true,
     update(dt) {
       left -= dt; const a = axis();
