@@ -179,7 +179,8 @@ const DEF_IMG = "google/gemini-2.5-flash-image";
 // Vidéo : le meilleur rapport qualité/prix (Seedance 1.5 Pro sans le son du modèle, 720p, 5 s ≈ 0,13 $) ;
 // la voix off et la musique sont ajoutées par l'appli, inutile de payer le son de la vidéo.
 const DEF_VIDEO = "bytedance/seedance-1-5-pro", DEF_VDUR = "5", DEF_VRES = "720p";
-const DEF_TTS = "openai/gpt-4o-mini-tts-2025-12-15", DEF_VOICE = "nova";
+const DEF_TTS = "google/gemini-3.8-flash-tts", DEF_VOICE = "Kore";   // multilingue (français, chinois…), très bon marché
+const TTS_FALLBACKS = ["google/gemini-3.8-flash-tts", "google/gemini-3.8-flash-lite-tts", "google/gemini-3.1-flash-tts-preview", "elevenlabs/eleven-multilingual-v2"];
 const TTS_STYLE = "Read this like a warm, engaging storyteller, slowly and clearly, in the language of the text.";
 
 const SPLIT_PROMPT = `Split the text above into short scenes for a video (each scene about 5 seconds of video).
@@ -244,6 +245,7 @@ if (!settings.v2) {   // anciens réglages : passer au modèle vidéo moins cher
   if (!settings.videoModel || settings.videoModel === "bytedance/seedance-2.0-fast") settings.videoModel = DEF_VIDEO;
   settings.duration ||= DEF_VDUR; settings.resolution ||= DEF_VRES; settings.v2 = true;
 }
+if (/^openai\/gpt-4o-mini-tts/.test(settings.ttsModel || "")) { settings.ttsModel = DEF_TTS; settings.ttsVoice = DEF_VOICE; }   // ce modèle n'existe pas sur OpenRouter
 const saveSettings = () => lsSet("huabian-settings", JSON.stringify(settings));
 let videoModels = JSON.parse(lsGet("huabian-models") || "[]");
 
@@ -511,10 +513,31 @@ async function downloadClip(job, s) {
 /* ---- Voix off automatique (OpenRouter /audio/speech) ---- */
 async function makeTts(p, sc) {
   const text = (sc.narration || "").trim(); if (!text) return;
-  const audio = await withRetry(async () => readBlob(await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
+  const speak = () => withRetry(async () => readBlob(await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
     model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: "mp3" }) })));
+  let audio;
+  try { audio = await speak(); }
+  catch (e) {   // modèle ou voix introuvable : on choisit un modèle de voix disponible, puis un nouvel essai
+    if (!/ 400 |does not exist|not found|voice/i.test(e.message) || !(await pickTtsModel())) throw e;
+    audio = await speak();
+  }
   await putBlob(K.tts(p.id, sc.id), new Blob([audio], { type: "audio/mpeg" }));
   sc.ttsText = text; await saveProj(p, true);
+}
+
+let ttsPicked = false;
+async function pickTtsModel() {
+  if (ttsPicked) return false;
+  ttsPicked = true;
+  const j = await withRetry(async () => readJson(await orFetch("/models?output_modalities=speech")));
+  const list = j.data || [];
+  const m = TTS_FALLBACKS.map(id => list.find(x => x.id === id)).find(Boolean) || list[0];
+  if (!m || (m.id === settings.ttsModel && (m.supported_voices || []).includes(settings.ttsVoice))) return false;
+  settings.ttsModel = m.id;
+  const voices = m.supported_voices || [];
+  settings.ttsVoice = voices.includes(DEF_VOICE) ? DEF_VOICE : voices[0] || "";
+  saveSettings();
+  return true;
 }
 
 async function ensureVoices(p) {
