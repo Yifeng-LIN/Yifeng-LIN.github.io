@@ -78,6 +78,9 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 .thumb img,.thumb video{width:100%;height:100%;object-fit:cover;display:block}
 .thumb b{position:absolute;left:.4rem;top:.35rem;background:rgba(255,255,255,.92);border-radius:8px;padding:0 .45rem;font-size:.78rem;color:var(--ink)}
 .scene p{margin:0;font-size:.85rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.scene .voice{display:flex;flex-direction:column;gap:.15rem;font-size:.74rem;font-weight:800;color:var(--muted)}
+.scene .voice audio{width:100%;height:32px}
+.err-msg{font-size:.78rem;color:var(--coral-d);word-break:break-word}
 .scene label{font-size:.74rem;font-weight:800;color:var(--muted)}
 .scene textarea{font-size:.85rem;line-height:1.4;padding:.4em .55em;border-radius:10px;margin-top:.15rem}
 .count{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--muted)}
@@ -513,16 +516,47 @@ async function downloadClip(job, s) {
 /* ---- Voix off automatique (OpenRouter /audio/speech) ---- */
 async function makeTts(p, sc) {
   const text = (sc.narration || "").trim(); if (!text) return;
-  const speak = () => withRetry(async () => readBlob(await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
-    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: "mp3" }) })));
+  const speak = format => withRetry(async () => readBlob(await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
+    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: format }) })));
+  const speakAny = async () => {
+    try { return await speak("mp3"); }
+    catch (e) { if (/format|mp3|pcm/i.test(e.message)) return speak("pcm"); throw e; }   // modèle qui ne fait que du PCM
+  };
   let audio;
-  try { audio = await speak(); }
+  try { audio = await speakAny(); }
   catch (e) {   // modèle ou voix introuvable : on choisit un modèle de voix disponible, puis un nouvel essai
     if (!/ 400 |does not exist|not found|voice/i.test(e.message) || !(await pickTtsModel())) throw e;
-    audio = await speak();
+    audio = await speakAny();
   }
-  await putBlob(K.tts(p.id, sc.id), new Blob([audio], { type: "audio/mpeg" }));
-  sc.ttsText = text; await saveProj(p, true);
+  audio = await playableAudio(audio);
+  await putBlob(K.tts(p.id, sc.id), audio);
+  sc.ttsText = text; delete sc.ttsError; await saveProj(p, true);
+}
+
+/* Le son reçu doit être lisible par le navigateur. Certains modèles (Gemini…) renvoient du PCM brut
+   (16 bits, mono, 24 kHz) : on l'emballe alors en WAV. */
+async function canDecode(blob) {
+  try {
+    const ac = new OfflineAudioContext(1, 1, 44100);
+    const buf = await ac.decodeAudioData(await blob.arrayBuffer());
+    return buf.duration > 0.1;
+  } catch { return false; }
+}
+function pcmToWav(bytes, rate = 24000) {
+  const n = bytes.byteLength - (bytes.byteLength % 2), out = new DataView(new ArrayBuffer(44 + n));
+  const str = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
+  str(0, "RIFF"); out.setUint32(4, 36 + n, true); str(8, "WAVEfmt "); out.setUint32(16, 16, true);
+  out.setUint16(20, 1, true); out.setUint16(22, 1, true); out.setUint32(24, rate, true); out.setUint32(28, rate * 2, true);
+  out.setUint16(32, 2, true); out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n, true);
+  new Uint8Array(out.buffer, 44).set(new Uint8Array(bytes, 0, n));
+  return new Blob([out.buffer], { type: "audio/wav" });
+}
+async function playableAudio(blob) {
+  if (await canDecode(blob)) return blob;
+  const rate = +((blob.type.match(/rate=(\d+)/) || [])[1]) || 24000;
+  const wav = pcmToWav(await blob.arrayBuffer(), rate);
+  if (await canDecode(wav)) return wav;
+  throw new Error(`son reçu illisible (${blob.type || "format inconnu"}, ${blob.size} octets)`);
 }
 
 let ttsPicked = false;
@@ -543,9 +577,16 @@ async function pickTtsModel() {
 async function ensureVoices(p) {
   for (const sc of scenesOf(p)) {
     const text = (sc.narration || "").trim();
-    if (!text || (sc.ttsText === text && await db.get(K.tts(p.id, sc.id)))) continue;
+    if (!text) continue;
+    const old = sc.ttsText === text ? await db.get(K.tts(p.id, sc.id)) : null;
+    if (old) {   // déjà faite : on la garde si elle est lisible (sinon on la refait, ou on l'emballe en WAV)
+      try { const ok = await playableAudio(old); if (ok !== old) await putBlob(K.tts(p.id, sc.id), ok); continue; } catch {}
+    }
     try { await makeTts(p, sc); }
-    catch (e) { toast(`Voix off impossible pour la scène ${sceneNo(p, sc.id)} : ${e.message}`, true); }
+    catch (e) {
+      sc.ttsError = e.message; saveProj(p); sceneChanged(p);
+      toast(`Voix off impossible pour la scène ${sceneNo(p, sc.id)} : ${e.message}`, true);
+    }
   }
 }
 
@@ -740,7 +781,13 @@ async function autoRun(mode = "full") {
   const semi = mode === "semi";
   const changed = p.splitFrom !== p.story;
   const hasFilm = !!(await db.get(K.film(p.id)));
-  const edited = scenesOf(p).some(sc => sc.stale || ((sc.narration || "").trim() && sc.ttsText !== sc.narration.trim()));
+  let edited = false;   // scènes modifiées, ou voix off manquante / illisible : on refera seulement ça, puis le montage
+  for (const sc of scenesOf(p)) {
+    const text = (sc.narration || "").trim();
+    if (sc.stale || sc.ttsError || (text && sc.ttsText !== text)) { edited = true; break; }
+    const v = text ? await db.get(K.tts(p.id, sc.id)) : null;
+    if (text && (!v || !(await canDecode(v)) && !(await canDecode(pcmToWav(await v.arrayBuffer()))))) { edited = true; break; }
+  }
   const est = n => (n * (semi ? 0.04 : 0.18) + 0.05).toFixed(2).replace(".", ",");
   if (scenesOf(p).length && changed) {
     if (!confirm("Le texte a changé : tout refaire (scènes, images, vidéos) ? Cela coûte à nouveau.")) return;
@@ -976,7 +1023,10 @@ async function renderScenes() {
       `<label>Texte lu (voix off)<textarea data-f="narration" rows="3">${esc(sc.narration)}</textarea></label>
        <label>Ce que montrent l'image et la vidéo<textarea data-f="text" rows="3">${esc(sc.text)}</textarea></label>
        <button class="small ghost" data-act="reframe">🔁 Nouvelle image</button>`;
-    html += `<article class="scene" data-sid="${sc.id}"><div class="thumb">${media}<b>${i + 1}</b></div>${chip}${body}</article>`;
+    const voiceUrl = sc.ttsText && sc.ttsText === (sc.narration || "").trim() ? await blobUrl(K.tts(p.id, sc.id)) : null;
+    const voice = voiceUrl ? `<div class="voice"><span>🔊 Voix off</span><audio controls preload="none" src="${voiceUrl}"></audio></div>`
+      : sc.ttsError ? `<div class="err-msg">🔇 Voix off impossible : ${esc(sc.ttsError)}</div>` : "";
+    html += `<article class="scene" data-sid="${sc.id}"><div class="thumb">${media}<b>${i + 1}</b></div>${chip}${voice}${body}</article>`;
   }
   const ref = p.refId ? await blobUrl(K.img(p.id, p.refId)) : null;
   if (proj !== p) return;
