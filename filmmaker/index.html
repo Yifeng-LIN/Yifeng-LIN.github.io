@@ -84,6 +84,8 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 .scene label{font-size:.74rem;font-weight:800;color:var(--muted)}
 .scene textarea{font-size:.85rem;line-height:1.4;padding:.4em .55em;border-radius:10px;margin-top:.15rem}
 .count{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--muted)}
+.switch{display:flex;align-items:flex-start;gap:.5rem;font-size:.86rem;font-weight:700;margin:.5rem 0;cursor:pointer}
+.switch input{width:1.15rem;height:1.15rem;flex:none;margin-top:.1rem;accent-color:var(--coral)}
 .plan{display:flex;gap:.7rem 1rem;flex-wrap:wrap;align-items:center;margin-top:.9rem}
 .count select{border:2px solid var(--line);border-radius:999px;padding:.35em .7em;background:#fff;font-weight:700}
 .estimate{font-size:.88rem;font-weight:800;color:var(--ink);background:#fff7e0;border-radius:999px;padding:.3em .9em}
@@ -163,7 +165,9 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
         <label class="f">Voix off : modèle<input type="text" id="s-tts"></label>
         <label class="f">Voix<input type="text" id="s-voice"></label>
       </div>
-      <p class="hint">Par défaut, les modèles les moins chers (≈ 0,08 $ par scène) : Claude Haiku pour le découpage, Seedream 5.0 Flash pour les images (≈ 0,02 $), Seedance 1.5 Pro sans son en 480p, 5 s pour la vidéo (≈ 0,06 $). Mettez 720p pour une image plus nette (≈ 0,13 $ par vidéo).</p>
+      <label class="switch"><input type="checkbox" id="s-sfx"> 🔊 Bruitages de chaque scène (générés avec la vidéo, ≈ +0,06 $ par scène)</label>
+      <label class="switch"><input type="checkbox" id="s-aimusic"> 🎵 Musique composée par l'IA d'après l'histoire (Google Lyria, 0,04–0,08 $ par vidéo)</label>
+      <p class="hint">Par défaut, les modèles les moins chers : Claude Haiku pour le découpage, Seedream 5.0 Flash pour les images (≈ 0,02 $), Seedance 1.5 Pro en 480p, 5 s pour la vidéo (≈ 0,06 $ sans son, ≈ 0,12 $ avec bruitages), Gemini pour la voix off. Mettez 720p pour une image plus nette (coût vidéo × 2).</p>
     </details>
     <menu><button value="cancel" class="ghost">Annuler</button><button value="ok" class="primary" id="s-save">Enregistrer</button></menu>
   </form>
@@ -179,7 +183,8 @@ let POLL_MS = 15000;                       // intervalle de suivi de la généra
 const W = 1280, H = 720;                   // taille de la vidéo finale
 const DEFAULT_DUR = 5;
 const VOICE_LEAD = 0.3, VOICE_TAIL = 0.5;  // la voix off démarre 0,3 s après le début de la scène, et la scène dure 0,5 s de plus que la voix
-const MUSIC_VOL = 0.16;
+const MUSIC_VOL = 0.16, AI_MUSIC_VOL = 0.32;   // musique du navigateur / musique composée par l'IA (déjà mixée, plus douce)
+const SFX_VOL = 0.85, SFX_UNDER_VOICE = 0.4;     // bruitages des vidéos, et sous la voix off
 const MAX_TRIES = 2;                       // essais par vidéo avant d'abandonner
 // Modèles par défaut : les moins chers qui font bien le travail (≈ 0,08 $ par scène au total)
 const DEF_TEXT = "anthropic/claude-haiku-5.5";            // découpage du texte : largement suffisant, ~20× moins cher que Sonnet
@@ -196,13 +201,17 @@ Keep the order and the meaning of the text; do not skip parts of it.
 For each scene give:
 - "visual": one self-contained description of what the image and video show (who, where, what happens, camera),
   in the same language as the text, repeating the key details of characters and places so all scenes look consistent;
-- "narration": the passage of the original text told in this scene (short, to be read aloud as voice-over).
+- "narration": the passage of the original text told in this scene (short, to be read aloud as voice-over);
+- "sound": in English, the ambient sounds and sound effects heard in this scene (e.g. "wind in the leaves, birds, footsteps on grass"), never speech or music;
+- "tone": in English, how the narrator should say this line (e.g. "curious and amazed", "tense, whispering", "joyful").
 Also give "bible": a short fixed description, in the same language as the text, of every recurring character
 (name, age, face, hair, clothes and colors), every recurring place, and one art style for the whole video,
 so that every image can be drawn identically.
+And give "music": in English, a prompt for instrumental background music that fits the whole story
+(genre, instruments, tempo, mood and how it evolves), soft enough to sit under a narrator.
 
 Return ONLY a JSON object, no other text:
-{ "title": "...", "bible": "...", "scenes": [ { "visual": "...", "narration": "..." } ] }`;
+{ "title": "...", "bible": "...", "music": "...", "scenes": [ { "visual": "...", "narration": "...", "sound": "...", "tone": "..." } ] }`;
 
 /* ============ Petits outils ============ */
 const $ = s => document.querySelector(s);
@@ -278,6 +287,7 @@ const K = {
   clip:  (pid, sid) => `clip:${pid}:${sid}`,
   tts:   (pid, sid) => `tts:${pid}:${sid}`,
   film:  pid        => `film:${pid}`,
+  music: pid        => `music:${pid}`,          // musique composée par l'IA pour cette vidéo
 };
 async function blobUrl(key) {
   if (urls[key]) return urls[key];
@@ -406,7 +416,9 @@ If the text is too long for that, condense the narration and keep the key moment
   if (!list.length) throw new Error("Claude n'a renvoyé aucune scène, réessayez");
   if (n > 0 && list.length > n) list = list.slice(0, n);
   p.bible = (sb.bible || "").trim();
-  p.storyboard = { title: (sb.title || p.name).trim(), scenes: list.map(x => ({ id: nextSid(p), text: (x.visual || x.narration).trim(), narration: (x.narration || "").trim() })) };
+  p.musicPrompt = (sb.music || "").trim();
+  p.storyboard = { title: (sb.title || p.name).trim(), scenes: list.map(x => ({ id: nextSid(p), text: (x.visual || x.narration).trim(),
+    narration: (x.narration || "").trim(), sound: (x.sound || "").trim(), tone: (x.tone || "").trim() })) };
   p.splitFrom = p.story;
   await saveProj(p, true);
   return list.length;
@@ -436,7 +448,8 @@ async function genImage(prompt, refKeys = []) {
 
 async function makeRefImage(p) {
   const blob = await genImage(`Character and setting reference sheet for an animated video.
-Show every main character full body, side by side on a plain light background, clearly separated, plus small views of the main places.
+Show ONLY the characters described below (do not add any other person or animal), full body, side by side on a plain light background,
+clearly separated, plus small views of the main places and objects described.
 ${p.bible || p.story.slice(0, 1500)}
 No text, no labels.`);
   if (p.refId) await delBlob(K.img(p.id, p.refId));
@@ -467,7 +480,12 @@ async function startVideo(p, sid) {
       prompt: sc.text + (startImg ? "\nStart exactly from the given first frame and keep the characters' look unchanged." : "") };
     if (startImg) body.frame_images = [{ type: "image_url", image_url: { url: await blobToDataURL(startImg) }, frame_type: "first_frame" }];
     const caps = videoModels.find(m => m.id === body.model)?.caps;
-    if (!caps || caps.generate_audio) body.generate_audio = false;   // le son vient de la voix off et de la musique : moins cher
+    if (!caps || caps.generate_audio) {
+      if (settings.sfx !== false) {   // bruitages de la scène générés avec la vidéo (jamais de paroles ni de musique : la voix off et la musique viennent à part)
+        body.generate_audio = true;
+        body.prompt += `\nAudio: ${sc.sound || "natural ambient sound of the scene"}. Ambient sounds and sound effects only: no speech, no voices, no singing, no music.`;
+      } else body.generate_audio = false;
+    }
     if (settings.duration) body.duration = isNaN(+settings.duration) ? settings.duration : +settings.duration;
     if (settings.resolution) body.resolution = settings.resolution;
     body.aspect_ratio = "16:9";
@@ -531,7 +549,8 @@ async function downloadClip(job, s) {
 async function makeTts(p, sc) {
   const text = (sc.narration || "").trim(); if (!text) return;
   const speak = format => withRetry(async () => readBlob(await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
-    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: format }) })));
+    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text,
+    instructions: TTS_STYLE + (sc.tone ? ` Tone for this line: ${sc.tone}.` : ""), response_format: format }) })));
   const speakAny = async () => {
     try { return await speak("mp3"); }
     catch (e) { if (/format|mp3|pcm/i.test(e.message)) return speak("pcm"); throw e; }   // modèle qui ne fait que du PCM
@@ -556,21 +575,69 @@ async function canDecode(blob) {
     return buf.duration > 0.1;
   } catch { return false; }
 }
-function pcmToWav(bytes, rate = 24000) {
-  const n = bytes.byteLength - (bytes.byteLength % 2), out = new DataView(new ArrayBuffer(44 + n));
+function pcmToWav(bytes, rate = 24000, ch = 1) {
+  const align = 2 * ch, n = bytes.byteLength - (bytes.byteLength % align), out = new DataView(new ArrayBuffer(44 + n));
   const str = (o, s) => [...s].forEach((c, i) => out.setUint8(o + i, c.charCodeAt(0)));
   str(0, "RIFF"); out.setUint32(4, 36 + n, true); str(8, "WAVEfmt "); out.setUint32(16, 16, true);
-  out.setUint16(20, 1, true); out.setUint16(22, 1, true); out.setUint32(24, rate, true); out.setUint32(28, rate * 2, true);
-  out.setUint16(32, 2, true); out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n, true);
+  out.setUint16(20, 1, true); out.setUint16(22, ch, true); out.setUint32(24, rate, true); out.setUint32(28, rate * align, true);
+  out.setUint16(32, align, true); out.setUint16(34, 16, true); str(36, "data"); out.setUint32(40, n, true);
   new Uint8Array(out.buffer, 44).set(new Uint8Array(bytes, 0, n));
   return new Blob([out.buffer], { type: "audio/wav" });
 }
-async function playableAudio(blob) {
+async function playableAudio(blob, rate = 24000, ch = 1) {
   if (await canDecode(blob)) return blob;
-  const rate = +((blob.type.match(/rate=(\d+)/) || [])[1]) || 24000;
-  const wav = pcmToWav(await blob.arrayBuffer(), rate);
+  const wav = pcmToWav(await blob.arrayBuffer(), +((blob.type.match(/rate=(\d+)/) || [])[1]) || rate, ch);
   if (await canDecode(wav)) return wav;
   throw new Error(`son reçu illisible (${blob.type || "format inconnu"}, ${blob.size} octets)`);
+}
+
+/* ---- Musique composée par l'IA d'après l'histoire (Google Lyria 3, via OpenRouter) ---- */
+const MUSIC_CLIP = "google/lyria-3-clip-preview", MUSIC_PRO = "google/lyria-3-pro-preview";   // ≈ 30 s : 0,04 $ ; morceau complet : 0,08 $
+const b64ToBytes = s => Uint8Array.from(atob(s.replace(/\s+/g, "")), c => c.charCodeAt(0));
+
+async function readAudioReply(r) {   // réponse en continu : l'audio arrive par morceaux base64 dans delta.audio.data
+  if (!(r.headers.get("content-type") || "").includes("event-stream")) {
+    const m = (await readJson(r)).choices?.[0]?.message || {};
+    const d = m.audio?.data || m.audio;
+    if (typeof d === "string" && d) return b64ToBytes(d.replace(/^data:[^,]*,/, ""));
+    throw new Error("Le modèle de musique n'a renvoyé aucun son");
+  }
+  const parts = []; let buf = "";
+  const reader = r.body.getReader(), dec = new TextDecoder();
+  for (;;) {
+    let chunk;
+    try { chunk = await reader.read(); } catch { throw new NetError(NET_MSG); }
+    if (chunk.done) break;
+    buf += dec.decode(chunk.value, { stream: true });
+    let i;
+    while ((i = buf.indexOf("\n")) >= 0) {
+      const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+      if (!line.startsWith("data:")) continue;
+      const data = line.slice(5).trim(); if (data === "[DONE]") continue;
+      let j; try { j = JSON.parse(data); } catch { continue; }
+      if (j.error) throw new Error("OpenRouter : " + (j.error.message || JSON.stringify(j.error)));
+      const a = j.choices?.[0]?.delta?.audio?.data; if (a) parts.push(a);
+    }
+  }
+  if (!parts.length) throw new Error("Le modèle de musique n'a renvoyé aucun son");
+  return b64ToBytes(parts.join(""));
+}
+
+async function makeMusic(p) {
+  if (settings.aiMusic === false || !p.musicPrompt) return;
+  if (p.musicFor === p.musicPrompt && await db.get(K.music(p.id))) return;
+  const total = scenesOf(p).length * sceneSec();
+  const model = total <= 30 ? MUSIC_CLIP : MUSIC_PRO;
+  const prompt = `${p.musicPrompt}\nInstrumental only: no vocals, no lyrics, no singing. About ${Math.ceil(total)} seconds long. ` +
+    "Steady, gentle level, made to play quietly under a narrator.";
+  const ask = format => withRetry(async () => readAudioReply(await orFetch("/chat/completions", { method: "POST", body: JSON.stringify({
+    model, modalities: ["text", "audio"], audio: { format }, stream: true, messages: [{ role: "user", content: prompt }] }) })), 2);
+  let bytes;
+  try { bytes = await ask("wav"); }
+  catch (e) { if (!/format|wav/i.test(e.message)) throw e; bytes = await ask("mp3"); }
+  const blob = await playableAudio(new Blob([bytes]), 48000, 2);
+  await putBlob(K.music(p.id), blob);
+  p.musicFor = p.musicPrompt; await saveProj(p, true);
 }
 
 let ttsPicked = false;
@@ -604,13 +671,19 @@ async function ensureVoices(p) {
   }
 }
 
-/* ---- Musique de fond (composée dans le navigateur, libre de droits) ---- */
-function startMusic(ac, out, total) {
+/* ---- Musique de fond : celle composée par l'IA si elle existe (en boucle si besoin), sinon une petite musique
+   composée dans le navigateur (libre de droits) ---- */
+function startMusic(ac, out, total, buffer = null) {
   const master = ac.createGain(), duck = ac.createGain();
   duck.connect(master).connect(out);
-  const t0 = ac.currentTime + 0.05, end = t0 + total;
-  master.gain.setValueAtTime(0, t0); master.gain.linearRampToValueAtTime(MUSIC_VOL, t0 + 1.5);
-  master.gain.setValueAtTime(MUSIC_VOL, Math.max(t0 + 1.6, end - 2.5)); master.gain.linearRampToValueAtTime(0, end);
+  const t0 = ac.currentTime + 0.05, end = t0 + total, vol = buffer ? AI_MUSIC_VOL : MUSIC_VOL;
+  master.gain.setValueAtTime(0, t0); master.gain.linearRampToValueAtTime(vol, t0 + 1.5);
+  master.gain.setValueAtTime(vol, Math.max(t0 + 1.6, end - 2.5)); master.gain.linearRampToValueAtTime(0, end);
+  if (buffer) {
+    const src = ac.createBufferSource(); src.buffer = buffer; src.loop = buffer.duration < total;
+    src.connect(duck); src.start(t0); src.stop(end + 0.1);
+    return { duck };
+  }
   const hz = m => 440 * 2 ** ((m - 69) / 12);
   const note = (m, at, len, type, vol) => {
     const o = ac.createOscillator(), g = ac.createGain();
@@ -699,14 +772,17 @@ async function buildSegments(p, ac, out) {
     const dur = Math.max(base, voice ? voice.duration + VOICE_LEAD + VOICE_TAIL : 0);
     segs.push({ dur,
       start(music) {
-        if (music) {   // la musique baisse pendant la voix off
-          const d = music.duck.gain, n = ac.currentTime; d.cancelScheduledValues(n); d.setValueAtTime(d.value, n);
-          if (voice) { d.setTargetAtTime(0.3, n + VOICE_LEAD - 0.2, 0.12); d.setTargetAtTime(1, n + VOICE_LEAD + voice.duration, 0.3); }
-          else d.setTargetAtTime(1, n, 0.2);
+        const n = ac.currentTime, vStart = n + VOICE_LEAD, vEnd = voice ? vStart + voice.duration : n;
+        if (music) {   // la musique baisse pendant la voix off (et un peu sous les bruitages)
+          const d = music.duck.gain; d.cancelScheduledValues(n); d.setValueAtTime(d.value, n);
+          const rest = video ? 0.7 : 1;
+          if (voice) { d.setTargetAtTime(0.3, vStart - 0.2, 0.12); d.setTargetAtTime(rest, vEnd, 0.3); }
+          else d.setTargetAtTime(rest, n, 0.2);
         }
-        if (video) {
+        if (video) {   // bruitages de la vidéo : présents, mais plus bas pendant la voix off
           const src = ac.createMediaElementSource(video); const gain = ac.createGain();
-          gain.gain.value = voice ? 0 : 1;
+          gain.gain.setValueAtTime(SFX_VOL, n);
+          if (voice) { gain.gain.setTargetAtTime(SFX_UNDER_VOICE, vStart - 0.2, 0.12); gain.gain.setTargetAtTime(SFX_VOL, vEnd, 0.3); }
           src.connect(gain).connect(out); video.currentTime = 0; video.play().catch(() => {});
         }
         if (voice) { const s = ac.createBufferSource(); s.buffer = voice; s.connect(out); s.start(ac.currentTime + VOICE_LEAD); this.voiceNode = s; }
@@ -748,7 +824,10 @@ async function assemble(p, say) {
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     rec.start(500);
     const total = segs.reduce((a, s) => a + s.dur, 0); let done = 0;
-    const music = startMusic(ac, out, total);
+    let musicBuf = null;
+    const mb = settings.aiMusic !== false && p.musicFor === p.musicPrompt ? await db.get(K.music(p.id)) : null;
+    if (mb) { try { musicBuf = await ac.decodeAudioData(await mb.arrayBuffer()); } catch {} }
+    const music = startMusic(ac, out, total, musicBuf);
     for (const s of segs) {
       say?.(`Assemblage · ${Math.round(done)} / ${Math.round(total)} s (gardez la page ouverte)`);
       s.start(music);
@@ -786,9 +865,12 @@ function sceneCountOf(p) {
 }
 function costPerScene() {
   const s = sceneSec(), res = settings.resolution || DEF_VRES;
-  const perSec = (settings.videoModel || DEF_VIDEO) === DEF_VIDEO ? ({ "480p": 0.0115, "720p": 0.026, "1080p": 0.06 }[res] || 0.026) : 0.03;
+  let perSec = (settings.videoModel || DEF_VIDEO) === DEF_VIDEO ? ({ "480p": 0.0115, "720p": 0.026, "1080p": 0.06 }[res] || 0.026) : 0.03;
+  if (settings.sfx !== false) perSec *= 2;   // Seedance : la vidéo avec son coûte le double
   return 0.018 + s * perSec + 0.003;   // image + vidéo + voix off
 }
+const musicCost = n => settings.aiMusic === false ? 0 : n * sceneSec() <= 30 ? 0.04 : 0.08;   // Lyria : extrait 30 s / morceau complet
+const totalCost = n => 0.03 + n * costPerScene() + musicCost(n);
 const money = x => x.toFixed(2).replace(".", ",") + " $";
 const fmtDur = s => s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? " " + (s % 60) + " s" : ""}`;
 function updateEstimate() {
@@ -798,7 +880,7 @@ function updateEstimate() {
   if (!(p.story || "").trim()) { box.textContent = ""; return; }
   const n = sceneCountOf(p), total = n * sceneSec();
   const long = readingSec(p.story) > total * 1.25;
-  box.textContent = `≈ ${n} scènes × ${sceneSec()} s = ${fmtDur(total)} · coût ≈ ${money(0.03 + n * costPerScene())}` +
+  box.textContent = `≈ ${n} scènes × ${sceneSec()} s = ${fmtDur(total)} · coût ≈ ${money(totalCost(n))}` +
     (long ? ` · texte long pour cette durée : il sera résumé (${sug} scènes pour tout lire)` : "");
 }
 
@@ -811,8 +893,8 @@ async function resetGeneration(p) {
     if (sc.frameId) await delBlob(K.img(p.id, sc.frameId));
   }
   if (p.refId) await delBlob(K.img(p.id, p.refId));
-  await delBlob(K.film(p.id));
-  p.storyboard = null; p.refId = null; p.bible = ""; p.jobs = {}; p.errors = {}; p.splitFrom = null;
+  await delBlob(K.film(p.id)); await delBlob(K.music(p.id));
+  p.storyboard = null; p.refId = null; p.bible = ""; p.jobs = {}; p.errors = {}; p.splitFrom = null; p.musicPrompt = ""; p.musicFor = null;
   await saveProj(p, true);
 }
 
@@ -851,7 +933,7 @@ async function autoRun(mode = "full") {
   }
   if (!splitOnly && (!scenesOf(p).length || !p.refId)) {   // avant de dépenser pour les images / vidéos : confirmer le budget
     const n = scenesOf(p).length || sceneCountOf(p);
-    const cost = semi ? 0.03 + n * 0.018 : 0.03 + n * costPerScene();
+    const cost = semi ? 0.03 + n * 0.018 : totalCost(n);
     if (!confirm(`${semi ? "Préparer les scènes (texte + image) ?" : "Générer la vidéo ?"}\n\n${n} scènes × ${sceneSec()} s = ${fmtDur(n * sceneSec())}, coût estimé ≈ ${money(cost)}` +
       `${semi ? " (images seulement ; les vidéos viendront quand vous appuierez sur « Continuer »)" : ""}.\nGardez la page ouverte jusqu'au bout.`)) return;
   }
@@ -894,6 +976,8 @@ async function autoRun(mode = "full") {
       return;
     }
     check(); stepTo(3);
+    // La musique se compose pendant que les vidéos se génèrent ; si elle échoue, on garde la petite musique du navigateur
+    const musicJob = makeMusic(p).catch(e => { p.musicError = e.message; toast("Musique IA impossible, musique simple à la place : " + e.message, true); });
     say("Voix off…"); await ensureVoices(p);
     const tries = {};
     for (;;) {   // lancer les vidéos manquantes, réessayer une fois celles en erreur, attendre la fin
@@ -912,6 +996,7 @@ async function autoRun(mode = "full") {
       }
       await sleep(Math.min(POLL_MS, 3000));
     }
+    say("Musique…"); await musicJob;
     check(); stepTo(4);
     const ok = await assemble(p, say);
     if (!ok) throw new Error("Assemblage interrompu. Appuyez à nouveau sur « Générer » pour le relancer.");
@@ -958,7 +1043,7 @@ async function deleteProject() {
   if (!proj || !confirm(`Supprimer « ${proj.name} » ? Le texte, les images et les vidéos seront effacés définitivement.`)) return;
   const pid = proj.id;
   for (const pre of ["img", "clip", "voice", "tts"]) for (const k of await db.keys(`${pre}:${pid}:`)) await delBlob(k);
-  await delBlob(K.film(pid)); await db.del("p:" + pid); delete loaded[pid];
+  await delBlob(K.film(pid)); await delBlob(K.music(pid)); await db.del("p:" + pid); delete loaded[pid];
   projects = projects.filter(x => x.id !== pid); await saveProjectList();
   proj = null;
   const rest = myProjects();
@@ -1122,11 +1207,13 @@ const SETTING_FIELDS = [["#s-key", "key", ""], ["#s-text", "textModel", DEF_TEXT
   ["#s-dur", "duration", DEF_VDUR], ["#s-res", "resolution", DEF_VRES], ["#s-tts", "ttsModel", DEF_TTS], ["#s-voice", "ttsVoice", DEF_VOICE]];
 function openSettings() {
   for (const [sel, k, d] of SETTING_FIELDS) $(sel).value = settings[k] || d;
+  $("#s-sfx").checked = settings.sfx !== false; $("#s-aimusic").checked = settings.aiMusic !== false;
   $("#dlg-settings").showModal();
 }
 $("#dlg-settings").onclose = () => {
   if ($("#dlg-settings").returnValue !== "ok") return;
   for (const [sel, k, d] of SETTING_FIELDS) settings[k] = $(sel).value.trim() || d;
+  settings.sfx = $("#s-sfx").checked; settings.aiMusic = $("#s-aimusic").checked;
   settings.v2 = settings.v3 = true; saveSettings();
   if (!auto) renderAll();
 };
