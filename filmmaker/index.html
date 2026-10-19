@@ -1,0 +1,1221 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ciné-Dessins</title>
+<meta name="theme-color" content="#fff6ea">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Ciné-Dessins">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  color-scheme: light;
+  --bg:#fff6ea; --card:#ffffff; --soft:#fffaf3; --ink:#2e2a35; --muted:#7f7689; --line:#f0e4d4;
+  --coral:#ff6a55; --coral-d:#e2503c; --blue:#4d7cfe; --blue-d:#3962d9; --sun:#ffc744; --mint:#33b67f; --grape:#9a6cff;
+  --radius:24px;
+  --shadow:0 1px 0 rgba(120,80,30,.06), 0 14px 34px -18px rgba(120,80,30,.35);
+  --font:"Nunito",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --display:"Fredoka","Nunito",system-ui,sans-serif;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;color:var(--ink);font:16px/1.55 var(--font);background:var(--bg);
+  background-image:
+    radial-gradient(600px 400px at -5% -5%, #ffe2c8 0, transparent 70%),
+    radial-gradient(500px 380px at 105% 10%, #dfe8ff 0, transparent 70%),
+    radial-gradient(520px 420px at 50% 110%, #ffeec2 0, transparent 70%);
+  background-attachment:fixed;min-height:100vh}
+h1,h2,h3,.logo{font-family:var(--display);font-weight:600;letter-spacing:.005em}
+button,input,textarea,select{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:#fff;border-radius:999px;padding:.6em 1.2em;font-weight:800;
+  box-shadow:inset 0 0 0 2px var(--line), 0 2px 0 var(--line);transition:transform .08s, box-shadow .12s, background .15s;
+  -webkit-tap-highlight-color:transparent;touch-action:manipulation}
+button:hover:not(:disabled){transform:translateY(-1px)}
+button:active:not(:disabled){transform:translateY(2px);box-shadow:inset 0 0 0 2px var(--line)}
+button:disabled{opacity:.45;cursor:not-allowed}
+button.primary{background:var(--coral);color:#fff;box-shadow:0 3px 0 var(--coral-d)}
+button.primary:active:not(:disabled){box-shadow:0 1px 0 var(--coral-d)}
+button.blue{background:var(--blue);color:#fff;box-shadow:0 3px 0 var(--blue-d)}
+button.blue:active:not(:disabled){box-shadow:0 1px 0 var(--blue-d)}
+button.ghost{background:transparent;box-shadow:none;padding:.35em .7em;color:var(--muted)}
+button.ghost:hover:not(:disabled){background:rgba(0,0,0,.04);color:var(--ink)}
+button.small{font-size:.86rem;padding:.42em .95em}
+button.big{font-size:1.1rem;padding:.8em 1.6em}
+input[type=text],input[type=password],textarea,select{width:100%;border:2px solid var(--line);border-radius:14px;padding:.6em .8em;background:#fff;transition:border-color .15s}
+textarea{resize:vertical;min-height:3.2em}
+input:focus,textarea:focus,select:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 4px rgba(77,124,254,.15)}
+label.f{display:block;font-size:.84rem;font-weight:700;color:var(--muted);margin:.2em 0 .8em}
+label.f > input, label.f > textarea, label.f > select{margin-top:.3em;color:var(--ink);font-size:1rem;font-weight:400}
+a{color:var(--blue)}
+
+header{position:sticky;top:0;z-index:5;background:rgba(255,246,234,.82);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(240,228,212,.9);padding-top:env(safe-area-inset-top)}
+.bar{max-width:1120px;margin:0 auto;padding:.65rem 16px;display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+.logo{font-size:1.5rem;margin-right:auto;display:flex;align-items:center;gap:.5rem;white-space:nowrap}
+.logo i{display:inline-grid;place-items:center;width:2.1rem;height:2.1rem;border-radius:12px;font-style:normal;font-size:1.15rem;
+  background:linear-gradient(135deg,var(--sun),var(--coral));box-shadow:0 3px 0 var(--coral-d);transform:rotate(-6deg)}
+.logo b{font-weight:700;color:var(--coral)}
+.bar select{width:auto;min-width:9rem;max-width:14rem;padding:.42em .7em;border-radius:999px;font-size:.92rem;font-weight:700}
+
+main{max-width:1120px;margin:0 auto;padding:1.4rem 16px calc(5rem + env(safe-area-inset-bottom))}
+.banner{display:flex;gap:.8rem;align-items:flex-start;background:#fff;border-radius:18px;padding:.9em 1.1em;margin-bottom:1.2rem;box-shadow:var(--shadow);border-left:6px solid var(--sun)}
+.banner .ico{font-size:1.4rem;line-height:1.2}
+section.step{background:var(--card);border-radius:var(--radius);padding:1.4rem 1.5rem 1.6rem;margin-bottom:1.4rem;box-shadow:var(--shadow)}
+.step h2{margin:0 0 .25rem;font-size:1.45rem;display:flex;align-items:center;gap:.7rem}
+.step h2 b{display:inline-grid;place-items:center;width:2.3rem;height:2.3rem;border-radius:14px;color:#fff;font-size:1.15rem;flex:none;transform:rotate(-5deg)}
+#sec-pics h2 b{background:var(--sun);color:var(--ink);box-shadow:0 3px 0 #e0a92a}
+#sec-sb h2 b{background:var(--blue);box-shadow:0 3px 0 var(--blue-d)}
+#sec-film h2 b{background:var(--coral);box-shadow:0 3px 0 var(--coral-d)}
+.step p.sub{margin:.15rem 0 1.1rem;color:var(--muted);font-size:.95rem;max-width:62ch}
+.row{display:flex;gap:.6rem;flex-wrap:wrap;align-items:center}
+.muted{color:var(--muted)}
+.hint{font-size:.84rem;color:var(--muted);margin:.3rem 0}
+
+.pics{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:.9rem;margin-bottom:1.1rem}
+.pic{position:relative;aspect-ratio:1;border-radius:18px;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
+.pic img{width:100%;height:100%;object-fit:contain}
+.pic span{position:absolute;left:.45rem;bottom:.4rem;background:rgba(255,255,255,.92);border-radius:8px;padding:0 .45rem;font-size:.78rem;font-weight:800}
+.pic button{position:absolute;top:.35rem;right:.35rem;padding:0;width:1.9rem;height:1.9rem;font-size:.85rem;line-height:1}
+.add-pic{border:2.5px dashed #e6cfb3;border-radius:18px;display:grid;place-content:center;justify-items:center;gap:.15rem;aspect-ratio:1;color:var(--muted);
+  cursor:pointer;text-align:center;font-weight:800;padding:.5rem;background:var(--soft);transition:border-color .15s,color .15s,background .15s;user-select:none}
+.add-pic .em{font-size:1.9rem;line-height:1.1}
+.add-pic small{font-weight:600;font-size:.76rem}
+.add-pic:hover,.drop .add-pic{border-color:var(--blue);color:var(--blue);background:#f3f6ff}
+.add-pic.cam{border-color:#ffc0b5;color:var(--coral-d);background:#fff5f2}
+.add-pic.cam:hover{border-color:var(--coral);background:#ffece7}
+
+.scenes{display:flex;flex-direction:column;gap:1rem;margin:1rem 0}
+.scene{display:grid;grid-template-columns:2.6rem 170px 1fr 280px;gap:1.1rem;border-radius:20px;padding:1.1rem;background:var(--soft);box-shadow:inset 0 0 0 2px var(--line)}
+.scene-num{font-family:var(--display);font-weight:700;font-size:1.25rem;color:#fff;background:var(--blue);width:2.3rem;height:2.3rem;border-radius:50%;display:grid;place-items:center}
+.scene-tools{display:flex;flex-direction:column;gap:.15rem;margin-top:.6rem}
+.scene-tools button{font-size:.95rem;padding:.25em .5em}
+.scene-pic img{width:100%;aspect-ratio:1;object-fit:contain;border-radius:14px;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
+.scene-pic select{margin-top:.45rem;font-size:.86rem;padding:.4em .6em}
+.voice{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap}
+.voice audio{height:36px;max-width:100%}
+.rec-live{display:flex;align-items:center;gap:.6rem;flex-wrap:wrap;width:100%;background:#fff;border-radius:16px;padding:.5rem .6rem;box-shadow:inset 0 0 0 2px #ffd2ca}
+.rec-live .count{font-family:var(--display);font-size:1.6rem;font-weight:700;color:var(--coral);min-width:1.4em;text-align:center}
+.recbar{flex:1;min-width:6rem;height:10px;border-radius:99px;background:#ffe5e0;overflow:hidden}
+.recbar i{display:block;height:100%;width:100%;background:linear-gradient(90deg,var(--coral),var(--sun));border-radius:99px;transition:width .1s linear}
+.rec-time{font-weight:800;font-variant-numeric:tabular-nums;color:var(--coral-d);min-width:3.2em}
+.rec{background:var(--coral);color:#fff;box-shadow:0 3px 0 var(--coral-d)}
+.rec::before{content:"";display:inline-block;width:.6em;height:.6em;border-radius:50%;background:#fff;margin-right:.45em;animation:blink 1s infinite}
+@keyframes blink{50%{opacity:.2}}
+.media video{width:100%;border-radius:14px;background:#000;display:block}
+.media .placeholder{border-radius:14px;padding:.8rem .9rem;font-size:.84rem;color:var(--muted);background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
+.dur{display:flex;align-items:center;gap:.5rem;margin-top:.55rem;font-size:.84rem;font-weight:700;color:var(--muted)}
+.dur select{width:auto;padding:.3em .6em;font-size:.9rem}
+.chip{display:inline-block;font-size:.8rem;border-radius:999px;padding:.15em .75em;background:#edf2ff;color:var(--blue);font-weight:800}
+.chip.err{background:#ffe9e5;color:var(--coral-d)}
+.chip.ok{background:#e4f6ee;color:var(--mint)}
+.script-box{margin:1rem 0 .4rem;padding:.9rem 1rem;border-radius:18px;background:#f3f6ff;box-shadow:inset 0 0 0 2px #dde6ff}
+.script-box h3{margin:0 0 .2rem;font-size:1.05rem}
+.script-pages{display:flex;gap:.6rem;flex-wrap:wrap;margin:.6rem 0 .2rem}
+.script-pages .pic{width:84px;aspect-ratio:3/4}
+.auto-voice{display:inline-flex;align-items:center;gap:.4rem;font-size:.84rem;font-weight:800;color:var(--grape)}
+.switch{display:inline-flex;align-items:center;gap:.5rem;font-weight:700;cursor:pointer;user-select:none}
+.switch input{width:1.2rem;height:1.2rem;accent-color:var(--coral)}
+.err-msg{font-size:.82rem;color:var(--coral-d);word-break:break-word}
+
+.stage-wrap{background:#2b2633;border-radius:20px;padding:10px;margin-bottom:.9rem;box-shadow:0 18px 40px -22px rgba(30,20,40,.7)}
+canvas#stage{width:100%;aspect-ratio:16/9;display:block;border-radius:12px;background:#fff}
+#film-out{margin-top:.8rem}
+#film-out video{width:100%;max-width:640px;border-radius:14px;display:block;margin:.6rem 0}
+
+dialog{border:none;border-radius:var(--radius);padding:1.4rem 1.5rem;width:min(560px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;box-shadow:0 30px 80px -20px rgba(40,20,10,.45)}
+dialog::backdrop{background:rgba(46,42,53,.4);backdrop-filter:blur(2px)}
+dialog h3{margin:0 0 .9rem;font-size:1.4rem}
+dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1rem 0 0}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:.6rem}
+.caps{font-size:.78rem;color:var(--muted);background:var(--soft);border-radius:12px;padding:.6rem .8rem;white-space:pre-wrap;word-break:break-word;max-height:9rem;overflow:auto}
+
+#toast{position:fixed;left:50%;bottom:calc(1.2rem + env(safe-area-inset-bottom));transform:translate(-50%,10px);background:var(--ink);color:#fff;padding:.7em 1.2em;border-radius:16px;
+  max-width:min(680px,calc(100vw - 32px));font-size:.94rem;font-weight:600;opacity:0;pointer-events:none;transition:opacity .2s,transform .2s;z-index:20;box-shadow:0 14px 30px -10px rgba(0,0,0,.4)}
+#toast.show{opacity:1;pointer-events:auto;transform:translate(-50%,0)}
+#toast.err{background:var(--coral-d)}
+
+.hero{text-align:center;padding:2.6rem 1rem 1rem}
+.hero .art{font-size:3.4rem;line-height:1;display:flex;justify-content:center;gap:.6rem;margin-bottom:1rem}
+.hero .art span{display:inline-grid;place-items:center;width:5rem;height:5rem;border-radius:26px;background:#fff;box-shadow:var(--shadow)}
+.hero .art span:nth-child(1){transform:rotate(-8deg)}
+.hero .art span:nth-child(2){background:transparent;box-shadow:none;width:auto;font-size:2rem;color:var(--muted)}
+.hero .art span:nth-child(3){transform:rotate(7deg)}
+.hero h1{font-size:clamp(1.8rem,5vw,2.6rem);margin:.2rem 0 .4rem;line-height:1.15}
+.hero p{color:var(--muted);max-width:40ch;margin:0 auto 1.6rem;font-size:1.05rem}
+.how{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;max-width:820px;margin:2.4rem auto 0}
+.how div{background:#fff;border-radius:20px;padding:1rem 1.1rem;box-shadow:var(--shadow);text-align:left}
+.how b{display:block;font-family:var(--display);font-size:1.1rem;margin:.3rem 0 .1rem}
+.how small{color:var(--muted);font-size:.88rem}
+.how .em{font-size:1.6rem}
+
+@media (max-width:860px){
+  .scene{grid-template-columns:1fr}
+  .scene > div:first-child{display:flex;align-items:center;gap:.6rem}
+  .scene-tools{flex-direction:row;margin:0 0 0 auto}
+  .scene-pic img{max-height:260px}
+  .grid3{grid-template-columns:1fr}
+}
+@media (max-width:600px){
+  .bar{gap:.4rem}
+  .logo{font-size:1.3rem;width:100%;margin-right:0}
+  .bar select{flex:1;max-width:none}
+  .btn-label{display:none}
+  section.step{padding:1.1rem 1rem 1.3rem;border-radius:20px}
+  .step h2{font-size:1.25rem}
+  .pics{grid-template-columns:repeat(3,1fr);gap:.6rem}
+  .add-pic .em{font-size:1.5rem}
+  .add-pic small{display:none}
+  .how{grid-template-columns:1fr}
+  #sec-film .row button{flex:1}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="logo"><i>🎬</i><span>Ciné-<b>Dessins</b></span></div>
+    <select id="proj-select" aria-label="Film"></select>
+    <button class="small" id="btn-new" title="Nouveau film">＋<span class="btn-label"> Nouveau</span></button>
+    <button class="small ghost" id="btn-del-proj" title="Supprimer ce film">🗑<span class="btn-label"> Supprimer</span></button>
+    <button class="small" id="btn-settings" title="Réglages">⚙<span class="btn-label"> Réglages</span></button>
+  </div>
+</header>
+
+<main id="main"></main>
+
+<dialog id="dlg-settings">
+  <form method="dialog">
+    <h3>Réglages</h3>
+    <label class="f">Clé API OpenRouter
+      <input type="password" id="s-key" placeholder="sk-or-..." autocomplete="off">
+    </label>
+    <p class="hint">À créer sur openrouter.ai/keys. Elle reste uniquement dans ce navigateur, sur cet appareil, et n'est envoyée qu'à OpenRouter. Conseil : fixez une limite de dépense pour cette clé sur OpenRouter.</p>
+    <label class="f">Modèle qui écrit le scénario (doit savoir lire les images)
+      <input type="text" id="s-text">
+    </label>
+    <label class="f">Modèle vidéo
+      <input type="text" id="s-video" list="dl-video">
+      <datalist id="dl-video"></datalist>
+    </label>
+    <div class="grid3" style="grid-template-columns:2fr 1fr">
+      <label class="f">Voix automatique : modèle<input type="text" id="s-tts"></label>
+      <label class="f">Voix<input type="text" id="s-voice" list="dl-voice"><datalist id="dl-voice"><option value="nova"><option value="alloy"><option value="shimmer"><option value="coral"><option value="fable"><option value="sage"></datalist></label>
+    </div>
+    <div class="row" style="margin:-.2rem 0 .7rem"><button type="button" class="small" id="s-refresh">Actualiser la liste depuis OpenRouter</button><span class="hint" id="s-refresh-msg"></span></div>
+    <div class="caps" id="s-caps" hidden></div>
+    <div class="grid3" style="margin-top:.7rem">
+      <label class="f">Durée (s)<input type="text" id="s-dur" list="dl-dur" placeholder="par défaut"><datalist id="dl-dur"></datalist></label>
+      <label class="f">Résolution<input type="text" id="s-res" list="dl-res" placeholder="par défaut"><datalist id="dl-res"></datalist></label>
+      <label class="f">Format<input type="text" id="s-ar" list="dl-ar" placeholder="par défaut"><datalist id="dl-ar"></datalist></label>
+    </div>
+    <p class="hint">Laissez vide pour la valeur par défaut du modèle. Les valeurs possibles dépendent du modèle (voir ci-dessus).</p>
+    <menu><button value="cancel" class="ghost">Annuler</button><button value="ok" class="primary" id="s-save">Enregistrer</button></menu>
+  </form>
+</dialog>
+
+<input type="file" id="file-imgs" accept="image/*" multiple hidden>
+<input type="file" id="file-cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="file-voice" accept="audio/*" hidden>
+<input type="file" id="file-clip" accept="video/*" hidden>
+<div id="toast" role="status"></div>
+
+<script>
+"use strict";
+/* ============ Configuration ============ */
+const API = "https://openrouter.ai/api/v1";
+let POLL_MS = 15000;                       // intervalle de suivi de la génération vidéo
+const W = 1280, H = 720;                   // taille du film
+const DEFAULT_DUR = 5;                     // durée d'une scène sans vidéo IA (s)
+const VOICE_LEAD = 0.3, VOICE_TAIL = 0.5;  // la voix démarre 0,3 s après le début de la scène, et finit 0,5 s avant la fin
+const MUSIC_VOL = 0.16;                    // volume de la musique de fond
+const TTS_STYLE = "Read this like a warm, gentle storyteller narrating a children's picture book, slowly and clearly, in the language of the text.";
+const DEF_TTS = "openai/gpt-4o-mini-tts-2025-12-15", DEF_VOICE = "nova";
+const STYLE = "Keep the original child's hand-drawn look exactly: same lines, same colors, " +
+  "same paper texture. Gentle, simple motion only. Do not add details, do not redraw, do not make it realistic.";
+const PROMPT = `You are directing a short film made from a child's drawings.
+Read any handwritten text in the drawings as well as the child's text above.
+Keep the child's own story and words; do not invent a different plot.
+Usually one scene per drawing, in the order that makes the story work.
+If photos of the child's handwritten script are given, they are the script: follow them closely
+for the scene order, what happens and the narration (do not turn script pages into scenes).
+
+Return ONLY a JSON object, no other text:
+{
+  "title": "...",
+  "scenes": [
+    {
+      "image": "<exact drawing label, e.g. drawing_1>",
+      "motion": "<English prompt: what moves in this drawing and how, simple>",
+      "narration": "<1-2 short sentences in the child's language (French if unsure), close to their words>"
+    }
+  ]
+}`;
+
+/* ============ Petits outils ============ */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const lsGet = k => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k, v) => { try { localStorage.setItem(k, v); } catch {} };
+const sec = x => (Math.round(x * 10) / 10).toLocaleString("fr-FR") + " s";
+
+let toastTimer;
+function toast(msg, isErr = false, ms = 4500) {
+  const t = $("#toast");
+  t.textContent = msg; t.className = "show" + (isErr ? " err" : "");
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = "", isErr ? 9000 : ms);
+}
+function blobToDataURL(blob) {
+  return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsDataURL(blob); });
+}
+function pickFile(input, multiple = false) {
+  return new Promise(res => {
+    input.value = ""; input.onchange = () => res(multiple ? [...input.files] : input.files[0]); input.click();
+  });
+}
+
+/* ============ Stockage local du navigateur (IndexedDB) ============ */
+const db = (() => {
+  let opening;
+  const open = () => opening ||= new Promise((res, rej) => {
+    const r = indexedDB.open("huabian-film", 1);
+    r.onupgradeneeded = () => r.result.createObjectStore("kv");
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  });
+  async function tx(mode, fn) {
+    const d = await open();
+    return new Promise((res, rej) => {
+      const t = d.transaction("kv", mode); const req = fn(t.objectStore("kv"));
+      t.oncomplete = () => res(req ? req.result : undefined); t.onerror = () => rej(t.error);
+    });
+  }
+  return {
+    get: k => tx("readonly", s => s.get(k)),
+    set: (k, v) => tx("readwrite", s => s.put(v, k)),
+    del: k => tx("readwrite", s => s.delete(k)),
+    keys: async prefix => (await tx("readonly", s => s.getAllKeys())).filter(k => String(k).startsWith(prefix)),
+  };
+})();
+
+/* ============ Réglages ============ */
+let settings = Object.assign(
+  { key: "", textModel: "anthropic/claude-sonnet-5.5", videoModel: "bytedance/seedance-2.0-fast", duration: "", resolution: "", aspect: "", ttsModel: DEF_TTS, ttsVoice: DEF_VOICE },
+  JSON.parse(lsGet("huabian-settings") || "{}"));
+const saveSettings = () => lsSet("huabian-settings", JSON.stringify(settings));
+let videoModels = JSON.parse(lsGet("huabian-models") || "[]");
+
+/* ============ État ============ */
+let projects = [];            // [{id, name}]
+let proj = null;              // film ouvert
+const loaded = {};            // id -> film (gardé en mémoire pour le suivi en arrière-plan)
+const urls = {};              // URL temporaires des blobs
+const status = {};            // "pid:sid" -> état de la génération vidéo
+const polling = new Set();
+let recState = null;          // enregistrement de voix en cours
+let playing = null;           // aperçu / enregistrement du film en cours
+
+const K = {
+  img:   (pid, id)  => `img:${pid}:${id}`,
+  clip:  (pid, sid) => `clip:${pid}:${sid}`,
+  voice: (pid, sid) => `voice:${pid}:${sid}`,
+  tts:   (pid, sid) => `tts:${pid}:${sid}`,     // voix automatique (quand l'enfant n'a pas enregistré)
+  film:  pid        => `film:${pid}`,
+};
+async function blobUrl(key) {
+  if (urls[key]) return urls[key];
+  const b = await db.get(key); if (!b) return null;
+  return urls[key] = URL.createObjectURL(b);
+}
+function dropUrl(key) { if (urls[key]) { URL.revokeObjectURL(urls[key]); delete urls[key]; } }
+async function putBlob(key, b) { await db.set(key, b); dropUrl(key); }
+async function delBlob(key) { await db.del(key); dropUrl(key); }
+
+function saveProj(p = proj, now = false) {
+  if (!p) return;
+  p.updated = Date.now();
+  clearTimeout(p._t);
+  const doit = () => { const { _t, ...clean } = p; return db.set("p:" + p.id, clean); };
+  if (now) return doit();
+  p._t = setTimeout(doit, 400);
+}
+async function saveProjectList() { await db.set("projects", projects); }
+const scenesOf = p => p.storyboard?.scenes || [];
+const findScene = (p, sid) => scenesOf(p).find(s => s.id === sid);
+function nextSid(p) { p.sidCounter = (p.sidCounter || 0) + 1; return String(p.sidCounter).padStart(2, "0"); }
+
+/* ============ OpenRouter ============ */
+async function orFetch(path, opts = {}) {
+  if (!settings.key) { openSettings(); throw new Error("Ajoutez d'abord votre clé API OpenRouter dans les réglages"); }
+  const headers = { Authorization: "Bearer " + settings.key, "X-Title": "Cine-Dessins", ...(opts.headers || {}) };
+  if (typeof opts.body === "string") headers["Content-Type"] = "application/json";
+  let r;
+  try {
+    r = await fetch(path.startsWith("http") ? path : API + path, { ...opts, headers });
+  } catch {
+    throw new Error("Impossible de joindre OpenRouter (problème de réseau, ou le navigateur bloque les requêtes depuis un fichier local). " +
+      "Si ça continue : lancez npx serve dans le dossier de ce fichier, puis ouvrez http://localhost:3000.");
+  }
+  if (!r.ok) {
+    const t = await r.text();
+    if (/ZDR violation/i.test(t))
+      throw new Error("Ce modèle ne respecte pas l'option « zéro conservation des données » de vos réglages OpenRouter : requête refusée (rien n'a été facturé). " +
+        "Sur openrouter.ai/settings/privacy, autorisez « Safety retention allowed » pour ce fournisseur (Seedance est dans All other models), ou choisissez un autre modèle vidéo.");
+    if (/guardrail/i.test(t) && /0 endpoints/i.test(t))
+      throw new Error("Ce modèle est bloqué par une restriction OpenRouter (Guardrail : liste de modèles ou budget). Rien n'a été facturé. Vérifiez vos Guardrails ou changez de modèle.");
+    if (r.status === 402) throw new Error("Crédit OpenRouter insuffisant, ou limite de dépense de cette clé atteinte.");
+    if (r.status === 401) throw new Error("Clé API incorrecte ou expirée : saisissez-la à nouveau dans les réglages.");
+    throw new Error(`OpenRouter a répondu ${r.status} : ${t.slice(0, 400)}`);
+  }
+  return r;
+}
+
+async function refreshVideoModels() {
+  const r = await orFetch("/videos/models");
+  const j = await r.json();
+  videoModels = (j.data || []).map(m => {
+    const caps = {};
+    for (const [k, v] of Object.entries(m)) if (k.startsWith("supported_") || k === "pricing" || k === "generate_audio") caps[k] = v;
+    return { id: m.id, name: m.name || m.id, caps };
+  });
+  lsSet("huabian-models", JSON.stringify(videoModels));
+  return videoModels;
+}
+
+/* ---- 1. Claude écrit le scénario ---- */
+const AI_SB_LABEL = "✨ Claude écrit le scénario";
+async function generateStoryboard() {
+  const p = proj;
+  if (!p.images.length) return toast("Ajoutez d'abord au moins un dessin", true);
+  if (!settings.key) {   // pas de clé : version gratuite
+    if (confirm("Pas encore de clé API OpenRouter.\nUtiliser la version gratuite : une scène par dessin, le texte de l'enfant réparti automatiquement ?")) manualStoryboard();
+    return;
+  }
+  if (scenesOf(p).length && !confirm("Réécrire le scénario efface les scènes, les vidéos et les voix actuelles. Continuer ?")) return;
+  const btn = $("#btn-ai-sb"); btn.disabled = true; btn.textContent = "Claude regarde les dessins…";
+  try {
+    const content = [];
+    for (let i = 0; i < p.images.length; i++) {
+      content.push({ type: "text", text: `Drawing label: drawing_${i + 1}` });
+      content.push({ type: "image_url", image_url: { url: await blobToDataURL(await db.get(K.img(p.id, p.images[i].id))) } });
+    }
+    const pages = p.scriptImgs || [];
+    for (let i = 0; i < pages.length; i++) {
+      content.push({ type: "text", text: `Handwritten script page ${i + 1} of ${pages.length} (this is the script, not a drawing):` });
+      content.push({ type: "image_url", image_url: { url: await blobToDataURL(await db.get(K.img(p.id, pages[i].id))) } });
+    }
+    if (p.story.trim()) content.push({ type: "text", text: "Child's text:\n" + p.story });
+    content.push({ type: "text", text: PROMPT });
+    const r = await orFetch("/chat/completions", { method: "POST", body: JSON.stringify({
+      model: settings.textModel, max_tokens: 4000, messages: [{ role: "user", content }] }) });
+    const j = await r.json();
+    let text = j.choices?.[0]?.message?.content ?? "";
+    if (Array.isArray(text)) text = text.map(x => x.text || "").join("");
+    let sb;
+    try { sb = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); }
+    catch { throw new Error("Le scénario reçu n'est pas dans le bon format, réessayez"); }
+    await clearScenes(p);
+    p.storyboard = { title: sb.title || p.name, scenes: [] };
+    for (const sc of sb.scenes || []) {
+      const n = parseInt(String(sc.image || "").replace(/\D+/g, ""), 10);
+      const img = p.images[n - 1]; if (!img) continue;
+      p.storyboard.scenes.push({ id: nextSid(p), imageId: img.id, motion: sc.motion || "", narration: sc.narration || "" });
+    }
+    await saveProj(p, true);
+    if (proj === p) renderStoryboard();
+    toast("Le scénario est prêt. Relisez-le, modifiez-le, puis animez les scènes.");
+  } catch (e) { toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = AI_SB_LABEL; }
+}
+
+async function clearScenes(p) {
+  for (const sc of scenesOf(p)) {
+    await delBlob(K.clip(p.id, sc.id)); await delBlob(K.voice(p.id, sc.id)); await delBlob(K.tts(p.id, sc.id));
+  }
+  p.jobs = {}; p.errors = {};
+}
+
+/* ---- 2. Image → vidéo (envoi → suivi → téléchargement) ---- */
+async function startVideo(p, sid) {
+  const sc = findScene(p, sid); if (!sc) return;
+  if (!settings.key) return toast("Pas de clé API : dans le film, cette scène sera un lent zoom sur le dessin (gratuit). Pour une vidéo IA, ajoutez une clé dans les réglages.", true);
+  const key = `${p.id}:${sid}`;
+  if (p.jobs[sid] || status[key] === "Envoi…") return;
+  delete p.errors[sid]; status[key] = "Envoi…"; updateMedia(p, sid);
+  try {
+    const body = {
+      model: settings.videoModel,
+      prompt: `${sc.motion || "gentle subtle movement"}. ${STYLE}`,
+      frame_images: [{ type: "image_url", image_url: { url: await blobToDataURL(await db.get(K.img(p.id, sc.imageId))) }, frame_type: "first_frame" }],
+    };
+    if (settings.duration) body.duration = isNaN(+settings.duration) ? settings.duration : +settings.duration;
+    if (settings.resolution) body.resolution = settings.resolution;
+    if (settings.aspect) body.aspect_ratio = settings.aspect;
+    const r = await orFetch("/videos", { method: "POST", body: JSON.stringify(body) });
+    const job = await r.json();
+    p.jobs[sid] = { id: job.id, poll: job.polling_url || `/videos/${job.id}`, started: Date.now(), model: settings.videoModel };
+    await saveProj(p, true);
+    pollJob(p, sid);
+  } catch (e) {
+    p.errors[sid] = { msg: e.message }; delete status[key]; saveProj(p); updateMedia(p, sid);
+  }
+}
+
+async function pollJob(p, sid) {
+  const key = `${p.id}:${sid}`;
+  if (polling.has(key)) return;
+  polling.add(key);
+  try {
+    while (p.jobs[sid]) {
+      const job = p.jobs[sid];
+      const mins = Math.floor((Date.now() - job.started) / 60000);
+      if (Date.now() - job.started > 45 * 60000) throw new Error("Toujours pas prête après 45 minutes : abandon");
+      const pollUrl = job.poll.startsWith("http") ? job.poll : (job.poll.startsWith("/api") ? "https://openrouter.ai" + job.poll : job.poll);
+      const s = await (await orFetch(pollUrl)).json();
+      const st = s.status || "?";
+      if (st === "completed") {
+        status[key] = "Téléchargement…"; updateMedia(p, sid);
+        const blob = await downloadClip(job, s);
+        await putBlob(K.clip(p.id, sid), blob);
+        delete p.jobs[sid]; delete status[key];
+        await saveProj(p, true); updateMedia(p, sid); updateVoice(p, sid);
+        toast(`La vidéo de la scène ${sceneNo(p, sid)} est prête`);
+        break;
+      }
+      if (["failed", "cancelled", "expired"].includes(st)) throw new Error("La génération a échoué : " + (s.error?.message || s.error || st));
+      status[key] = ({ pending: "En file d'attente", queued: "En file d'attente", in_progress: "En cours", processing: "En cours", running: "En cours" }[st] || st) + (mins ? ` · ${mins} min` : "");
+      updateMedia(p, sid);
+      await sleep(POLL_MS);
+    }
+  } catch (e) {
+    const link = e.downloadUrl;
+    delete p.jobs[sid]; delete status[key];
+    p.errors[sid] = { msg: e.message, url: link };
+    await saveProj(p, true); updateMedia(p, sid);
+  } finally { polling.delete(key); }
+}
+
+async function downloadClip(job, s) {
+  try { return await (await orFetch(`/videos/${job.id}/content?index=0`)).blob(); }
+  catch {}
+  const u = s.unsigned_urls?.[0];
+  if (u) { try { const r = await fetch(u); if (r.ok) return await r.blob(); } catch {} }
+  const e = new Error("La vidéo est prête, mais le navigateur n'a pas pu la récupérer. Téléchargez-la avec le lien ci-dessous, puis remettez-la avec « Importer une vidéo ».");
+  e.downloadUrl = u; throw e;
+}
+
+/* ============ Import des images (réduites à 1568 px de côté max) ============ */
+async function importImages(files, target = "images") {
+  const p = proj; let n = 0; p[target] ||= [];
+  for (const f of files) {
+    let bmp;
+    try { bmp = await createImageBitmap(f, { imageOrientation: "from-image" }); }
+    catch { toast(`Impossible d'ouvrir ${f.name} (les photos HEIC d'iPhone doivent d'abord être exportées en JPG)`, true); continue; }
+    const s = Math.min(1, 1568 / Math.max(bmp.width, bmp.height));
+    const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+    const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+    const blob = await new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
+    const id = uid();
+    await putBlob(K.img(p.id, id), blob);
+    p[target].push({ id, name: f.name }); n++;
+  }
+  await saveProj(p, true);
+  if (target === "scriptImgs") { if (proj === p) renderScript(); if (n) toast("Page du scénario ajoutée : Claude la lira en écrivant le scénario"); return; }
+  if (proj === p) { renderImages(); renderStoryboard(); }
+  if (n) toast(n > 1 ? `${n} dessins ajoutés` : "Dessin ajouté");
+}
+
+/* ============ Gestion des films ============ */
+async function newProject() {
+  const name = prompt("Donnez un nom à ce film :", "Mon petit film");
+  if (!name?.trim()) return;
+  const p = { id: uid(), name: name.trim(), story: "", images: [], storyboard: null, jobs: {}, errors: {}, sidCounter: 0 };
+  loaded[p.id] = p;
+  await saveProj(p, true);
+  projects.unshift({ id: p.id, name: p.name }); await saveProjectList();
+  await openProject(p.id);
+}
+
+async function openProject(id) {
+  if (recState) stopRec(recState);
+  stopPlayback();
+  proj = loaded[id] || (loaded[id] = await db.get("p:" + id));
+  if (!proj) { proj = null; renderAll(); return; }
+  proj.jobs ||= {}; proj.errors ||= {}; proj.images ||= [];
+  lsSet("huabian-last", id);
+  renderAll();
+  for (const sid of Object.keys(proj.jobs)) pollJob(proj, sid);
+}
+
+async function deleteProject() {
+  if (!proj || !confirm(`Supprimer le film « ${proj.name} » ? Les dessins, les voix et les vidéos seront effacés définitivement.`)) return;
+  const pid = proj.id;
+  for (const k of await db.keys(`img:${pid}:`)) await delBlob(k);
+  for (const k of await db.keys(`clip:${pid}:`)) await delBlob(k);
+  for (const k of await db.keys(`voice:${pid}:`)) await delBlob(k);
+  for (const k of await db.keys(`tts:${pid}:`)) await delBlob(k);
+  await delBlob(K.film(pid)); await db.del("p:" + pid); delete loaded[pid];
+  projects = projects.filter(x => x.id !== pid); await saveProjectList();
+  proj = null;
+  if (projects.length) await openProject(projects[0].id); else renderAll();
+}
+
+/* ============ Affichage ============ */
+function renderAll() {
+  const sel = $("#proj-select");
+  sel.innerHTML = projects.map(x => `<option value="${x.id}" ${proj?.id === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
+  sel.hidden = !projects.length; $("#btn-del-proj").hidden = !proj;
+  const main = $("#main");
+  const keyBanner = settings.key ? "" :
+    `<div class="banner"><span class="ico">💡</span><div>Pour l'IA : touchez <b>⚙ Réglages</b> et collez votre clé API OpenRouter. Sans clé, tout marche quand même gratuitement : vous écrivez le scénario et chaque dessin s'anime par un lent zoom.</div></div>`;
+  if (!proj) {
+    main.innerHTML = keyBanner + `<div class="hero">
+      <div class="art"><span>🖍️</span><span>→</span><span>🎬</span></div>
+      <h1>Transformez les dessins de votre enfant en petit film</h1>
+      <p>Photographiez ses dessins, laissez-le raconter l'histoire avec sa voix, et repartez avec une vraie vidéo.</p>
+      <button class="primary big" onclick="newProject()">＋ Créer mon premier film</button>
+      <div class="how">
+        <div><span class="em">📷</span><b>1. Les dessins</b><small>Prenez-les en photo ou importez-les, dans l'ordre de l'histoire.</small></div>
+        <div><span class="em">🎙️</span><b>2. Le scénario</b><small>Claude propose les scènes, l'enfant enregistre sa voix pour chacune.</small></div>
+        <div><span class="em">🍿</span><b>3. Le film</b><small>Aperçu, enregistrement, téléchargement. C'est prêt à partager !</small></div>
+      </div></div>`;
+    return;
+  }
+  main.innerHTML = keyBanner + `
+  <section class="step" id="sec-pics">
+    <h2><b>1</b>Les dessins et l'histoire</h2>
+    <p class="sub">Prenez les dessins en photo (ou importez-les), dans l'ordre de l'histoire. Le texte de l'enfant peut être recopié ci-dessous ou écrit directement sur les dessins : Claude le lira.</p>
+    <div class="pics" id="pics"></div>
+    <label class="f">L'histoire racontée par l'enfant (facultatif)<textarea id="story" rows="3" placeholder="Il était une fois…"></textarea></label>
+  </section>
+  <section class="step" id="sec-sb">
+    <h2><b>2</b>Le scénario</h2>
+    <p class="sub">Claude propose une première version, vous la modifiez ensemble. Pour chaque scène, l'enfant peut enregistrer sa voix (l'enregistrement s'arrête tout seul à la fin de la scène) ; sinon une voix automatique lit la narration. Sans vidéo IA, la scène est un lent zoom sur le dessin (gratuit).</p>
+    <div class="script-box">
+      <h3>📝 Le scénario écrit à la main (facultatif)</h3>
+      <div class="hint" style="margin:0">Si l'enfant a écrit son histoire sur papier, prenez chaque page en photo : Claude la suivra pour écrire les scènes.</div>
+      <div class="script-pages" id="script-pages"></div>
+      <div class="row"><button class="small" id="btn-script-cam" onclick="addScriptPage()">📷 Photographier le scénario écrit</button></div>
+    </div>
+    <div class="row">
+      <button class="blue" id="btn-ai-sb" onclick="generateStoryboard()">${AI_SB_LABEL}</button>
+      <button onclick="manualStoryboard()">Une scène par dessin (je l'écris)</button>
+    </div>
+    <div id="sb"></div>
+  </section>
+  <section class="step" id="sec-film">
+    <h2><b>3</b>Le film</h2>
+    <p class="sub">Regardez l'aperçu, puis enregistrez. L'enregistrement se fait en temps réel (1 minute de film = 1 minute). Gardez cette page au premier plan : sur téléphone, ne verrouillez pas l'écran et ne changez pas d'appli.</p>
+    <div class="stage-wrap"><canvas id="stage" width="${W}" height="${H}"></canvas></div>
+    <div class="row">
+      <button id="btn-preview" onclick="playFilm(false)">▶ Aperçu</button>
+      <button class="primary" id="btn-record" onclick="playFilm(true)">⏺ Enregistrer le film</button>
+      <button id="btn-stop" onclick="stopPlayback()" disabled>■ Stop</button>
+      <span class="muted" id="play-msg"></span>
+    </div>
+    <div class="row" style="margin-top:.7rem"><label class="switch"><input type="checkbox" id="music" ${proj.music !== false ? "checked" : ""}> 🎵 Musique de fond douce</label>
+      <span class="hint">Elle baisse toute seule quand quelqu'un parle.</span></div>
+    <div id="film-out"></div>
+  </section>`;
+  const story = $("#story"); story.value = proj.story;
+  story.oninput = () => { proj.story = story.value; saveProj(); };
+  $("#music").onchange = e => { proj.music = e.target.checked; saveProj(); };
+  const box = $("#sec-pics");
+  box.ondragover = e => { e.preventDefault(); box.classList.add("drop"); };
+  box.ondragleave = () => box.classList.remove("drop");
+  box.ondrop = e => { e.preventDefault(); box.classList.remove("drop"); importImages([...e.dataTransfer.files].filter(f => f.type.startsWith("image/"))); };
+  renderImages(); renderScript(); renderStoryboard(); renderFilmOut(); drawIdle();
+}
+
+async function renderScript() {
+  const p = proj; const box = $("#script-pages"); if (!box) return;
+  const pages = p.scriptImgs || []; let html = "";
+  for (let i = 0; i < pages.length; i++)
+    html += `<div class="pic"><img src="${await blobUrl(K.img(p.id, pages[i].id))}" alt="Page ${i + 1}"><span>Page ${i + 1}</span>
+      <button title="Supprimer" onclick="deleteScriptPage('${pages[i].id}')">✕</button></div>`;
+  if (proj !== p) return;
+  box.innerHTML = html; box.hidden = !pages.length;
+  $("#btn-script-cam").textContent = pages.length ? "📷 Ajouter une page" : "📷 Photographier le scénario écrit";
+}
+async function addScriptPage() { const f = await pickFile($("#file-cam")); if (f) importImages([f], "scriptImgs"); }
+async function deleteScriptPage(id) {
+  if (!confirm("Supprimer cette page du scénario ?")) return;
+  proj.scriptImgs = proj.scriptImgs.filter(i => i.id !== id);
+  await delBlob(K.img(proj.id, id)); await saveProj(proj, true); renderScript();
+}
+
+async function renderImages() {
+  const p = proj; const box = $("#pics"); if (!box) return;
+  let html = "";
+  for (let i = 0; i < p.images.length; i++) {
+    const im = p.images[i];
+    html += `<div class="pic"><img src="${await blobUrl(K.img(p.id, im.id))}" alt="Dessin ${i + 1}"><span>Dessin ${i + 1}</span>
+      <button title="Supprimer" onclick="deleteImage('${im.id}')">✕</button></div>`;
+  }
+  html += `<div class="add-pic cam" id="add-camera" role="button" tabindex="0" onclick="takePhoto()"><span class="em">📷</span>Prendre une photo<small>avec l'appareil photo</small></div>
+    <div class="add-pic" id="add-upload" role="button" tabindex="0" onclick="addImages()"><span class="em">🖼️</span>Importer<small>ou glisser ici</small></div>`;
+  if (proj === p) box.innerHTML = html;
+}
+async function addImages() { const fs = await pickFile($("#file-imgs"), true); if (fs?.length) importImages(fs); }
+async function takePhoto() { const f = await pickFile($("#file-cam")); if (f) importImages([f]); }
+async function deleteImage(id) {
+  if (scenesOf(proj).some(s => s.imageId === id)) return toast("Ce dessin est utilisé dans une scène : supprimez d'abord la scène", true);
+  if (!confirm("Supprimer ce dessin ?")) return;
+  proj.images = proj.images.filter(i => i.id !== id);
+  await delBlob(K.img(proj.id, id)); await saveProj(proj, true); renderImages(); renderStoryboard();
+}
+
+function manualStoryboard() {
+  const p = proj;
+  if (!p.images.length) return toast("Ajoutez d'abord au moins un dessin", true);
+  if (scenesOf(p).length && !confirm("Cela efface les scènes, les vidéos et les voix actuelles. Continuer ?")) return;
+  clearScenes(p).then(async () => {
+    const lines = splitStory(p.story, p.images.length);
+    p.storyboard = { title: p.storyboard?.title || p.name,
+      scenes: p.images.map((im, i) => ({ id: nextSid(p), imageId: im.id, motion: "", narration: lines[i] || "" })) };
+    await saveProj(p, true); renderStoryboard();
+  });
+}
+
+/* Sans IA : le texte de l'enfant est réparti phrase par phrase entre les scènes */
+function splitStory(story, n) {
+  const s = String(story || "").split(/(?<=[.!?。！？…])\s+|\n+/).map(x => x.trim()).filter(Boolean);
+  if (!n || !s.length) return [];
+  const out = Array.from({ length: n }, () => []);
+  s.forEach((x, i) => out[Math.min(n - 1, Math.floor(i * n / s.length))].push(x));
+  return out.map(a => a.join(" "));
+}
+
+const sceneNo = (p, sid) => scenesOf(p).findIndex(s => s.id === sid) + 1;
+
+/* Durée d'une scène : celle de sa vidéo IA, sinon la durée choisie (5 s par défaut) */
+async function sceneLength(p, sc) {
+  const u = await blobUrl(K.clip(p.id, sc.id));
+  if (u) { try { const v = await videoMeta(u); if (isFinite(v.duration)) return v.duration; } catch {} return DEFAULT_DUR; }
+  return +sc.dur || DEFAULT_DUR;
+}
+const voiceLimit = len => Math.max(1.5, len - VOICE_LEAD - VOICE_TAIL);
+
+async function renderStoryboard() {
+  const p = proj; const box = $("#sb"); if (!box) return;
+  if (!p.storyboard) { box.innerHTML = ""; return; }
+  const scs = scenesOf(p);
+  let html = `<div style="margin-top:1.1rem"><label class="f">Titre du film<input type="text" id="sb-title" value="${esc(p.storyboard.title)}"></label></div>
+    <div class="scenes" id="scenes">`;
+  for (let i = 0; i < scs.length; i++) {
+    const sc = scs[i];
+    const opts = p.images.map((im, k) => `<option value="${im.id}" ${im.id === sc.imageId ? "selected" : ""}>Dessin ${k + 1}</option>`).join("");
+    html += `<article class="scene" data-sid="${sc.id}">
+      <div><div class="scene-num">${i + 1}</div>
+        <div class="scene-tools">
+          <button class="ghost" title="Monter" data-act="up" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="ghost" title="Descendre" data-act="down" ${i === scs.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="ghost" title="Supprimer cette scène" data-act="del">✕</button>
+        </div></div>
+      <div class="scene-pic"><img src="${await blobUrl(K.img(p.id, sc.imageId)) || ""}" alt=""><select data-f="imageId">${opts}</select></div>
+      <div class="scene-fields">
+        <label class="f">Narration / sous-titre<textarea data-f="narration" rows="2">${esc(sc.narration)}</textarea></label>
+        <label class="f">Ce qui bouge dans l'image (pour le modèle vidéo, en anglais c'est mieux)<textarea data-f="motion" rows="2">${esc(sc.motion)}</textarea></label>
+        <div class="voice" data-voice></div>
+      </div>
+      <div class="media" data-media></div>
+    </article>`;
+  }
+  html += `</div>
+    <div class="row">
+      <button onclick="addScene()">＋ Ajouter une scène</button>
+      <button class="blue" onclick="generateAllVideos()" ${scs.length ? "" : "disabled"}>🎬 Animer par IA toutes les scènes sans vidéo</button>
+      <span class="hint">Modèle vidéo : <b>${esc(settings.videoModel)}</b> (à changer dans les réglages). Facturé à la seconde : essayez d'abord une scène.</span>
+    </div>`;
+  if (proj !== p) return;
+  box.innerHTML = html;
+  $("#sb-title").oninput = e => { p.storyboard.title = e.target.value; saveProj(p); };
+  const list = $("#scenes");
+  list.oninput = e => {
+    const f = e.target.dataset.f; if (!f) return;
+    const sid = e.target.closest(".scene").dataset.sid; const sc = findScene(p, sid);
+    sc[f] = f === "dur" ? +e.target.value : e.target.value; saveProj(p);
+    if (f === "narration") { clearTimeout(e.target._vt); e.target._vt = setTimeout(() => updateVoice(p, sid), 600); }
+    if (f === "imageId") { blobUrl(K.img(p.id, sc.imageId)).then(u => e.target.closest(".scene").querySelector(".scene-pic img").src = u); }
+    if (f === "dur") updateVoice(p, sid);
+  };
+  list.onclick = e => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    sceneAction(p, b.closest(".scene").dataset.sid, b.dataset.act);
+  };
+  for (const sc of scs) { updateVoice(p, sc.id); updateMedia(p, sc.id); }
+  if (!playing) drawIdle();
+}
+
+async function updateVoice(p, sid) {
+  if (proj !== p) return;
+  const box = document.querySelector(`.scene[data-sid="${sid}"] [data-voice]`); if (!box) return;
+  const st = recState && recState.pid === p.id && recState.sid === sid ? recState : null;
+  if (st) {
+    box.innerHTML = `<div class="rec-live">
+      ${st.phase === "count" ? `<span class="count" id="rec-count">${st.n}</span><span class="muted" style="flex:1">Prêt ? On y va…</span>`
+        : `<div class="recbar"><i id="rec-bar"></i></div><span class="rec-time" id="rec-time">${sec(st.limit)}</span>`}
+      <button class="small rec" data-act="rec">${st.phase === "count" ? "Annuler" : "Stop"}</button></div>`;
+    return;
+  }
+  const sc = findScene(p, sid); if (!sc) return;
+  const [u, len, tu] = await Promise.all([blobUrl(K.voice(p.id, sid)), sceneLength(p, sc), blobUrl(K.tts(p.id, sid))]);
+  if (recState?.sid === sid && recState?.pid === p.id) return;   // un enregistrement a démarré entre-temps
+  const text = (sc.narration || "").trim();
+  let tail;
+  if (u) tail = `<audio controls src="${u}"></audio><button class="small ghost" data-act="voice-del">Effacer</button>`;
+  else if (!text) tail = `<span class="hint">L'enregistrement s'arrête tout seul à la fin de la scène.</span>`;
+  else if (tu && sc.ttsText === text) tail = `<span class="auto-voice">🔊 Voix automatique</span><audio controls src="${tu}"></audio>`;
+  else if (settings.key) tail = `<button class="small ghost" data-act="tts">🔊 Écouter la voix automatique</button><span class="hint">Sans enregistrement, une voix automatique lira la narration.</span>`;
+  else tail = `<span class="hint">Sans enregistrement (ni clé API pour la voix automatique), seul le sous-titre s'affiche.</span>`;
+  box.innerHTML = `<button class="small" data-act="rec">🎙 ${u ? "Réenregistrer" : "Enregistrer la voix"} · ${sec(voiceLimit(len))}</button>
+       <button class="small ghost" data-act="voice-up">Importer un son</button>${tail}`;
+}
+
+async function updateMedia(p, sid) {
+  if (proj !== p) return;
+  const box = document.querySelector(`.scene[data-sid="${sid}"] [data-media]`); if (!box) return;
+  const sc = findScene(p, sid); if (!sc) return;
+  const u = await blobUrl(K.clip(p.id, sid));
+  const st = status[`${p.id}:${sid}`]; const busy = !!(p.jobs[sid] || st);
+  const err = p.errors[sid];
+  const cur = +sc.dur || DEFAULT_DUR;
+  const durOpts = [3, 4, 5, 6, 7, 8, 10, 12, 15].map(d => `<option value="${d}" ${d === cur ? "selected" : ""}>${d} s</option>`).join("");
+  box.innerHTML = `
+    ${u ? `<video controls playsinline src="${u}"></video>` :
+      `<div class="placeholder">Pas encore de vidéo IA. Dans le film, cette scène sera un lent zoom sur le dessin.</div>
+       <label class="dur">Durée de la scène <select data-f="dur">${durOpts}</select></label>`}
+    <div class="row" style="margin-top:.5rem">
+      ${busy ? `<span class="chip">⏳ ${esc(st || "En cours")}</span>` : u ? `<span class="chip ok">✓ Vidéo prête</span>` : ""}
+      ${err ? `<span class="chip err">Erreur</span>` : ""}
+    </div>
+    ${err ? `<div class="err-msg">${esc(err.msg)}${err.url ? ` <a href="${esc(err.url)}" target="_blank" rel="noopener">Télécharger la vidéo</a>` : ""}</div>` : ""}
+    <div class="row" style="margin-top:.5rem">
+      <button class="small blue" data-act="gen" ${busy ? "disabled" : ""}>${u ? "Refaire la vidéo IA" : "Animer par IA"}</button>
+      <button class="small ghost" data-act="clip-up">Importer une vidéo</button>
+      ${u ? `<button class="small ghost" data-act="clip-del">Supprimer la vidéo</button>` : ""}
+    </div>`;
+}
+
+async function sceneAction(p, sid, act) {
+  const scs = scenesOf(p); const i = scs.findIndex(s => s.id === sid);
+  if (act === "up" || act === "down") {
+    const j = act === "up" ? i - 1 : i + 1; [scs[i], scs[j]] = [scs[j], scs[i]];
+    await saveProj(p, true); return renderStoryboard();
+  }
+  if (act === "del") {
+    if (!confirm(`Supprimer la scène ${i + 1} (avec sa vidéo et sa voix) ?`)) return;
+    if (recState?.sid === sid) stopRec(recState);
+    scs.splice(i, 1); delete p.jobs[sid];
+    await delBlob(K.clip(p.id, sid)); await delBlob(K.voice(p.id, sid)); await delBlob(K.tts(p.id, sid));
+    await saveProj(p, true); return renderStoryboard();
+  }
+  if (act === "gen") {
+    if (await db.get(K.clip(p.id, sid)) && !confirm("Refaire la vidéo coûte à nouveau. L'ancienne sera remplacée quand la nouvelle sera prête. Continuer ?")) return;
+    return startVideo(p, sid);
+  }
+  if (act === "clip-up") {
+    const f = await pickFile($("#file-clip")); if (!f) return;
+    await putBlob(K.clip(p.id, sid), f); delete p.errors[sid]; await saveProj(p, true); updateVoice(p, sid); return updateMedia(p, sid);
+  }
+  if (act === "clip-del") {
+    if (!confirm("Supprimer la vidéo de cette scène ?")) return;
+    await delBlob(K.clip(p.id, sid)); updateVoice(p, sid); return updateMedia(p, sid);
+  }
+  if (act === "rec") return toggleRecord(p, sid);
+  if (act === "voice-up") {
+    const f = await pickFile($("#file-voice")); if (!f) return;
+    await putBlob(K.voice(p.id, sid), f); return updateVoice(p, sid);
+  }
+  if (act === "voice-del") { await delBlob(K.voice(p.id, sid)); return updateVoice(p, sid); }
+  if (act === "tts") {
+    const b = document.querySelector(`.scene[data-sid="${sid}"] button[data-act=tts]`); if (b) { b.disabled = true; b.textContent = "🔊 Création…"; }
+    try { await makeTts(p, findScene(p, sid)); } catch (e) { toast(e.message, true); updateVoice(p, sid); }
+  }
+}
+
+async function addScene() {
+  const p = proj; if (!p.images.length) return toast("Ajoutez d'abord un dessin", true);
+  p.storyboard ||= { title: p.name, scenes: [] };
+  p.storyboard.scenes.push({ id: nextSid(p), imageId: p.images[p.images.length - 1].id, motion: "", narration: "" });
+  await saveProj(p, true); renderStoryboard();
+}
+
+async function generateAllVideos() {
+  const p = proj; const todo = [];
+  if (!settings.key) return toast("Pas de clé API : dans le film, chaque scène sera un lent zoom sur le dessin (gratuit). Pour des vidéos IA, ajoutez une clé dans les réglages.", true);
+  for (const sc of scenesOf(p)) if (!p.jobs[sc.id] && !(await db.get(K.clip(p.id, sc.id)))) todo.push(sc.id);
+  if (!todo.length) return toast("Toutes les scènes ont déjà une vidéo");
+  if (!confirm(`${todo.length} vidéo(s) vont être générées avec ${settings.videoModel} (facturé à la seconde). Continuer ?`)) return;
+  for (const sid of todo) { startVideo(p, sid); await sleep(800); }
+}
+
+/* ============ Enregistrement de la voix (s'arrête tout seul à la fin de la scène) ============ */
+function stopRec(st) {
+  st.cancelled = true;
+  if (st.rec && st.rec.state !== "inactive") st.rec.stop();
+}
+
+async function toggleRecord(p, sid) {
+  if (recState) {
+    const same = recState.pid === p.id && recState.sid === sid;
+    const old = recState; stopRec(old);
+    if (same) return;
+    await sleep(300);
+  }
+  const sc = findScene(p, sid); if (!sc) return;
+  const limit = voiceLimit(await sceneLength(p, sc));
+  let stream;
+  try { stream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch { return toast("Pas d'accès au micro : autorisez-le dans le navigateur", true); }
+  const state = { pid: p.id, sid, phase: "count", n: 3, limit };
+  const finish = () => { stream.getTracks().forEach(t => t.stop()); if (recState === state) recState = null; };
+  recState = state; await updateVoice(p, sid);
+  for (let n = 3; n > 0; n--) {                         // petit compte à rebours 3, 2, 1
+    if (state.cancelled) { finish(); return updateVoice(p, sid); }
+    state.n = n; const el = $("#rec-count"); if (el) el.textContent = n;
+    await sleep(700);
+  }
+  if (state.cancelled) { finish(); return updateVoice(p, sid); }
+  const rec = new MediaRecorder(stream); const chunks = [];
+  state.rec = rec; state.phase = "rec";
+  rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+  rec.onstop = async () => {
+    clearInterval(state.timer); clearTimeout(state.auto); finish();
+    if (chunks.length) await putBlob(K.voice(p.id, sid), new Blob(chunks, { type: rec.mimeType || "audio/webm" }));
+    updateVoice(p, sid);
+  };
+  rec.start();
+  const t0 = performance.now();
+  await updateVoice(p, sid);
+  state.auto = setTimeout(() => { if (rec.state !== "inactive") rec.stop(); }, limit * 1000);
+  state.timer = setInterval(() => {
+    const left = Math.max(0, limit - (performance.now() - t0) / 1000);
+    const bar = $("#rec-bar"), tm = $("#rec-time");
+    if (bar) bar.style.width = (left / limit * 100) + "%";
+    if (tm) tm.textContent = sec(left);
+  }, 100);
+}
+
+/* ============ Voix automatique (OpenRouter /audio/speech) ============ */
+async function makeTts(p, sc) {
+  const text = (sc.narration || "").trim(); if (!text) return;
+  const r = await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
+    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: "mp3" }) });
+  const b = await r.blob();
+  await putBlob(K.tts(p.id, sc.id), new Blob([b], { type: "audio/mpeg" }));
+  sc.ttsText = text; await saveProj(p, true);
+  updateVoice(p, sc.id);
+}
+
+/* Avant le film : voix automatique pour chaque scène qui a une narration mais pas d'enregistrement */
+async function ensureAutoVoices(p, onScene) {
+  if (!settings.key) return 0;
+  let n = 0;
+  for (const sc of scenesOf(p)) {
+    const text = (sc.narration || "").trim();
+    if (!text || await db.get(K.voice(p.id, sc.id))) continue;
+    if (sc.ttsText === text && await db.get(K.tts(p.id, sc.id))) continue;
+    onScene?.(sceneNo(p, sc.id));
+    try { await makeTts(p, sc); n++; }
+    catch (e) { toast(`Voix automatique impossible pour la scène ${sceneNo(p, sc.id)} : ${e.message}`, true); }
+  }
+  return n;
+}
+
+/* ============ Musique de fond (composée dans le navigateur, libre de droits) ============ */
+function startMusic(ac, out, total) {
+  const master = ac.createGain(), duck = ac.createGain();
+  duck.connect(master).connect(out);
+  const t0 = ac.currentTime + 0.05, end = t0 + total;
+  master.gain.setValueAtTime(0, t0); master.gain.linearRampToValueAtTime(MUSIC_VOL, t0 + 1.5);
+  master.gain.setValueAtTime(MUSIC_VOL, Math.max(t0 + 1.6, end - 2.5)); master.gain.linearRampToValueAtTime(0, end);
+  const hz = m => 440 * 2 ** ((m - 69) / 12);
+  const note = (m, at, len, type, vol) => {
+    const o = ac.createOscillator(), g = ac.createGain();
+    o.type = type; o.frequency.value = hz(m);
+    g.gain.setValueAtTime(0, at); g.gain.linearRampToValueAtTime(vol, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0008, at + len);
+    o.connect(g).connect(duck); o.start(at); o.stop(at + len + 0.05);
+  };
+  const prog = Math.random() < 0.5 ? [[60, 64, 67], [57, 60, 64], [53, 57, 60], [55, 59, 62]]     // do – la – fa – sol
+                                   : [[53, 57, 60], [60, 64, 67], [55, 59, 62], [57, 60, 64]];    // fa – do – sol – la
+  const pattern = [0, 1, 2, 3, 2, 1, 2, 1];   // arpège de boîte à musique (3 = la fondamentale une octave plus haut)
+  const eighth = 60 / 84 / 2;
+  for (let i = 0, t = t0; t < end; i++, t += eighth) {
+    const ch = prog[Math.floor(i / 8) % prog.length]; const k = pattern[i % 8];
+    note((k === 3 ? ch[0] + 12 : ch[k]) + 12, t, 1.4, "triangle", 0.22);
+    if (i % 8 === 0) note(ch[0] - 12, t, eighth * 8, "sine", 0.3);
+    if (i % 8 === 4) note(ch[0] - 5, t, eighth * 4, "sine", 0.12);
+  }
+  return { duck };
+}
+
+/* ============ Le film : lecture sur canvas + enregistrement en temps réel ============ */
+const FONT = `"Fredoka","Nunito",sans-serif`;
+
+function drawIdle() {
+  const c = $("#stage"); if (!c) return;
+  const g = c.getContext("2d");
+  g.fillStyle = "#fff6ea"; g.fillRect(0, 0, W, H);
+  g.fillStyle = "#7f7689"; g.font = `600 48px ${FONT}`; g.textAlign = "center"; g.textBaseline = "middle";
+  g.fillText(proj?.storyboard?.title || "▶", W / 2, H / 2);
+}
+
+function wrapLines(g, text, maxW) {
+  const tokens = String(text).match(/\S+\s*|\s+/g) || [];
+  const lines = []; let line = "";
+  const pushTok = tok => {
+    if (g.measureText(line + tok).width <= maxW) { line += tok; return; }
+    if (line.trim()) { lines.push(line.trim()); line = ""; }
+    if (g.measureText(tok).width <= maxW) { line = tok; return; }
+    for (const ch of tok) { if (g.measureText(line + ch).width > maxW) { lines.push(line); line = ""; } line += ch; }
+  };
+  tokens.forEach(pushTok);
+  if (line.trim()) lines.push(line.trim());
+  return lines;
+}
+
+function drawSubtitle(g, text) {
+  if (!text?.trim()) return;
+  g.font = `600 40px ${FONT}`; g.textAlign = "center"; g.textBaseline = "alphabetic";
+  const lines = wrapLines(g, text.trim(), W - 200);
+  let y = H - 48 - (lines.length - 1) * 52;
+  g.lineJoin = "round"; g.lineWidth = 9; g.strokeStyle = "rgba(0,0,0,.85)"; g.fillStyle = "#fff";
+  for (const l of lines) { g.strokeText(l, W / 2, y); g.fillText(l, W / 2, y); y += 52; }
+}
+
+function drawContain(g, src, sw, sh, zoom = 1) {
+  const s = Math.min(W / sw, H / sh) * zoom; const dw = sw * s, dh = sh * s;
+  g.drawImage(src, (W - dw) / 2, (H - dh) / 2, dw, dh);
+}
+
+function fade(g, t, dur, d = 0.35) {
+  const a = Math.min(1, t / d, (dur - t) / d);
+  if (a < 1) { g.fillStyle = `rgba(255,255,255,${1 - Math.max(0, a)})`; g.fillRect(0, 0, W, H); }
+}
+
+function runFrames(dur, draw) {
+  return new Promise(res => {
+    const t0 = performance.now();
+    const step = () => {
+      const t = (performance.now() - t0) / 1000;
+      if (!playing || playing.stop) return res(false);
+      draw(Math.min(t, dur));
+      if (t >= dur) return res(true);
+      requestAnimationFrame(step);
+    };
+    step();
+  });
+}
+
+function cardSegment(text, dur, size = 76) {
+  return { dur, draw: (g, t) => {
+    g.fillStyle = "#fff6ea"; g.fillRect(0, 0, W, H);
+    g.fillStyle = "#2e2a35"; g.font = `700 ${size}px ${FONT}`; g.textAlign = "center"; g.textBaseline = "middle";
+    const lines = wrapLines(g, text, W - 240); let y = H / 2 - (lines.length - 1) * size * 0.65;
+    for (const l of lines) { g.fillText(l, W / 2, y); y += size * 1.3; }
+    fade(g, t, dur, 0.5);
+  }};
+}
+
+function videoMeta(url) {
+  return new Promise((res, rej) => {
+    const v = document.createElement("video"); v.preload = "auto"; v.playsInline = true; v.muted = true; v.src = url;
+    v.onerror = () => rej(new Error("Une des vidéos ne s'ouvre pas"));
+    v.onloadeddata = async () => {
+      if (!isFinite(v.duration)) {   // certaines vidéos enregistrées n'indiquent pas leur durée : on va à la fin pour la calculer
+        v.currentTime = 1e9;
+        await new Promise(r => { v.ontimeupdate = r; setTimeout(r, 3000); });
+        v.ontimeupdate = null; v.currentTime = 0;
+      }
+      res(v);
+    };
+  });
+}
+
+async function buildSegments(p, ac, out) {
+  const segs = [cardSegment(p.storyboard.title || p.name, 2.6)];
+  for (const sc of scenesOf(p)) {
+    const img = await createImageBitmap(await db.get(K.img(p.id, sc.imageId)));
+    const text = (sc.narration || "").trim();   // la voix de l'enfant d'abord, sinon la voix automatique
+    const voiceBlob = await db.get(K.voice(p.id, sc.id)) || (text && sc.ttsText === text ? await db.get(K.tts(p.id, sc.id)) : null);
+    const clipUrl = await blobUrl(K.clip(p.id, sc.id));
+    let voice = null, video = null;
+    if (voiceBlob) { try { voice = await ac.decodeAudioData(await voiceBlob.arrayBuffer()); } catch { toast(`La voix de la scène ${sceneNo(p, sc.id)} est illisible : ignorée`, true); } }
+    if (clipUrl) {
+      try { video = await videoMeta(clipUrl); video.muted = false; }
+      catch { toast(`Ce navigateur ne lit pas la vidéo de la scène ${sceneNo(p, sc.id)} : remplacée par un zoom`, true); }
+    }
+    const base = video ? (isFinite(video.duration) ? video.duration : DEFAULT_DUR) : (+sc.dur || DEFAULT_DUR);
+    const dur = Math.max(base, voice ? voice.duration + VOICE_LEAD + VOICE_TAIL : 0);
+    segs.push({ dur, scene: sc,
+      start(music) {
+        if (music) {   // la musique baisse pendant que quelqu'un parle
+          const d = music.duck.gain, n = ac.currentTime; d.cancelScheduledValues(n); d.setValueAtTime(d.value, n);
+          if (voice) { d.setTargetAtTime(0.3, n + VOICE_LEAD - 0.2, 0.12); d.setTargetAtTime(1, n + VOICE_LEAD + voice.duration, 0.3); }
+          else d.setTargetAtTime(video ? 0.6 : 1, n, 0.2);
+        }
+        if (video) {
+          const src = ac.createMediaElementSource(video); const gain = ac.createGain();
+          gain.gain.value = voice ? 0 : 1;          // avec la voix de l'enfant on coupe le son de la vidéo
+          src.connect(gain).connect(out); video.currentTime = 0; video.play().catch(() => {});
+        }
+        if (voice) { const s = ac.createBufferSource(); s.buffer = voice; s.connect(out); s.start(ac.currentTime + VOICE_LEAD); this.voiceNode = s; }
+      },
+      stop() { if (video) video.pause(); try { this.voiceNode?.stop(); } catch {} },
+      draw(g, t) {
+        g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+        if (video && video.readyState >= 2) drawContain(g, video, video.videoWidth, video.videoHeight);
+        else drawContain(g, img, img.width, img.height, 1 + 0.08 * (t / dur));   // pas de vidéo : lent zoom
+        drawSubtitle(g, sc.narration);
+        fade(g, t, dur);
+      } });
+  }
+  segs.push(cardSegment("Fin", 1.8, 96));
+  return segs;
+}
+
+function pickMime() {
+  for (const m of ["video/mp4;codecs=avc1.42E01E,mp4a.40.2", "video/mp4", "video/webm;codecs=vp9,opus", "video/webm"])
+    if (window.MediaRecorder && MediaRecorder.isTypeSupported(m)) return m;
+  return "";
+}
+
+async function playFilm(record) {
+  const p = proj;
+  if (!scenesOf(p).length) return toast("Il n'y a pas encore de scénario", true);
+  if (playing) return;
+  if (recState) stopRec(recState);
+  const msg = $("#play-msg"); const g = $("#stage").getContext("2d");
+  const ac = new AudioContext(); const dest = ac.createMediaStreamDestination();
+  const out = ac.createGain(); out.connect(dest); out.connect(ac.destination);
+  playing = { stop: false, ac, record };
+  $("#btn-preview").disabled = $("#btn-record").disabled = true; $("#btn-stop").disabled = false;
+  let rec, chunks = [], mime = "", wake = null;
+  try { wake = await navigator.wakeLock?.request("screen"); } catch {}   // téléphone : pas de mise en veille pendant l'enregistrement
+  try {
+    await ensureAutoVoices(p, n => msg.textContent = `🔊 Voix automatique · scène ${n}…`);
+    if (playing.stop) return;
+    msg.textContent = "Préparation…";
+    const segs = await buildSegments(p, ac, out);
+    if (record) {
+      mime = pickMime();
+      const stream = $("#stage").captureStream(30);
+      dest.stream.getAudioTracks().forEach(t => stream.addTrack(t));
+      rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: 6_000_000 });
+      rec.ondataavailable = e => e.data.size && chunks.push(e.data);
+      rec.start(500);
+    }
+    const total = segs.reduce((a, s) => a + s.dur, 0); let done = 0;
+    const music = p.music !== false ? startMusic(ac, out, total) : null;
+    for (let i = 0; i < segs.length; i++) {
+      const s = segs[i];
+      msg.textContent = `${record ? "⏺ Enregistrement" : "▶ Aperçu"} · ${Math.round(done)} / ${Math.round(total)} s`;
+      s.start?.(music);
+      const ok = await runFrames(s.dur, t => s.draw(g, t));
+      s.stop?.(); done += s.dur;
+      if (!ok) break;
+    }
+    if (rec) {
+      await new Promise(r => { rec.onstop = r; rec.stop(); });
+      if (!playing.stop) {
+        const blob = new Blob(chunks, { type: (mime || "video/webm").split(";")[0] });
+        await putBlob(K.film(p.id), blob);
+        if (proj === p) renderFilmOut();
+        toast("🍿 Le film est prêt, vous pouvez le télécharger");
+      }
+    }
+    if (playing.interrupted) toast("Enregistrement interrompu : la page est passée en arrière-plan ou l'écran s'est verrouillé. Gardez la page au premier plan et recommencez.", true);
+  } catch (e) { toast(e.message, true); }
+  finally {
+    ac.close(); playing = null;
+    try { await wake?.release(); } catch {}
+    if (proj === p) {
+      msg.textContent = ""; $("#btn-preview").disabled = $("#btn-record").disabled = false; $("#btn-stop").disabled = true;
+    }
+  }
+}
+
+function stopPlayback() { if (playing) playing.stop = true; }
+
+async function renderFilmOut() {
+  const p = proj; const box = $("#film-out"); if (!box) return;
+  const blob = await db.get(K.film(p.id));
+  if (!blob) { box.innerHTML = ""; return; }
+  const u = await blobUrl(K.film(p.id));
+  const ext = blob.type.includes("mp4") ? "mp4" : "webm";
+  const name = (p.storyboard?.title || p.name).replace(/[\\/:*?"<>|]/g, "-") + "." + ext;
+  if (proj === p) box.innerHTML = `<video controls playsinline src="${u}"></video>
+    <a href="${u}" download="${esc(name)}"><button class="primary">⬇ Télécharger ${esc(name)}</button></a>
+    <p class="hint">Le film n'est gardé que dans ce navigateur : pensez à le télécharger.${ext === "webm" ? " Ce navigateur enregistre seulement en WebM ; pour du MP4, utilisez une version récente de Chrome." : ""}</p>`;
+}
+
+/* ============ Fenêtre des réglages ============ */
+function fillCaps() {
+  const m = videoModels.find(x => x.id === $("#s-video").value.trim());
+  const capsBox = $("#s-caps");
+  const opts = (id, arr) => $(id).innerHTML = (Array.isArray(arr) ? arr : []).map(v => `<option value="${esc(v)}">`).join("");
+  if (!m) { capsBox.hidden = true; opts("#dl-dur"); opts("#dl-res"); opts("#dl-ar"); return; }
+  capsBox.hidden = false; capsBox.textContent = JSON.stringify(m.caps, null, 1);
+  opts("#dl-dur", m.caps.supported_durations); opts("#dl-res", m.caps.supported_resolutions); opts("#dl-ar", m.caps.supported_aspect_ratios);
+}
+function openSettings() {
+  $("#s-key").value = settings.key; $("#s-text").value = settings.textModel; $("#s-video").value = settings.videoModel;
+  $("#s-tts").value = settings.ttsModel || DEF_TTS; $("#s-voice").value = settings.ttsVoice || DEF_VOICE;
+  $("#s-dur").value = settings.duration; $("#s-res").value = settings.resolution; $("#s-ar").value = settings.aspect;
+  $("#dl-video").innerHTML = videoModels.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+  fillCaps(); $("#s-refresh-msg").textContent = "";
+  $("#dlg-settings").showModal();
+}
+$("#s-video").oninput = fillCaps;
+$("#s-refresh").onclick = async () => {
+  const saved = settings.key; settings.key = $("#s-key").value.trim() || saved;
+  $("#s-refresh-msg").textContent = "Chargement…";
+  try {
+    await refreshVideoModels();
+    $("#dl-video").innerHTML = videoModels.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
+    $("#s-refresh-msg").textContent = `${videoModels.length} modèles vidéo trouvés`; fillCaps();
+  } catch (e) { $("#s-refresh-msg").textContent = e.message; }
+  finally { settings.key = saved; }
+};
+$("#dlg-settings").onclose = () => {
+  if ($("#dlg-settings").returnValue !== "ok") return;
+  settings = { key: $("#s-key").value.trim(), textModel: $("#s-text").value.trim() || "anthropic/claude-sonnet-5.5",
+    videoModel: $("#s-video").value.trim() || "bytedance/seedance-2.0-fast",
+    duration: $("#s-dur").value.trim(), resolution: $("#s-res").value.trim(), aspect: $("#s-ar").value.trim(),
+    ttsModel: $("#s-tts").value.trim() || DEF_TTS, ttsVoice: $("#s-voice").value.trim() || DEF_VOICE };
+  saveSettings(); renderAll();
+};
+
+/* ============ Démarrage ============ */
+$("#btn-new").onclick = newProject;
+$("#btn-del-proj").onclick = deleteProject;
+$("#btn-settings").onclick = openSettings;
+$("#proj-select").onchange = e => openProject(e.target.value);
+document.addEventListener("keydown", e => {   // les tuiles « Prendre une photo » / « Importer » marchent aussi au clavier
+  if ((e.key === "Enter" || e.key === " ") && e.target.classList?.contains("add-pic")) { e.preventDefault(); e.target.click(); }
+});
+document.addEventListener("visibilitychange", () => {   // en arrière-plan l'image se fige et le film serait abîmé : on arrête
+  if (document.hidden && playing?.record && !playing.stop) { playing.stop = true; playing.interrupted = true; }
+});
+try { navigator.storage?.persist?.().catch(() => {}); } catch {}   // demander au navigateur de ne pas effacer les films
+window.addEventListener("beforeunload", e => {
+  if (playing?.ac && !playing.stop) { e.preventDefault(); e.returnValue = ""; }
+});
+
+(async function init() {
+  projects = (await db.get("projects")) || [];
+  const last = lsGet("huabian-last");
+  if (projects.length) await openProject(projects.find(x => x.id === last)?.id || projects[0].id);
+  else renderAll();
+})();
+</script>
+</body>
+</html>
