@@ -84,6 +84,10 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 .scene label{font-size:.74rem;font-weight:800;color:var(--muted)}
 .scene textarea{font-size:.85rem;line-height:1.4;padding:.4em .55em;border-radius:10px;margin-top:.15rem}
 .count{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--muted)}
+.plan{display:flex;gap:.7rem 1rem;flex-wrap:wrap;align-items:center;margin-top:.9rem}
+.count select{border:2px solid var(--line);border-radius:999px;padding:.35em .7em;background:#fff;font-weight:700}
+.estimate{font-size:.88rem;font-weight:800;color:var(--ink);background:#fff7e0;border-radius:999px;padding:.3em .9em}
+.estimate:empty{display:none}
 .count input{width:5.5rem;border:2px solid var(--line);border-radius:999px;padding:.35em .7em;background:#fff;font-weight:700}
 .chip{align-self:flex-start;font-size:.76rem;border-radius:999px;padding:.12em .7em;background:#edf2ff;color:var(--blue);font-weight:800}
 .chip.ok{background:#e4f6ee;color:var(--mint)}
@@ -159,7 +163,7 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
         <label class="f">Voix off : modèle<input type="text" id="s-tts"></label>
         <label class="f">Voix<input type="text" id="s-voice"></label>
       </div>
-      <p class="hint">Par défaut : Seedance 1.5 Pro sans son, 720p, 5 s (≈ 0,13 $ par scène) — le meilleur rapport qualité/prix.</p>
+      <p class="hint">Par défaut, les modèles les moins chers (≈ 0,08 $ par scène) : Claude Haiku pour le découpage, Seedream 5.0 Flash pour les images (≈ 0,02 $), Seedance 1.5 Pro sans son en 480p, 5 s pour la vidéo (≈ 0,06 $). Mettez 720p pour une image plus nette (≈ 0,13 $ par vidéo).</p>
     </details>
     <menu><button value="cancel" class="ghost">Annuler</button><button value="ok" class="primary" id="s-save">Enregistrer</button></menu>
   </form>
@@ -177,11 +181,12 @@ const DEFAULT_DUR = 5;
 const VOICE_LEAD = 0.3, VOICE_TAIL = 0.5;  // la voix off démarre 0,3 s après le début de la scène, et la scène dure 0,5 s de plus que la voix
 const MUSIC_VOL = 0.16;
 const MAX_TRIES = 2;                       // essais par vidéo avant d'abandonner
-const DEF_TEXT = "anthropic/claude-sonnet-5.5";
-const DEF_IMG = "google/gemini-2.5-flash-image";
-// Vidéo : le meilleur rapport qualité/prix (Seedance 1.5 Pro sans le son du modèle, 720p, 5 s ≈ 0,13 $) ;
+// Modèles par défaut : les moins chers qui font bien le travail (≈ 0,08 $ par scène au total)
+const DEF_TEXT = "anthropic/claude-haiku-5.5";            // découpage du texte : largement suffisant, ~20× moins cher que Sonnet
+const DEF_IMG = "bytedance-seed/seedream-5-0-flash";      // 0,018 $ l'image, accepte des images de référence
+// Vidéo : Seedance 1.5 Pro sans le son du modèle, 480p, 5 s ≈ 0,06 $ ;
 // la voix off et la musique sont ajoutées par l'appli, inutile de payer le son de la vidéo.
-const DEF_VIDEO = "bytedance/seedance-1-5-pro", DEF_VDUR = "5", DEF_VRES = "720p";
+const DEF_VIDEO = "bytedance/seedance-1-5-pro", DEF_VDUR = "5", DEF_VRES = "480p";
 const DEF_TTS = "google/gemini-3.8-flash-tts", DEF_VOICE = "Kore";   // multilingue (français, chinois…), très bon marché
 const TTS_FALLBACKS = ["google/gemini-3.8-flash-tts", "google/gemini-3.8-flash-lite-tts", "google/gemini-3.1-flash-tts-preview", "elevenlabs/eleven-multilingual-v2"];
 const TTS_STYLE = "Read this like a warm, engaging storyteller, slowly and clearly, in the language of the text.";
@@ -249,6 +254,12 @@ if (!settings.v2) {   // anciens réglages : passer au modèle vidéo moins cher
   settings.duration ||= DEF_VDUR; settings.resolution ||= DEF_VRES; settings.v2 = true;
 }
 if (/^openai\/gpt-4o-mini-tts/.test(settings.ttsModel || "")) { settings.ttsModel = DEF_TTS; settings.ttsVoice = DEF_VOICE; }   // ce modèle n'existe pas sur OpenRouter
+if (!settings.v3) {   // passage aux modèles les moins chers, sauf si l'utilisateur avait choisi autre chose
+  if (settings.textModel === "anthropic/claude-sonnet-5.5") settings.textModel = DEF_TEXT;
+  if (!settings.imageModel || settings.imageModel === "google/gemini-2.5-flash-image") settings.imageModel = DEF_IMG;
+  if (settings.resolution === "720p") settings.resolution = DEF_VRES;
+  settings.v3 = true;
+}
 const saveSettings = () => lsSet("huabian-settings", JSON.stringify(settings));
 let videoModels = JSON.parse(lsGet("huabian-models") || "[]");
 
@@ -381,9 +392,12 @@ async function askClaude(content, maxTokens = 6000, onProgress) {
 
 /* ---- 1. Claude découpe le texte en scènes + fiche des personnages ---- */
 async function aiSplit(p, onProgress) {
-  const n = parseInt(p.sceneCount, 10);
-  const content = [{ type: "text", text: "Text:\n" + p.story }, { type: "text", text: SPLIT_PROMPT }];
-  if (n > 0) content.push({ type: "text", text: `Make exactly ${n} scenes (no more, no less), spreading the whole text over them.` });
+  const n = sceneCountOf(p), s = sceneSec() - 1;
+  const content = [{ type: "text", text: "Text:\n" + p.story }, { type: "text", text: SPLIT_PROMPT },
+    { type: "text", text: `Make exactly ${n} scenes (no more, no less), covering the whole story in order.
+Each scene lasts ${sceneSec()} seconds, so each "narration" must be readable aloud in about ${s} seconds
+(at most about ${Math.round(s * 2.5)} words, or about ${Math.round(s * 4)} Chinese characters).
+If the text is too long for that, condense the narration and keep the key moments; if it is short, you may stay close to the original words.` }];
   const text = await askClaude(content, 6000, onProgress);
   let sb;
   try { sb = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); }
@@ -757,6 +771,37 @@ async function assemble(p, say) {
 function stopPlayback() { if (playing) playing.stop = true; }
 
 /* ============ 🎬 Générer la vidéo : tout automatique ============ */
+/* ---- Durée, nombre de scènes et budget ---- */
+const sceneSec = () => Math.max(2, +settings.duration || DEFAULT_DUR);
+function readingSec(text) {   // temps pour lire le texte à voix haute (≈ 4 caractères chinois/s, ≈ 2,5 mots/s)
+  const cjk = (text.match(/[㐀-鿿豈-﫿]/g) || []).length;
+  const words = text.replace(/[㐀-鿿豈-﫿]/g, " ").split(/\s+/).filter(Boolean).length;
+  return cjk / 4 + words / 2.5;
+}
+const suggestedScenes = p => Math.max(1, Math.min(40, Math.ceil(readingSec(p.story || "") / (sceneSec() - 1))));
+function sceneCountOf(p) {
+  const n = parseInt(p.sceneCount, 10);
+  if (n > 0) return n;
+  return +p.totalSec ? Math.max(1, Math.round(+p.totalSec / sceneSec())) : suggestedScenes(p);
+}
+function costPerScene() {
+  const s = sceneSec(), res = settings.resolution || DEF_VRES;
+  const perSec = (settings.videoModel || DEF_VIDEO) === DEF_VIDEO ? ({ "480p": 0.0115, "720p": 0.026, "1080p": 0.06 }[res] || 0.026) : 0.03;
+  return 0.018 + s * perSec + 0.003;   // image + vidéo + voix off
+}
+const money = x => x.toFixed(2).replace(".", ",") + " $";
+const fmtDur = s => s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? " " + (s % 60) + " s" : ""}`;
+function updateEstimate() {
+  const p = proj, box = $("#estimate"), cnt = $("#scene-count"); if (!box || !p) return;
+  const sug = suggestedScenes(p);
+  cnt.placeholder = String(+p.totalSec ? Math.max(1, Math.round(+p.totalSec / sceneSec())) : sug);
+  if (!(p.story || "").trim()) { box.textContent = ""; return; }
+  const n = sceneCountOf(p), total = n * sceneSec();
+  const long = readingSec(p.story) > total * 1.25;
+  box.textContent = `≈ ${n} scènes × ${sceneSec()} s = ${fmtDur(total)} · coût ≈ ${money(0.03 + n * costPerScene())}` +
+    (long ? ` · texte long pour cette durée : il sera résumé (${sug} scènes pour tout lire)` : "");
+}
+
 const lastMsg = {};   // dernier message de progression, par vidéo
 const STEP_NAMES =[["✂️", "Scènes"], ["🧑‍🎨", "Personnages"], ["🖼️", "Images"], ["🎞️", "Vidéos"], ["🧩", "Montage"]];
 
@@ -778,9 +823,15 @@ async function autoRun(mode = "full") {
   p.story = $("#story").value; p.sceneCount = $("#scene-count").value; await saveProj(p, true);
   if (!p.story.trim()) return toast("Collez d'abord un texte", true);
   if (!settings.key) { openSettings(); return toast("Il faut une clé API OpenRouter : collez-la dans les réglages, puis appuyez à nouveau.", true); }
-  const semi = mode === "semi";
+  const semi = mode === "semi", splitOnly = mode === "split";
   const changed = p.splitFrom !== p.story;
   const hasFilm = !!(await db.get(K.film(p.id)));
+  if (splitOnly && scenesOf(p).length) {   // redécouper : nouvelles scènes, donc images et vidéos à refaire
+    let media = !!p.refId || hasFilm;
+    for (const sc of scenesOf(p)) if (sc.frameId || await db.get(K.clip(p.id, sc.id))) media = true;
+    if (media && !confirm("Redécouper efface les images et les vidéos déjà faites pour ce texte. Continuer ?")) return;
+    await resetGeneration(p);
+  }
   let edited = false;   // scènes modifiées, ou voix off manquante / illisible : on refera seulement ça, puis le montage
   for (const sc of scenesOf(p)) {
     const text = (sc.narration || "").trim();
@@ -788,8 +839,8 @@ async function autoRun(mode = "full") {
     const v = text ? await db.get(K.tts(p.id, sc.id)) : null;
     if (text && (!v || !(await canDecode(v)) && !(await canDecode(pcmToWav(await v.arrayBuffer()))))) { edited = true; break; }
   }
-  const est = n => (n * (semi ? 0.04 : 0.18) + 0.05).toFixed(2).replace(".", ",");
-  if (scenesOf(p).length && changed) {
+  if (splitOnly) {}
+  else if (scenesOf(p).length && changed) {
     if (!confirm("Le texte a changé : tout refaire (scènes, images, vidéos) ? Cela coûte à nouveau.")) return;
     await resetGeneration(p);
   } else if (hasFilm && edited) {
@@ -798,11 +849,11 @@ async function autoRun(mode = "full") {
     if (!confirm("La vidéo est déjà prête. Tout refaire depuis le début ? Cela coûte à nouveau.")) return;
     await resetGeneration(p);
   }
-  if (!scenesOf(p).length) {
-    const n = parseInt(p.sceneCount, 10) || Math.max(2, Math.round(p.story.trim().split(/\s+/).length / 25));
-    if (!confirm(`${semi ? "Préparer les scènes (texte + image) ?" : "Générer la vidéo ?"}\n\nEnviron ${n} scènes, coût estimé ≈ ${est(n)} $ ` +
-      `(${semi ? "images ≈ 0,04 $ par scène ; les vidéos viendront après, quand vous appuierez sur « Continuer »" : "images ≈ 0,04 $, vidéos ≈ 0,13 $ par scène"}). ` +
-      `Gardez la page ouverte jusqu'au bout.`)) return;
+  if (!splitOnly && (!scenesOf(p).length || !p.refId)) {   // avant de dépenser pour les images / vidéos : confirmer le budget
+    const n = scenesOf(p).length || sceneCountOf(p);
+    const cost = semi ? 0.03 + n * 0.018 : 0.03 + n * costPerScene();
+    if (!confirm(`${semi ? "Préparer les scènes (texte + image) ?" : "Générer la vidéo ?"}\n\n${n} scènes × ${sceneSec()} s = ${fmtDur(n * sceneSec())}, coût estimé ≈ ${money(cost)}` +
+      `${semi ? " (images seulement ; les vidéos viendront quand vous appuierez sur « Continuer »)" : ""}.\nGardez la page ouverte jusqu'au bout.`)) return;
   }
   auto = { cancel: false, p, step: 0 };
   const say = t => { lastMsg[p.id] = t; if (proj === p) { const m = $("#auto-msg"); if (m) m.textContent = t; } };
@@ -819,6 +870,11 @@ async function autoRun(mode = "full") {
     if (!scenesOf(p).length) {
       say("Claude lit le texte et le découpe en scènes…");
       await aiSplit(p, n => say(`Claude écrit les scènes… (${n} caractères)`)); renderScenes();
+    }
+    if (splitOnly) {
+      stepTo(1);
+      say(`✓ ${scenesOf(p).length} scènes (≈ ${fmtDur(scenesOf(p).length * sceneSec())}). Relisez et modifiez-les ci-dessous, ou changez le nombre de scènes et « Redécouper ». Ensuite : ✋ Semi-automatique ou 🎬 Continuer.`);
+      return;
     }
     check(); stepTo(1);
     if (!p.refId) { say("Création de l'image de référence des personnages…"); await makeRefImage(p); renderScenes(); }
@@ -930,15 +986,21 @@ function renderAll() {
   <section class="card" id="sec-text">
     <h2>Votre texte</h2>
     <textarea id="story" rows="10" placeholder="Collez votre texte ici (une histoire, un script, un article…)" ${running ? "disabled" : ""}></textarea>
-    <div class="row" style="margin-top:.8rem">
-      <label class="count">Nombre de scènes <input type="number" id="scene-count" min="1" max="40" placeholder="auto" ${running ? "disabled" : ""}></label>
+    <div class="plan">
+      <label class="count">Durée de la vidéo
+        <select id="total-sec" ${running ? "disabled" : ""}>${[["", "auto"], [15, "15 s"], [30, "30 s"], [45, "45 s"], [60, "1 min"], [90, "1 min 30"], [120, "2 min"], [180, "3 min"], [300, "5 min"]]
+          .map(([v, t]) => `<option value="${v}">${t}</option>`).join("")}</select></label>
+      <label class="count">Scènes <input type="number" id="scene-count" min="1" max="60" ${running ? "disabled" : ""}></label>
+      <span class="estimate" id="estimate"></span>
     </div>
     <div class="go">
       ${running ? `<button class="big" id="btn-auto" onclick="autoRun()">■ Arrêter</button>` : `
-      <button class="primary big" id="btn-auto" onclick="autoRun()">${scenesOf(proj).length && proj.splitFrom === proj.story ? "🎬 Continuer : vidéos + montage" : "🎬 Tout automatique"}</button>
-      <button class="big" id="btn-semi" onclick="autoRun('semi')">✋ Semi-automatique</button>`}
+      <button class="big" id="btn-split" onclick="autoRun('split')">${scenesOf(proj).length ? "✂️ Redécouper" : "✂️ Découper"}</button>
+      <button class="big" id="btn-semi" onclick="autoRun('semi')">✋ Semi-automatique</button>
+      <button class="primary big" id="btn-auto" onclick="autoRun()">${scenesOf(proj).length && proj.splitFrom === proj.story ? "🎬 Continuer : vidéos + montage" : "🎬 Tout automatique"}</button>`}
     </div>
-    <p class="hint">Tout automatique : du texte à la vidéo finale. Semi-automatique : prépare les scènes (texte + image) et s'arrête pour que vous puissiez les modifier, puis « Continuer ». ≈ 0,18 $ par scène · gardez la page ouverte.</p>
+    <p class="hint">✂️ Découper : seulement le découpage en scènes (presque gratuit) — changez le nombre de scènes et redécoupez autant que vous voulez.
+      ✋ Semi-automatique : scènes + images, puis s'arrête pour vos modifications. 🎬 Tout automatique : jusqu'à la vidéo finale. Gardez la page ouverte.</p>
     <ol class="steps" id="steps"></ol>
     <p id="auto-msg"></p>
   </section>
@@ -953,10 +1015,16 @@ function renderAll() {
     <div id="film-out"></div>
   </section>`;
   const story = $("#story"); story.value = proj.story;
-  story.oninput = () => { proj.story = story.value; saveProj(); };
+  story.oninput = () => { proj.story = story.value; saveProj(); updateEstimate(); };
   $("#auto-msg").textContent = lastMsg[proj.id] || "";
+  const tot = $("#total-sec"); tot.value = proj.totalSec || "";
+  tot.onchange = () => {   // durée choisie → nombre de scènes proposé (modifiable)
+    proj.totalSec = tot.value; proj.sceneCount = tot.value ? String(Math.max(1, Math.round(+tot.value / sceneSec()))) : "";
+    cnt.value = proj.sceneCount; saveProj(); updateEstimate();
+  };
   const cnt = $("#scene-count"); cnt.value = proj.sceneCount || "";
-  cnt.oninput = () => { proj.sceneCount = cnt.value; saveProj(); };
+  cnt.oninput = () => { proj.sceneCount = cnt.value; saveProj(); updateEstimate(); };
+  updateEstimate();
   const sceneBox = $("#scenes");
   sceneBox.oninput = e => {   // modification manuelle d'une scène
     const f = e.target.dataset.f; if (!f) return;
@@ -1059,7 +1127,7 @@ function openSettings() {
 $("#dlg-settings").onclose = () => {
   if ($("#dlg-settings").returnValue !== "ok") return;
   for (const [sel, k, d] of SETTING_FIELDS) settings[k] = $(sel).value.trim() || d;
-  settings.v2 = true; saveSettings();
+  settings.v2 = settings.v3 = true; saveSettings();
   if (!auto) renderAll();
 };
 
