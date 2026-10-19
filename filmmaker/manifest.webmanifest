@@ -1,7 +1,7 @@
 {
-  "name": "Ciné-Dessins",
-  "short_name": "Ciné-Dessins",
-  "description": "Transformez les dessins de votre enfant en petit film",
+  "name": "Ciné-Texte",
+  "short_name": "Ciné-Texte",
+  "description": "Collez un texte, recevez une vidéo",
   "lang": "fr",
   "start_url": "./",
   "scope": "./",
