@@ -287,6 +287,22 @@ const sceneNo = (p, sid) => scenesOf(p).findIndex(s => s.id === sid) + 1;
 function nextSid(p) { p.sidCounter = (p.sidCounter || 0) + 1; return String(p.sidCounter).padStart(2, "0"); }
 
 /* ============ OpenRouter ============ */
+// Coupure réseau (Safari : « Load failed ») : on réessaie, puis on explique clairement.
+const NET_MSG = "La connexion a été coupée (réseau instable, écran verrouillé ou changement d'appli). " +
+  "Gardez l'écran allumé et cette page ouverte, puis appuyez à nouveau : la génération reprend là où elle s'est arrêtée.";
+class NetError extends Error {}
+async function withRetry(fn, tries = 3) {
+  for (let i = 1; ; i++) {
+    try { return await fn(); }
+    catch (e) { if (!(e instanceof NetError) || i >= tries) throw e; await sleep(1500 * i); }
+  }
+}
+async function readJson(r) {
+  let t; try { t = await r.text(); } catch { throw new NetError(NET_MSG); }
+  try { return JSON.parse(t); } catch { throw new Error("Réponse illisible d'OpenRouter : " + t.slice(0, 200)); }
+}
+async function readBlob(r) { try { return await r.blob(); } catch { throw new NetError(NET_MSG); } }
+
 async function orFetch(path, opts = {}) {
   if (!settings.key) { openSettings(); throw new Error("Ajoutez d'abord votre clé API OpenRouter dans les réglages"); }
   const headers = { Authorization: "Bearer " + settings.key, "X-Title": "Cine-Texte", ...(opts.headers || {}) };
@@ -295,8 +311,10 @@ async function orFetch(path, opts = {}) {
   try {
     r = await fetch(path.startsWith("http") ? path : API + path, { ...opts, headers });
   } catch {
-    throw new Error("Impossible de joindre OpenRouter (problème de réseau, ou le navigateur bloque les requêtes depuis un fichier local). " +
-      "Si ça continue : lancez npx serve dans le dossier de ce fichier, puis ouvrez http://localhost:3000.");
+    if (location.protocol === "file:")
+      throw new Error("Impossible de joindre OpenRouter (le navigateur bloque peut-être les requêtes depuis un fichier local). " +
+        "Lancez npx serve dans le dossier de ce fichier, puis ouvrez http://localhost:3000.");
+    throw new NetError(NET_MSG);
   }
   if (!r.ok) {
     const t = await r.text();
@@ -313,7 +331,7 @@ async function orFetch(path, opts = {}) {
 }
 
 async function refreshVideoModels() {
-  const j = await (await orFetch("/videos/models")).json();
+  const j = await withRetry(async () => readJson(await orFetch("/videos/models")));
   videoModels = (j.data || []).map(m => {
     const caps = {};
     for (const [k, v] of Object.entries(m)) if (k.startsWith("supported_") || k === "pricing" || k === "generate_audio") caps[k] = v;
@@ -323,21 +341,45 @@ async function refreshVideoModels() {
   return videoModels;
 }
 
-async function askClaude(content, maxTokens = 6000) {
-  const r = await orFetch("/chat/completions", { method: "POST", body: JSON.stringify({
-    model: settings.textModel || DEF_TEXT, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
-  const j = await r.json();
-  let text = j.choices?.[0]?.message?.content ?? "";
-  if (Array.isArray(text)) text = text.map(x => x.text || "").join("");
-  return text;
+/* Réponse de Claude en continu (stream) : sur téléphone, une longue attente silencieuse fait souvent couper la connexion. */
+async function askClaude(content, maxTokens = 6000, onProgress) {
+  return withRetry(async () => {
+    const r = await orFetch("/chat/completions", { method: "POST", body: JSON.stringify({
+      model: settings.textModel || DEF_TEXT, max_tokens: maxTokens, stream: true, messages: [{ role: "user", content }] }) });
+    if (!(r.headers.get("content-type") || "").includes("event-stream")) {
+      const j = await readJson(r);
+      let text = j.choices?.[0]?.message?.content ?? "";
+      if (Array.isArray(text)) text = text.map(x => x.text || "").join("");
+      return text;
+    }
+    let text = "", buf = "";
+    const reader = r.body.getReader(), dec = new TextDecoder();
+    for (;;) {
+      let chunk;
+      try { chunk = await reader.read(); } catch { throw new NetError(NET_MSG); }
+      if (chunk.done) break;
+      buf += dec.decode(chunk.value, { stream: true });
+      let i;
+      while ((i = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, i).trim(); buf = buf.slice(i + 1);
+        if (!line.startsWith("data:")) continue;          // lignes vides et commentaires « : OPENROUTER PROCESSING »
+        const data = line.slice(5).trim(); if (data === "[DONE]") continue;
+        let j; try { j = JSON.parse(data); } catch { continue; }
+        if (j.error) throw new Error("OpenRouter : " + (j.error.message || JSON.stringify(j.error)));
+        text += j.choices?.[0]?.delta?.content || "";
+        onProgress?.(text.length);
+      }
+    }
+    return text;
+  }, 2);
 }
 
 /* ---- 1. Claude découpe le texte en scènes + fiche des personnages ---- */
-async function aiSplit(p) {
+async function aiSplit(p, onProgress) {
   const n = parseInt(p.sceneCount, 10);
   const content = [{ type: "text", text: "Text:\n" + p.story }, { type: "text", text: SPLIT_PROMPT }];
   if (n > 0) content.push({ type: "text", text: `Make exactly ${n} scenes (no more, no less), spreading the whole text over them.` });
-  const text = await askClaude(content);
+  const text = await askClaude(content, 6000, onProgress);
   let sb;
   try { sb = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); }
   catch { throw new Error("Le découpage reçu n'est pas dans le bon format, réessayez"); }
@@ -365,10 +407,10 @@ async function genImage(prompt, refKeys = []) {
   const refs = [];
   for (const k of refKeys) { const b = k && await db.get(k); if (b) refs.push({ type: "image_url", image_url: { url: await blobToDataURL(b) } }); }
   if (refs.length) body.input_references = refs;
-  const d = (await (await orFetch("/images", { method: "POST", body: JSON.stringify(body) })).json()).data?.[0];
+  const d = (await withRetry(async () => readJson(await orFetch("/images", { method: "POST", body: JSON.stringify(body) })))).data?.[0];
   let blob;
-  if (d?.b64_json) blob = await (await fetch(`data:${d.media_type || "image/png"};base64,${d.b64_json}`)).blob();
-  else if (d?.url) blob = await (await fetch(d.url)).blob();
+  if (d?.b64_json) blob = new Blob([Uint8Array.from(atob(d.b64_json), c => c.charCodeAt(0))], { type: d.media_type || "image/png" });
+  else if (d?.url) blob = await withRetry(async () => { try { return await readBlob(await fetch(d.url)); } catch { throw new NetError(NET_MSG); } });
   else throw new Error("Le modèle d'images n'a renvoyé aucune image");
   return shrinkToJpeg(blob);
 }
@@ -410,7 +452,7 @@ async function startVideo(p, sid) {
     if (settings.duration) body.duration = isNaN(+settings.duration) ? settings.duration : +settings.duration;
     if (settings.resolution) body.resolution = settings.resolution;
     body.aspect_ratio = "16:9";
-    const job = await (await orFetch("/videos", { method: "POST", body: JSON.stringify(body) })).json();
+    const job = await readJson(await orFetch("/videos", { method: "POST", body: JSON.stringify(body) }));   // pas de nouvel essai ici : risque de payer deux vidéos
     p.jobs[sid] = { id: job.id, poll: job.polling_url || `/videos/${job.id}`, started: Date.now(), model: body.model };
     await saveProj(p, true);
     pollJob(p, sid);
@@ -429,11 +471,17 @@ async function pollJob(p, sid) {
       const mins = Math.floor((Date.now() - job.started) / 60000);
       if (Date.now() - job.started > 45 * 60000) throw new Error("Toujours pas prête après 45 minutes : abandon");
       const pollUrl = job.poll.startsWith("http") ? job.poll : (job.poll.startsWith("/api") ? "https://openrouter.ai" + job.poll : job.poll);
-      const s = await (await orFetch(pollUrl)).json();
+      let s;
+      try { s = await readJson(await orFetch(pollUrl)); job.netFails = 0; }
+      catch (e) {   // coupure réseau pendant le suivi : la vidéo continue chez OpenRouter, on réessaie plus tard
+        if (!(e instanceof NetError) || ++job.netFails > 40) throw e;
+        status[key] = "Connexion perdue, nouvel essai…"; sceneChanged(p);
+        await sleep(Math.max(POLL_MS, 5000)); continue;
+      }
       const st = s.status || "?";
       if (st === "completed") {
         status[key] = "Téléchargement…"; sceneChanged(p);
-        await putBlob(K.clip(p.id, sid), await downloadClip(job, s));
+        await putBlob(K.clip(p.id, sid), await withRetry(() => downloadClip(job, s), 4));
         delete p.jobs[sid]; delete status[key];
         await saveProj(p, true); sceneChanged(p);
         break;
@@ -451,19 +499,21 @@ async function pollJob(p, sid) {
 }
 
 async function downloadClip(job, s) {
-  try { return await (await orFetch(`/videos/${job.id}/content?index=0`)).blob(); }
-  catch {}
+  let net = false;
+  try { return await readBlob(await orFetch(`/videos/${job.id}/content?index=0`)); }
+  catch (e) { net = e instanceof NetError; }
   const u = s.unsigned_urls?.[0];
-  if (u) { try { const r = await fetch(u); if (r.ok) return await r.blob(); } catch {} }
+  if (u) { try { const r = await fetch(u); if (r.ok) return await readBlob(r); } catch { net = true; } }
+  if (net) throw new NetError(NET_MSG);
   throw new Error("La vidéo est prête, mais le navigateur n'a pas pu la récupérer");
 }
 
 /* ---- Voix off automatique (OpenRouter /audio/speech) ---- */
 async function makeTts(p, sc) {
   const text = (sc.narration || "").trim(); if (!text) return;
-  const r = await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
-    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: "mp3" }) });
-  await putBlob(K.tts(p.id, sc.id), new Blob([await r.blob()], { type: "audio/mpeg" }));
+  const audio = await withRetry(async () => readBlob(await orFetch("/audio/speech", { method: "POST", body: JSON.stringify({
+    model: settings.ttsModel || DEF_TTS, voice: settings.ttsVoice || DEF_VOICE, input: text, instructions: TTS_STYLE, response_format: "mp3" }) })));
+  await putBlob(K.tts(p.id, sc.id), new Blob([audio], { type: "audio/mpeg" }));
   sc.ttsText = text; await saveProj(p, true);
 }
 
@@ -689,9 +739,17 @@ async function autoRun(mode = "full") {
   const stepTo = i => { auto.step = i; if (proj === p) renderProgress(); };
   const check = () => { if (auto.cancel) throw new Error("Arrêté. Appuyez à nouveau sur « Générer » pour reprendre là où ça s'est arrêté."); };
   renderAll();
+  // Écran allumé pendant toute la génération : un téléphone verrouillé coupe les connexions
+  let wake = null;
+  const lock = async () => { try { wake = await navigator.wakeLock?.request("screen"); } catch {} };
+  const onVisible = () => { if (!document.hidden && auto) lock(); };
+  document.addEventListener("visibilitychange", onVisible); await lock();
   try {
     stepTo(0);
-    if (!scenesOf(p).length) { say("Claude découpe le texte en scènes…"); await aiSplit(p); renderScenes(); }
+    if (!scenesOf(p).length) {
+      say("Claude lit le texte et le découpe en scènes…");
+      await aiSplit(p, n => say(`Claude écrit les scènes… (${n} caractères)`)); renderScenes();
+    }
     check(); stepTo(1);
     if (!p.refId) { say("Création de l'image de référence des personnages…"); await makeRefImage(p); renderScenes(); }
     check(); stepTo(2);
@@ -737,6 +795,8 @@ async function autoRun(mode = "full") {
   } catch (e) { say(e.message); if (!auto?.cancel) toast(e.message, true); }
   finally {
     auto = null;
+    document.removeEventListener("visibilitychange", onVisible);
+    try { await wake?.release(); } catch {}
     if (proj === p) { renderAll(); }
   }
 }
