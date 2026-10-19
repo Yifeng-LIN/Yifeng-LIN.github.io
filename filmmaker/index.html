@@ -635,7 +635,9 @@ async function makeMusic(p) {
   let bytes;
   try { bytes = await ask("wav"); }
   catch (e) { if (!/format|wav/i.test(e.message)) throw e; bytes = await ask("mp3"); }
-  const blob = await playableAudio(new Blob([bytes]), 48000, 2);
+  const head = String.fromCharCode(...bytes.slice(0, 4));   // reconnaître le format (Lyria renvoie souvent du MP3)
+  const type = head.startsWith("ID3") || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) ? "audio/mpeg" : head === "RIFF" ? "audio/wav" : head === "OggS" ? "audio/ogg" : "";
+  const blob = await playableAudio(new Blob([bytes], type ? { type } : {}), 48000, 2);
   await putBlob(K.music(p.id), blob);
   p.musicFor = p.musicPrompt; await saveProj(p, true);
 }
