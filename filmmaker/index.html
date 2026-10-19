@@ -62,6 +62,19 @@ header{position:sticky;top:0;z-index:5;background:rgba(255,246,234,.82);backdrop
 .logo i{display:inline-grid;place-items:center;width:2.1rem;height:2.1rem;border-radius:12px;font-style:normal;font-size:1.15rem;
   background:linear-gradient(135deg,var(--sun),var(--coral));box-shadow:0 3px 0 var(--coral-d);transform:rotate(-6deg)}
 .logo b{font-weight:700;color:var(--coral)}
+.modes{display:inline-flex;background:#fff;border-radius:999px;padding:3px;box-shadow:inset 0 0 0 2px var(--line)}
+.modes button{box-shadow:none;background:transparent;padding:.36em .9em;font-size:.88rem;color:var(--muted)}
+.modes button:hover:not(:disabled){transform:none;color:var(--ink)}
+.modes button.on{background:var(--ink);color:#fff}
+.scene.tscene{grid-template-columns:2.6rem 1fr 320px}
+.auto-box{display:flex;flex-wrap:wrap;gap:.7rem 1rem;align-items:center;justify-content:space-between;margin:1rem 0 .6rem;padding:.9rem 1rem;border-radius:18px;background:#fff3ef;box-shadow:inset 0 0 0 2px #ffd6cc}
+.auto-box > div:first-child{flex:1;min-width:15rem}
+details.manual summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.4rem 0}
+.ref-box{display:flex;gap:1rem;flex-wrap:wrap;align-items:flex-start;margin-top:.8rem}
+.ref-img{width:220px;max-width:100%}
+.ref-img img,.frame img{width:100%;border-radius:12px;display:block;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
+.frame{margin-bottom:.5rem}
+.frame .lbl{font-size:.78rem;font-weight:800;color:var(--muted);margin-bottom:.2rem}
 .bar select{width:auto;min-width:9rem;max-width:14rem;padding:.42em .7em;border-radius:999px;font-size:.92rem;font-weight:700}
 
 main{max-width:1120px;margin:0 auto;padding:1.4rem 16px calc(5rem + env(safe-area-inset-bottom))}
@@ -156,7 +169,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1re
 .how .em{font-size:1.6rem}
 
 @media (max-width:860px){
-  .scene{grid-template-columns:1fr}
+  .scene,.scene.tscene{grid-template-columns:1fr}
   .scene > div:first-child{display:flex;align-items:center;gap:.6rem}
   .scene-tools{flex-direction:row;margin:0 0 0 auto}
   .scene-pic img{max-height:260px}
@@ -164,7 +177,8 @@ dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1re
 }
 @media (max-width:600px){
   .bar{gap:.4rem}
-  .logo{font-size:1.3rem;width:100%;margin-right:0}
+  .logo{font-size:1.3rem;margin-right:auto}
+  .modes button{padding:.32em .7em;font-size:.84rem}
   .bar select{flex:1;max-width:none}
   .btn-label{display:none}
   section.step{padding:1.1rem 1rem 1.3rem;border-radius:20px}
@@ -181,6 +195,10 @@ dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1re
 <header>
   <div class="bar">
     <div class="logo"><i>🎬</i><span>Ciné-<b>Dessins</b></span></div>
+    <div class="modes" role="group" aria-label="Mode">
+      <button data-mode="drawings" title="Mode dessins (Alt+1)" onclick="setMode('drawings')">🖍️ Dessins</button>
+      <button data-mode="text" id="mode-text" title="Mode texte (Alt+2)" onclick="setMode('text')">✍️ Texte</button>
+    </div>
     <select id="proj-select" aria-label="Film"></select>
     <button class="small" id="btn-new" title="Nouveau film">＋<span class="btn-label"> Nouveau</span></button>
     <button class="small ghost" id="btn-del-proj" title="Supprimer ce film">🗑<span class="btn-label"> Supprimer</span></button>
@@ -205,6 +223,8 @@ dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1re
       <datalist id="dl-video"></datalist>
     </label>
     <div class="grid3" style="grid-template-columns:2fr 1fr">
+      <label class="f">Modèle d'images (mode texte automatique)<input type="text" id="s-img"></label>
+      <span></span>
       <label class="f">Voix automatique : modèle<input type="text" id="s-tts"></label>
       <label class="f">Voix<input type="text" id="s-voice" list="dl-voice"><datalist id="dl-voice"><option value="nova"><option value="alloy"><option value="shimmer"><option value="coral"><option value="fable"><option value="sage"></datalist></label>
     </div>
@@ -224,6 +244,7 @@ dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1re
 <input type="file" id="file-cam" accept="image/*" capture="environment" hidden>
 <input type="file" id="file-voice" accept="audio/*" hidden>
 <input type="file" id="file-clip" accept="video/*" hidden>
+<input type="file" id="file-txt" accept=".txt,.md,text/plain" hidden>
 <div id="toast" role="status"></div>
 
 <script>
@@ -237,6 +258,7 @@ const VOICE_LEAD = 0.3, VOICE_TAIL = 0.5;  // la voix démarre 0,3 s après le d
 const MUSIC_VOL = 0.16;                    // volume de la musique de fond
 const TTS_STYLE = "Read this like a warm, gentle storyteller narrating a children's picture book, slowly and clearly, in the language of the text.";
 const DEF_TTS = "openai/gpt-4o-mini-tts-2025-12-15", DEF_VOICE = "nova";
+const DEF_IMG = "google/gemini-2.5-flash-image";
 const STYLE = "Keep the original child's hand-drawn look exactly: same lines, same colors, " +
   "same paper texture. Gentle, simple motion only. Do not add details, do not redraw, do not make it realistic.";
 const PROMPT = `You are directing a short film made from a child's drawings.
@@ -306,9 +328,16 @@ const db = (() => {
 })();
 
 /* ============ Réglages ============ */
+// Vidéo par défaut : le meilleur rapport qualité/prix (Seedance 1.5 Pro sans le son du modèle, 720p, 5 s ≈ 0,13 $) ;
+// la voix off et la musique sont ajoutées par l'appli, inutile de payer le son de la vidéo.
+const DEF_VIDEO = "bytedance/seedance-1-5-pro", DEF_VDUR = "5", DEF_VRES = "720p", DEF_VAR = "16:9";
 let settings = Object.assign(
-  { key: "", textModel: "anthropic/claude-sonnet-5.5", videoModel: "bytedance/seedance-2.0-fast", duration: "", resolution: "", aspect: "", ttsModel: DEF_TTS, ttsVoice: DEF_VOICE },
+  { key: "", textModel: "anthropic/claude-sonnet-5.5", videoModel: DEF_VIDEO, duration: DEF_VDUR, resolution: DEF_VRES, aspect: DEF_VAR, ttsModel: DEF_TTS, ttsVoice: DEF_VOICE },
   JSON.parse(lsGet("huabian-settings") || "{}"));
+if (!settings.v2) {   // anciens réglages : passer au modèle vidéo moins cher, sauf si l'utilisateur en avait choisi un autre
+  if (settings.videoModel === "bytedance/seedance-2.0-fast") settings.videoModel = DEF_VIDEO;
+  settings.duration ||= DEF_VDUR; settings.resolution ||= DEF_VRES; settings.aspect ||= DEF_VAR; settings.v2 = true;
+}
 const saveSettings = () => lsSet("huabian-settings", JSON.stringify(settings));
 let videoModels = JSON.parse(lsGet("huabian-models") || "[]");
 
@@ -445,16 +474,23 @@ async function clearScenes(p) {
 /* ---- 2. Image → vidéo (envoi → suivi → téléchargement) ---- */
 async function startVideo(p, sid) {
   const sc = findScene(p, sid); if (!sc) return;
-  if (!settings.key) return toast("Pas de clé API : dans le film, cette scène sera un lent zoom sur le dessin (gratuit). Pour une vidéo IA, ajoutez une clé dans les réglages.", true);
+  const isText = kindOf(p) === "text";
+  if (!settings.key) return toast(isText ? "Pas de clé API : pour générer des vidéos, ajoutez une clé dans les réglages (ou importez vos propres vidéos)."
+    : "Pas de clé API : dans le film, cette scène sera un lent zoom sur le dessin (gratuit). Pour une vidéo IA, ajoutez une clé dans les réglages.", true);
+  if (isText && !(sc.text || "").trim()) return toast(`Scène ${sceneNo(p, sid)} : écrivez d'abord ce que montre la vidéo`, true);
   const key = `${p.id}:${sid}`;
   if (p.jobs[sid] || status[key] === "Envoi…") return;
   delete p.errors[sid]; status[key] = "Envoi…"; updateMedia(p, sid);
   try {
-    const body = {
-      model: settings.videoModel,
-      prompt: `${sc.motion || "gentle subtle movement"}. ${STYLE}`,
-      frame_images: [{ type: "image_url", image_url: { url: await blobToDataURL(await db.get(K.img(p.id, sc.imageId))) }, frame_type: "first_frame" }],
-    };
+    // mode texte : texte → vidéo, ou première image de la scène → vidéo si elle existe
+    const startImg = isText ? (sc.frameId ? await db.get(K.img(p.id, sc.frameId)) : null) : await db.get(K.img(p.id, sc.imageId));
+    const body = isText
+      ? { model: settings.videoModel, prompt: [sc.text.trim(), (p.style || "").trim()].filter(Boolean).join("\nStyle: ") +
+          (startImg ? "\nStart exactly from the given first frame and keep the characters' look unchanged." : "") }
+      : { model: settings.videoModel, prompt: `${sc.motion || "gentle subtle movement"}. ${STYLE}` };
+    if (startImg) body.frame_images = [{ type: "image_url", image_url: { url: await blobToDataURL(startImg) }, frame_type: "first_frame" }];
+    const caps = videoModels.find(m => m.id === settings.videoModel)?.caps;
+    if (!caps || caps.generate_audio) body.generate_audio = false;   // le son vient de la voix off et de la musique : moins cher
     if (settings.duration) body.duration = isNaN(+settings.duration) ? settings.duration : +settings.duration;
     if (settings.resolution) body.resolution = settings.resolution;
     if (settings.aspect) body.aspect_ratio = settings.aspect;
@@ -532,14 +568,29 @@ async function importImages(files, target = "images") {
   if (n) toast(n > 1 ? `${n} dessins ajoutés` : "Dessin ajouté");
 }
 
-/* ============ Gestion des films ============ */
+/* ============ Gestion des films (deux modes : dessins / texte) ============ */
+const kindOf = x => x?.kind === "text" ? "text" : "drawings";
+let mode = lsGet("huabian-mode") === "text" ? "text" : "drawings";
+const projectsOfMode = () => projects.filter(x => kindOf(x) === mode);
+
+async function setMode(m) {
+  if (m === mode && (!proj || kindOf(proj) === m)) return;
+  mode = m; lsSet("huabian-mode", m);
+  if (recState) stopRec(recState);
+  stopPlayback();
+  const list = projectsOfMode(), last = lsGet("huabian-last-" + m);
+  if (list.length) return openProject(list.find(x => x.id === last)?.id || list[0].id);
+  proj = null; renderAll();
+}
+
 async function newProject() {
-  const name = prompt("Donnez un nom à ce film :", "Mon petit film");
+  const text = mode === "text";
+  const name = prompt(text ? "Donnez un nom à cette vidéo :" : "Donnez un nom à ce film :", text ? "Ma vidéo" : "Mon petit film");
   if (!name?.trim()) return;
-  const p = { id: uid(), name: name.trim(), story: "", images: [], storyboard: null, jobs: {}, errors: {}, sidCounter: 0 };
+  const p = { id: uid(), kind: mode, name: name.trim(), story: "", images: [], storyboard: null, jobs: {}, errors: {}, sidCounter: 0 };
   loaded[p.id] = p;
   await saveProj(p, true);
-  projects.unshift({ id: p.id, name: p.name }); await saveProjectList();
+  projects.unshift({ id: p.id, name: p.name, kind: p.kind }); await saveProjectList();
   await openProject(p.id);
 }
 
@@ -549,7 +600,8 @@ async function openProject(id) {
   proj = loaded[id] || (loaded[id] = await db.get("p:" + id));
   if (!proj) { proj = null; renderAll(); return; }
   proj.jobs ||= {}; proj.errors ||= {}; proj.images ||= [];
-  lsSet("huabian-last", id);
+  mode = kindOf(proj); lsSet("huabian-mode", mode);
+  lsSet("huabian-last", id); lsSet("huabian-last-" + mode, id);
   renderAll();
   for (const sid of Object.keys(proj.jobs)) pollJob(proj, sid);
 }
@@ -564,14 +616,17 @@ async function deleteProject() {
   await delBlob(K.film(pid)); await db.del("p:" + pid); delete loaded[pid];
   projects = projects.filter(x => x.id !== pid); await saveProjectList();
   proj = null;
-  if (projects.length) await openProject(projects[0].id); else renderAll();
+  const rest = projectsOfMode();
+  if (rest.length) await openProject(rest[0].id); else renderAll();
 }
 
 /* ============ Affichage ============ */
 function renderAll() {
-  const sel = $("#proj-select");
-  sel.innerHTML = projects.map(x => `<option value="${x.id}" ${proj?.id === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
-  sel.hidden = !projects.length; $("#btn-del-proj").hidden = !proj;
+  const sel = $("#proj-select"); const list = projectsOfMode();
+  sel.innerHTML = list.map(x => `<option value="${x.id}" ${proj?.id === x.id ? "selected" : ""}>${esc(x.name)}</option>`).join("");
+  sel.hidden = !list.length; $("#btn-del-proj").hidden = !proj;
+  for (const b of document.querySelectorAll(".modes button")) b.classList.toggle("on", b.dataset.mode === mode);
+  if (mode === "text") return renderTextMode();
   const main = $("#main");
   const keyBanner = settings.key ? "" :
     `<div class="banner"><span class="ico">💡</span><div>Pour l'IA : touchez <b>⚙ Réglages</b> et collez votre clé API OpenRouter. Sans clé, tout marche quand même gratuitement : vous écrivez le scénario et chaque dessin s'anime par un lent zoom.</div></div>`;
@@ -621,8 +676,7 @@ function renderAll() {
       <button id="btn-stop" onclick="stopPlayback()" disabled>■ Stop</button>
       <span class="muted" id="play-msg"></span>
     </div>
-    <div class="row" style="margin-top:.7rem"><label class="switch"><input type="checkbox" id="music" ${proj.music !== false ? "checked" : ""}> 🎵 Musique de fond douce</label>
-      <span class="hint">Elle baisse toute seule quand quelqu'un parle.</span></div>
+    ${musicSwitch()}
     <div id="film-out"></div>
   </section>`;
   const story = $("#story"); story.value = proj.story;
@@ -633,6 +687,340 @@ function renderAll() {
   box.ondragleave = () => box.classList.remove("drop");
   box.ondrop = e => { e.preventDefault(); box.classList.remove("drop"); importImages([...e.dataTransfer.files].filter(f => f.type.startsWith("image/"))); };
   renderImages(); renderScript(); renderStoryboard(); renderFilmOut(); drawIdle();
+}
+
+const musicOn = p => p.music ?? true;
+const musicSwitch = () => `<div class="row" style="margin-top:.7rem"><label class="switch"><input type="checkbox" id="music" ${musicOn(proj) ? "checked" : ""}> 🎵 Musique de fond douce</label>
+      <span class="hint">Elle baisse toute seule quand quelqu'un parle.</span></div>`;
+
+/* ============ Mode texte : un long texte → des scènes → une vidéo par scène → assemblage ============ */
+const TEXT_SB_LABEL = "✨ Claude découpe en scènes";
+const TEXT_PROMPT = `Split the text above into short scenes for a text-to-video model (each scene about 5-10 seconds of video).
+Keep the order and the meaning of the text; do not skip parts of it.
+For each scene give:
+- "visual": one self-contained description of what the video shows (who, where, what happens, camera),
+  in the same language as the text, repeating the key details of characters and places so all scenes look consistent;
+- "narration": the passage of the original text told in this scene (short, to be read aloud as voice-over).
+Also give "bible": a short fixed description, in the same language as the text, of every recurring character
+(name, age, face, hair, clothes and colors) and every recurring place, so that every image can be drawn identically.
+
+Return ONLY a JSON object, no other text:
+{ "title": "...", "bible": "...", "scenes": [ { "visual": "...", "narration": "..." } ] }`;
+const BIBLE_PROMPT = `From the text and the scenes above, write a short fixed description, in the same language as the text,
+of every recurring character (name, age, face, hair, clothes and colors) and every recurring place,
+so that every image of the video can be drawn identically. Return only that description, no other text.`;
+
+function renderTextMode() {
+  const main = $("#main");
+  const keyBanner = settings.key ? "" :
+    `<div class="banner"><span class="ico">💡</span><div>Pour générer les vidéos (et la voix off), touchez <b>⚙ Réglages</b> et collez votre clé API OpenRouter. Sans clé, vous pouvez quand même découper le texte, importer vos propres vidéos et les assembler.</div></div>`;
+  if (!proj) {
+    main.innerHTML = keyBanner + `<div class="hero">
+      <div class="art"><span>✍️</span><span>→</span><span>🎬</span></div>
+      <h1>Du texte à la vidéo</h1>
+      <p>Collez un texte : il est découpé en scènes, chaque scène devient un clip, puis tout est assemblé avec voix off et musique.</p>
+      <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo à partir d'un texte</button>
+      <div class="how">
+        <div><span class="em">📋</span><b>1. Le texte</b><small>Collez-le ou importez un fichier .txt.</small></div>
+        <div><span class="em">🎞️</span><b>2. Les scènes</b><small>Une vidéo par scène. Pas satisfait ? Supprimez et regénérez.</small></div>
+        <div><span class="em">🧩</span><b>3. Assembler</b><small>Un bouton pour tout assembler, un bouton pour télécharger.</small></div>
+      </div></div>`;
+    return;
+  }
+  main.innerHTML = keyBanner + `
+  <section class="step" id="sec-pics">
+    <h2><b>1</b>Le texte</h2>
+    <p class="sub">Collez ou importez votre texte (une histoire, un script…). Il sera découpé en scènes. La voix off et la musique sont ajoutées automatiquement.</p>
+    <textarea id="story" rows="8" placeholder="Collez votre texte ici…"></textarea>
+    <label class="f" style="margin-top:.8rem">Style des images pour toutes les scènes (facultatif)<input type="text" id="tstyle" placeholder="ex. : dessin animé doux, couleurs pastel"></label>
+    <div class="auto-box">
+      <div><b>🤖 Tout automatique</b>
+        <div class="hint" style="margin:.1rem 0 0">Claude découpe le texte → une image de référence des personnages → la première image de chaque scène (personnages identiques d'une scène à l'autre) → une vidéo par scène → assemblage avec voix off et musique.</div></div>
+      <button class="primary" id="btn-auto" onclick="autoRun()">🤖 Tout faire automatiquement</button>
+      <div class="hint" id="auto-msg" style="width:100%;margin:0"></div>
+    </div>
+    <details class="manual" ${scenesOf(proj).length || proj.bible ? "open" : ""}><summary>Ou étape par étape</summary>
+    <div class="row" style="margin-top:.6rem">
+      <button class="blue" id="btn-ai-sb" onclick="splitTextAI()">${TEXT_SB_LABEL}</button>
+      <button onclick="splitTextManual()">✂️ Un paragraphe = une scène</button>
+      <button class="ghost" onclick="importTextFile()">📄 Importer un fichier .txt</button>
+    </div>
+    <div class="ref-box">
+      <label class="f" style="flex:1;min-width:14rem">Personnages et décors (gardés identiques dans toutes les images)
+        <textarea id="bible" rows="3" placeholder="Rempli par Claude ; vous pouvez le corriger."></textarea></label>
+      <div class="ref-img" id="ref-img"></div>
+    </div>
+    </details>
+  </section>
+  <section class="step" id="sec-sb">
+    <h2><b>2</b>Les scènes</h2>
+    <p class="sub">Une vidéo par scène. Appuyez sur « Générer » ; si le résultat ne plaît pas, supprimez la vidéo et générez-en une autre. Vous pouvez aussi ajouter, déplacer ou supprimer des scènes.</p>
+    <div id="sb"></div>
+  </section>
+  <section class="step" id="sec-film">
+    <h2><b>3</b>Assembler</h2>
+    <p class="sub">Toutes les vidéos sont mises bout à bout, avec la voix off et la musique. L'assemblage se fait en temps réel : gardez cette page au premier plan.</p>
+    <div class="stage-wrap"><canvas id="stage" width="${W}" height="${H}"></canvas></div>
+    <div class="row">
+      <button class="primary" id="btn-record" onclick="playFilm(true)">🧩 Assembler la vidéo</button>
+      <button id="btn-preview" onclick="playFilm(false)">▶ Aperçu</button>
+      <button id="btn-stop" onclick="stopPlayback()" disabled>■ Stop</button>
+      <span class="muted" id="play-msg"></span>
+    </div>
+    ${musicSwitch()}
+    <div id="film-out"></div>
+  </section>`;
+  const story = $("#story"); story.value = proj.story;
+  story.oninput = () => { proj.story = story.value; saveProj(); };
+  const st = $("#tstyle"); st.value = proj.style || "";
+  st.oninput = () => { proj.style = st.value; saveProj(); };
+  const bi = $("#bible"); bi.value = proj.bible || "";
+  bi.oninput = () => { proj.bible = bi.value; saveProj(); };
+  renderRefImg();
+  $("#music").onchange = e => { proj.music = e.target.checked; saveProj(); };
+  renderStoryboard(); renderFilmOut(); drawIdle();
+}
+
+async function importTextFile() {
+  const f = await pickFile($("#file-txt")); if (!f) return;
+  const t = (await f.text()).trim(); const box = $("#story");
+  proj.story = box.value.trim() ? box.value.trim() + "\n\n" + t : t; box.value = proj.story; await saveProj(proj, true);
+  toast("Texte importé");
+}
+
+/* Sans IA : un paragraphe = une scène (ou deux phrases par scène si le texte n'a pas de paragraphes) */
+function splitText(t) {
+  t = String(t || "").trim(); if (!t) return [];
+  let parts = t.split(/\n\s*\n+/).map(s => s.trim()).filter(Boolean);
+  if (parts.length === 1) parts = t.split(/\n+/).map(s => s.trim()).filter(Boolean);
+  if (parts.length === 1) {
+    const s = t.split(/(?<=[.!?。！？…])\s*/).map(x => x.trim()).filter(Boolean); parts = [];
+    for (let i = 0; i < s.length; i += 2) parts.push(s.slice(i, i + 2).join(" "));
+  }
+  return parts;
+}
+
+async function setTextScenes(p, title, list, bible) {
+  await clearScenes(p);
+  for (const sc of scenesOf(p)) if (sc.frameId) await delBlob(K.img(p.id, sc.frameId));
+  if (bible) { p.bible = bible; const bi = $("#bible"); if (bi && proj === p) bi.value = bible; }
+  p.storyboard = { title: title || p.name, scenes: list.map(x => ({ id: nextSid(p), text: x.visual || x.narration || "", narration: x.narration || "" })) };
+  await saveProj(p, true);
+  if (proj === p) renderStoryboard();
+}
+
+async function splitTextManual() {
+  const p = proj; const parts = splitText(p.story);
+  if (!parts.length) return toast("Collez d'abord un texte", true);
+  if (scenesOf(p).length && !confirm("Cela remplace les scènes actuelles (et leurs vidéos). Continuer ?")) return;
+  await setTextScenes(p, p.name, parts.map(x => ({ visual: x, narration: x })));
+  toast(`${parts.length} scène(s) créées`);
+}
+
+async function splitTextAI() {
+  const p = proj;
+  if (!p.story.trim()) return toast("Collez d'abord un texte", true);
+  if (!settings.key) {
+    if (confirm("Pas encore de clé API OpenRouter.\nDécouper sans IA : un paragraphe = une scène ?")) splitTextManual();
+    return;
+  }
+  if (scenesOf(p).length && !confirm("Cela remplace les scènes actuelles (et leurs vidéos). Continuer ?")) return;
+  const btn = $("#btn-ai-sb"); btn.disabled = true; btn.textContent = "Claude lit le texte…";
+  try {
+    const n = await aiSplit(p);
+    toast(`${n} scènes prêtes. Générez les vidéos une par une ou toutes d'un coup.`);
+  } catch (e) { toast(e.message, true); }
+  finally { btn.disabled = false; btn.textContent = TEXT_SB_LABEL; }
+}
+
+async function askClaude(content, maxTokens = 6000) {
+  const r = await orFetch("/chat/completions", { method: "POST", body: JSON.stringify({
+    model: settings.textModel, max_tokens: maxTokens, messages: [{ role: "user", content }] }) });
+  const j = await r.json();
+  let text = j.choices?.[0]?.message?.content ?? "";
+  if (Array.isArray(text)) text = text.map(x => x.text || "").join("");
+  return text;
+}
+
+async function aiSplit(p) {
+  const content = [{ type: "text", text: "Text:\n" + p.story }];
+  if ((p.style || "").trim()) content.push({ type: "text", text: "Visual style for every scene: " + p.style.trim() });
+  content.push({ type: "text", text: TEXT_PROMPT });
+  const text = await askClaude(content);
+  let sb;
+  try { sb = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); }
+  catch { throw new Error("Le découpage reçu n'est pas dans le bon format, réessayez"); }
+  const list = (sb.scenes || []).filter(s => (s.visual || s.narration || "").trim());
+  if (!list.length) throw new Error("Claude n'a renvoyé aucune scène, réessayez");
+  await setTextScenes(p, sb.title, list, (sb.bible || "").trim());
+  return list.length;
+}
+
+/* ---- Images : référence des personnages + première image de chaque scène (OpenRouter /images) ---- */
+async function shrinkToJpeg(blob, max = 1280) {
+  const bmp = await createImageBitmap(blob);
+  const s = Math.min(1, max / Math.max(bmp.width, bmp.height));
+  const c = document.createElement("canvas"); c.width = Math.round(bmp.width * s); c.height = Math.round(bmp.height * s);
+  const g = c.getContext("2d"); g.fillStyle = "#fff"; g.fillRect(0, 0, c.width, c.height); g.drawImage(bmp, 0, 0, c.width, c.height);
+  return new Promise(r => c.toBlob(r, "image/jpeg", 0.9));
+}
+
+async function genImage(prompt, refKeys = []) {
+  const body = { model: settings.imageModel || DEF_IMG, prompt, aspect_ratio: "16:9" };
+  const refs = [];
+  for (const k of refKeys) { const b = k && await db.get(k); if (b) refs.push({ type: "image_url", image_url: { url: await blobToDataURL(b) } }); }
+  if (refs.length) body.input_references = refs;
+  const r = await orFetch("/images", { method: "POST", body: JSON.stringify(body) });
+  const d = (await r.json()).data?.[0];
+  let blob;
+  if (d?.b64_json) blob = await (await fetch(`data:${d.media_type || "image/png"};base64,${d.b64_json}`)).blob();
+  else if (d?.url) blob = await (await fetch(d.url)).blob();
+  else throw new Error("Le modèle d'images n'a renvoyé aucune image");
+  return shrinkToJpeg(blob);
+}
+
+async function ensureBible(p) {
+  if ((p.bible || "").trim()) return;
+  const scenes = scenesOf(p).map((s, i) => `${i + 1}. ${s.text}`).join("\n");
+  p.bible = (await askClaude([{ type: "text", text: "Text:\n" + p.story + "\n\nScenes:\n" + scenes }, { type: "text", text: BIBLE_PROMPT }], 1500)).trim();
+  await saveProj(p, true);
+  const bi = $("#bible"); if (bi && proj === p) bi.value = p.bible;
+}
+
+async function makeRefImage(p) {
+  await ensureBible(p);
+  const blob = await genImage(`Character and setting reference sheet for an animated story.
+Show every main character full body, side by side on a plain light background, clearly separated, plus small views of the main places.
+${p.bible}
+${(p.style || "").trim() ? "Style: " + p.style.trim() : ""}
+No text, no labels.`);
+  if (p.refId) await delBlob(K.img(p.id, p.refId));
+  p.refId = uid(); await putBlob(K.img(p.id, p.refId), blob); await saveProj(p, true);
+  if (proj === p) renderRefImg();
+}
+
+async function makeFrame(p, sc) {
+  if (!p.refId) await makeRefImage(p);
+  const scs = scenesOf(p); const prev = scs[scs.indexOf(sc) - 1];
+  const refs = [K.img(p.id, p.refId)];
+  if (prev?.frameId) refs.push(K.img(p.id, prev.frameId));
+  const blob = await genImage(`First frame of one scene of an animated video.
+Scene: ${sc.text}
+Characters and places (draw them exactly like in the reference images: same faces, hair, clothes, colors): ${p.bible || ""}
+${(p.style || "").trim() ? "Style: " + p.style.trim() : "Keep the same style as the reference images."}
+Wide 16:9 shot. No text, no captions.`, refs);
+  if (sc.frameId) await delBlob(K.img(p.id, sc.frameId));
+  sc.frameId = uid(); await putBlob(K.img(p.id, sc.frameId), blob); await saveProj(p, true);
+  updateMedia(p, sc.id);
+}
+
+async function renderRefImg() {
+  const p = proj; const box = $("#ref-img"); if (!box) return;
+  const u = p.refId ? await blobUrl(K.img(p.id, p.refId)) : null;
+  if (proj !== p) return;
+  box.innerHTML = `<div class="frame"><div class="lbl">Image de référence des personnages</div>${u ? `<img src="${u}" alt="Référence">` : `<div class="placeholder" style="font-size:.8rem">Pas encore créée.</div>`}</div>
+    <button class="small" id="btn-ref" onclick="refImageClick()">${u ? "🔁 Refaire la référence" : "🎨 Créer la référence"}</button>`;
+}
+async function refImageClick() {
+  const p = proj;
+  if (!settings.key) return toast("Pas de clé API : ajoutez une clé dans les réglages pour créer des images.", true);
+  const b = $("#btn-ref"); b.disabled = true; b.textContent = "🎨 Création…";
+  try { await makeRefImage(p); } catch (e) { toast(e.message, true); renderRefImg(); }
+}
+
+/* ---- 🤖 Tout automatique ---- */
+let auto = null;
+async function autoRun() {
+  const p = proj;
+  if (auto) { auto.cancel = true; stopPlayback(); return; }
+  if (!p.story.trim()) return toast("Collez d'abord un texte", true);
+  if (!settings.key) return toast("Pas de clé API : le mode automatique a besoin d'une clé OpenRouter (dans ⚙ Réglages).", true);
+  const n0 = scenesOf(p).length;
+  if (!confirm(`Tout faire automatiquement ?\n\n${n0 ? `Les ${n0} scènes actuelles sont gardées ; seules les images et vidéos manquantes sont créées.` : "Claude va découper le texte en scènes."}\n` +
+    `Coût indicatif : environ 0,04 $ par image et ${settings.videoModel === DEF_VIDEO ? "0,13 $ par vidéo de 5 s" : "selon le modèle " + settings.videoModel + " par vidéo"}.\n` +
+    `Gardez la page ouverte jusqu'à la fin : l'assemblage final se fait en temps réel.`)) return;
+  const btn = $("#btn-auto");
+  const say = t => { if (proj === p && $("#auto-msg")) $("#auto-msg").textContent = t; };
+  auto = { cancel: false, p };
+  btn.textContent = "■ Arrêter"; btn.classList.remove("primary");
+  const check = () => { if (auto.cancel) throw new Error("Arrêté."); };
+  try {
+    if (!n0) { say("1/5 · Claude découpe le texte en scènes…"); await aiSplit(p); }
+    check();
+    say("2/5 · Description des personnages et image de référence…");
+    if (!p.refId) await makeRefImage(p); else await ensureBible(p);
+    const scs = scenesOf(p);
+    for (let i = 0; i < scs.length; i++) {
+      check();
+      if (scs[i].frameId || await db.get(K.clip(p.id, scs[i].id))) continue;
+      say(`3/5 · Première image de la scène ${i + 1} / ${scs.length}…`);
+      await makeFrame(p, scs[i]);
+    }
+    check();
+    say("4/5 · Envoi des vidéos…");
+    for (const sc of scs) {
+      if (!p.jobs[sc.id] && !(await db.get(K.clip(p.id, sc.id)))) { delete p.errors[sc.id]; startVideo(p, sc.id); await sleep(800); }
+    }
+    for (;;) {   // attendre que chaque scène ait sa vidéo (ou une erreur)
+      check();
+      let done = 0, failed = 0;
+      for (const sc of scs) { if (await db.get(K.clip(p.id, sc.id))) done++; else if (p.errors[sc.id] && !p.jobs[sc.id]) failed++; }
+      say(`4/5 · Vidéos prêtes : ${done} / ${scs.length}${failed ? ` · ${failed} en erreur` : ""} (cela peut prendre plusieurs minutes)`);
+      if (done + failed >= scs.length) { if (failed) throw new Error(`${failed} vidéo(s) en erreur : corrigez ou regénérez ces scènes, puis relancez.`); break; }
+      await sleep(Math.min(POLL_MS, 3000));
+    }
+    say("5/5 · Assemblage (voix off + musique)…");
+    if (proj === p) await playFilm(true);
+    say((await db.get(K.film(p.id))) ? "✓ Terminé : la vidéo est prête à télécharger ci-dessous." : "Assemblage interrompu : appuyez sur « Assembler la vidéo ».");
+  } catch (e) { say(e.message); if (e.message !== "Arrêté.") toast(e.message, true); }
+  finally {
+    auto = null;
+    if (proj === p && $("#btn-auto")) { $("#btn-auto").textContent = "🤖 Tout faire automatiquement"; $("#btn-auto").classList.add("primary"); }
+  }
+}
+
+async function renderTextScenes() {
+  const p = proj; const box = $("#sb"); if (!box) return;
+  const scs = scenesOf(p);
+  let html = scs.length ? `<div style="margin-top:.2rem"><label class="f">Titre<input type="text" id="sb-title" value="${esc(p.storyboard.title)}"></label></div>` :
+    `<p class="hint">Pas encore de scènes : découpez le texte ci-dessus, ou ajoutez-les une par une.</p>`;
+  html += `<div class="scenes" id="scenes">`;
+  for (let i = 0; i < scs.length; i++) {
+    const sc = scs[i];
+    html += `<article class="scene tscene" data-sid="${sc.id}">
+      <div><div class="scene-num">${i + 1}</div>
+        <div class="scene-tools">
+          <button class="ghost" title="Monter" data-act="up" ${i === 0 ? "disabled" : ""}>↑</button>
+          <button class="ghost" title="Descendre" data-act="down" ${i === scs.length - 1 ? "disabled" : ""}>↓</button>
+          <button class="ghost" title="Supprimer cette scène" data-act="del">✕</button>
+        </div></div>
+      <div class="scene-fields">
+        <label class="f">Ce que montre la vidéo<textarea data-f="text" rows="4">${esc(sc.text)}</textarea></label>
+        <label class="f">Voix off (lue automatiquement, facultatif)<textarea data-f="narration" rows="2">${esc(sc.narration)}</textarea></label>
+      </div>
+      <div class="media" data-media></div>
+    </article>`;
+  }
+  html += `</div>
+    <div class="row">
+      <button onclick="addScene()">＋ Ajouter une scène</button>
+      <button class="blue" onclick="generateAllVideos()" ${scs.length ? "" : "disabled"}>🎬 Générer toutes les vidéos manquantes</button>
+      <span class="hint">Modèle vidéo : <b>${esc(settings.videoModel)}</b> (à changer dans les réglages). Facturé à la seconde.</span>
+    </div>`;
+  if (proj !== p) return;
+  box.innerHTML = html;
+  const title = $("#sb-title"); if (title) title.oninput = e => { p.storyboard.title = e.target.value; saveProj(p); };
+  const list = $("#scenes");
+  list.oninput = e => {
+    const f = e.target.dataset.f; if (!f) return;
+    findScene(p, e.target.closest(".scene").dataset.sid)[f] = e.target.value; saveProj(p);
+  };
+  list.onclick = e => {
+    const b = e.target.closest("button[data-act]"); if (!b) return;
+    sceneAction(p, b.closest(".scene").dataset.sid, b.dataset.act);
+  };
+  for (const sc of scs) updateMedia(p, sc.id);
+  if (!playing) drawIdle();
 }
 
 async function renderScript() {
@@ -706,6 +1094,7 @@ async function sceneLength(p, sc) {
 const voiceLimit = len => Math.max(1.5, len - VOICE_LEAD - VOICE_TAIL);
 
 async function renderStoryboard() {
+  if (kindOf(proj) === "text") return renderTextScenes();
   const p = proj; const box = $("#sb"); if (!box) return;
   if (!p.storyboard) { box.innerHTML = ""; return; }
   const scs = scenesOf(p);
@@ -790,8 +1179,14 @@ async function updateMedia(p, sid) {
   const err = p.errors[sid];
   const cur = +sc.dur || DEFAULT_DUR;
   const durOpts = [3, 4, 5, 6, 7, 8, 10, 12, 15].map(d => `<option value="${d}" ${d === cur ? "selected" : ""}>${d} s</option>`).join("");
-  box.innerHTML = `
-    ${u ? `<video controls playsinline src="${u}"></video>` :
+  const isText = kindOf(p) === "text";
+  const fu = isText && sc.frameId ? await blobUrl(K.img(p.id, sc.frameId)) : null;
+  const frameHtml = !isText ? "" : `<div class="frame">
+      ${fu && !u ? `<div class="lbl">Première image</div><img src="${fu}" alt="">` : ""}
+      <div class="row" style="margin-top:.35rem"><button class="small ghost" data-act="frame" ${busy ? "disabled" : ""}>${fu ? "🎨 Refaire la première image" : "🎨 Créer la première image"}</button></div></div>`;
+  box.innerHTML = `${frameHtml}
+    ${u ? `<video controls playsinline src="${u}"></video>` : isText ?
+      `<div class="placeholder">Pas encore de vidéo. Appuyez sur « Générer la vidéo ». (Sans vidéo, l'assemblage affichera le texte de la scène.)</div>` :
       `<div class="placeholder">Pas encore de vidéo IA. Dans le film, cette scène sera un lent zoom sur le dessin.</div>
        <label class="dur">Durée de la scène <select data-f="dur">${durOpts}</select></label>`}
     <div class="row" style="margin-top:.5rem">
@@ -800,7 +1195,7 @@ async function updateMedia(p, sid) {
     </div>
     ${err ? `<div class="err-msg">${esc(err.msg)}${err.url ? ` <a href="${esc(err.url)}" target="_blank" rel="noopener">Télécharger la vidéo</a>` : ""}</div>` : ""}
     <div class="row" style="margin-top:.5rem">
-      <button class="small blue" data-act="gen" ${busy ? "disabled" : ""}>${u ? "Refaire la vidéo IA" : "Animer par IA"}</button>
+      <button class="small blue" data-act="gen" ${busy ? "disabled" : ""}>${isText ? (u ? "🔁 Regénérer" : "🎬 Générer la vidéo") : (u ? "Refaire la vidéo IA" : "Animer par IA")}</button>
       <button class="small ghost" data-act="clip-up">Importer une vidéo</button>
       ${u ? `<button class="small ghost" data-act="clip-del">Supprimer la vidéo</button>` : ""}
     </div>`;
@@ -815,6 +1210,7 @@ async function sceneAction(p, sid, act) {
   if (act === "del") {
     if (!confirm(`Supprimer la scène ${i + 1} (avec sa vidéo et sa voix) ?`)) return;
     if (recState?.sid === sid) stopRec(recState);
+    if (scs[i].frameId) await delBlob(K.img(p.id, scs[i].frameId));
     scs.splice(i, 1); delete p.jobs[sid];
     await delBlob(K.clip(p.id, sid)); await delBlob(K.voice(p.id, sid)); await delBlob(K.tts(p.id, sid));
     await saveProj(p, true); return renderStoryboard();
@@ -831,6 +1227,12 @@ async function sceneAction(p, sid, act) {
     if (!confirm("Supprimer la vidéo de cette scène ?")) return;
     await delBlob(K.clip(p.id, sid)); updateVoice(p, sid); return updateMedia(p, sid);
   }
+  if (act === "frame") {
+    if (!settings.key) return toast("Pas de clé API : ajoutez une clé dans les réglages pour créer des images.", true);
+    const b = document.querySelector(`.scene[data-sid="${sid}"] button[data-act=frame]`); if (b) { b.disabled = true; b.textContent = "🎨 Création…"; }
+    try { await makeFrame(p, findScene(p, sid)); } catch (e) { toast(e.message, true); updateMedia(p, sid); }
+    return;
+  }
   if (act === "rec") return toggleRecord(p, sid);
   if (act === "voice-up") {
     const f = await pickFile($("#file-voice")); if (!f) return;
@@ -844,7 +1246,15 @@ async function sceneAction(p, sid, act) {
 }
 
 async function addScene() {
-  const p = proj; if (!p.images.length) return toast("Ajoutez d'abord un dessin", true);
+  const p = proj;
+  if (kindOf(p) === "text") {
+    p.storyboard ||= { title: p.name, scenes: [] };
+    p.storyboard.scenes.push({ id: nextSid(p), text: "", narration: "" });
+    await saveProj(p, true); await renderStoryboard();
+    document.querySelector(".scene:last-child textarea")?.focus();
+    return;
+  }
+  if (!p.images.length) return toast("Ajoutez d'abord un dessin", true);
   p.storyboard ||= { title: p.name, scenes: [] };
   p.storyboard.scenes.push({ id: nextSid(p), imageId: p.images[p.images.length - 1].id, motion: "", narration: "" });
   await saveProj(p, true); renderStoryboard();
@@ -852,7 +1262,8 @@ async function addScene() {
 
 async function generateAllVideos() {
   const p = proj; const todo = [];
-  if (!settings.key) return toast("Pas de clé API : dans le film, chaque scène sera un lent zoom sur le dessin (gratuit). Pour des vidéos IA, ajoutez une clé dans les réglages.", true);
+  if (!settings.key) return toast(kindOf(p) === "text" ? "Pas de clé API : pour générer des vidéos, ajoutez une clé dans les réglages (ou importez vos propres vidéos)."
+    : "Pas de clé API : dans le film, chaque scène sera un lent zoom sur le dessin (gratuit). Pour des vidéos IA, ajoutez une clé dans les réglages.", true);
   for (const sc of scenesOf(p)) if (!p.jobs[sc.id] && !(await db.get(K.clip(p.id, sc.id)))) todo.push(sc.id);
   if (!todo.length) return toast("Toutes les scènes ont déjà une vidéo");
   if (!confirm(`${todo.length} vidéo(s) vont être générées avec ${settings.videoModel} (facturé à la seconde). Continuer ?`)) return;
@@ -1043,9 +1454,10 @@ function videoMeta(url) {
 }
 
 async function buildSegments(p, ac, out) {
-  const segs = [cardSegment(p.storyboard.title || p.name, 2.6)];
+  const isText = kindOf(p) === "text";   // mode texte : les clips bout à bout, sans carton de titre ni sous-titres
+  const segs = isText ? [] : [cardSegment(p.storyboard.title || p.name, 2.6)];
   for (const sc of scenesOf(p)) {
-    const img = await createImageBitmap(await db.get(K.img(p.id, sc.imageId)));
+    const img = isText ? null : await createImageBitmap(await db.get(K.img(p.id, sc.imageId)));
     const text = (sc.narration || "").trim();   // la voix de l'enfant d'abord, sinon la voix automatique
     const voiceBlob = await db.get(K.voice(p.id, sc.id)) || (text && sc.ttsText === text ? await db.get(K.tts(p.id, sc.id)) : null);
     const clipUrl = await blobUrl(K.clip(p.id, sc.id));
@@ -1073,6 +1485,11 @@ async function buildSegments(p, ac, out) {
       },
       stop() { if (video) video.pause(); try { this.voiceNode?.stop(); } catch {} },
       draw(g, t) {
+        if (isText) {
+          if (video && video.readyState >= 2) { g.fillStyle = "#000"; g.fillRect(0, 0, W, H); drawContain(g, video, video.videoWidth, video.videoHeight); }
+          else if (!video) cardSegment(sc.text || sc.narration || "", dur, 48).draw(g, t);   // pas de vidéo : le texte de la scène
+          return;
+        }
         g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
         if (video && video.readyState >= 2) drawContain(g, video, video.videoWidth, video.videoHeight);
         else drawContain(g, img, img.width, img.height, 1 + 0.08 * (t / dur));   // pas de vidéo : lent zoom
@@ -1080,7 +1497,7 @@ async function buildSegments(p, ac, out) {
         fade(g, t, dur);
       } });
   }
-  segs.push(cardSegment("Fin", 1.8, 96));
+  if (!isText) segs.push(cardSegment("Fin", 1.8, 96));
   return segs;
 }
 
@@ -1116,7 +1533,7 @@ async function playFilm(record) {
       rec.start(500);
     }
     const total = segs.reduce((a, s) => a + s.dur, 0); let done = 0;
-    const music = p.music !== false ? startMusic(ac, out, total) : null;
+    const music = musicOn(p) ? startMusic(ac, out, total) : null;
     for (let i = 0; i < segs.length; i++) {
       const s = segs[i];
       msg.textContent = `${record ? "⏺ Enregistrement" : "▶ Aperçu"} · ${Math.round(done)} / ${Math.round(total)} s`;
@@ -1170,6 +1587,7 @@ function fillCaps() {
 }
 function openSettings() {
   $("#s-key").value = settings.key; $("#s-text").value = settings.textModel; $("#s-video").value = settings.videoModel;
+  $("#s-img").value = settings.imageModel || DEF_IMG;
   $("#s-tts").value = settings.ttsModel || DEF_TTS; $("#s-voice").value = settings.ttsVoice || DEF_VOICE;
   $("#s-dur").value = settings.duration; $("#s-res").value = settings.resolution; $("#s-ar").value = settings.aspect;
   $("#dl-video").innerHTML = videoModels.map(m => `<option value="${esc(m.id)}">${esc(m.name)}</option>`).join("");
@@ -1190,9 +1608,10 @@ $("#s-refresh").onclick = async () => {
 $("#dlg-settings").onclose = () => {
   if ($("#dlg-settings").returnValue !== "ok") return;
   settings = { key: $("#s-key").value.trim(), textModel: $("#s-text").value.trim() || "anthropic/claude-sonnet-5.5",
-    videoModel: $("#s-video").value.trim() || "bytedance/seedance-2.0-fast",
+    videoModel: $("#s-video").value.trim() || DEF_VIDEO, v2: true,
     duration: $("#s-dur").value.trim(), resolution: $("#s-res").value.trim(), aspect: $("#s-ar").value.trim(),
-    ttsModel: $("#s-tts").value.trim() || DEF_TTS, ttsVoice: $("#s-voice").value.trim() || DEF_VOICE };
+    ttsModel: $("#s-tts").value.trim() || DEF_TTS, ttsVoice: $("#s-voice").value.trim() || DEF_VOICE,
+    imageModel: $("#s-img").value.trim() || DEF_IMG };
   saveSettings(); renderAll();
 };
 
@@ -1201,6 +1620,9 @@ $("#btn-new").onclick = newProject;
 $("#btn-del-proj").onclick = deleteProject;
 $("#btn-settings").onclick = openSettings;
 $("#proj-select").onchange = e => openProject(e.target.value);
+document.addEventListener("keydown", e => {   // raccourcis : Alt+1 = mode dessins, Alt+2 = mode texte
+  if (e.altKey && !e.ctrlKey && !e.metaKey && (e.key === "1" || e.key === "2")) { e.preventDefault(); setMode(e.key === "1" ? "drawings" : "text"); }
+});
 document.addEventListener("keydown", e => {   // les tuiles « Prendre une photo » / « Importer » marchent aussi au clavier
   if ((e.key === "Enter" || e.key === " ") && e.target.classList?.contains("add-pic")) { e.preventDefault(); e.target.click(); }
 });
@@ -1215,7 +1637,8 @@ window.addEventListener("beforeunload", e => {
 (async function init() {
   projects = (await db.get("projects")) || [];
   const last = lsGet("huabian-last");
-  if (projects.length) await openProject(projects.find(x => x.id === last)?.id || projects[0].id);
+  const list = projectsOfMode(), lastOfMode = lsGet("huabian-last-" + mode) || last;
+  if (list.length) await openProject(list.find(x => x.id === lastOfMode)?.id || list[0].id);
   else renderAll();
 })();
 </script>
