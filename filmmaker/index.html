@@ -527,7 +527,7 @@ async function importImages(files, target = "images") {
     p[target].push({ id, name: f.name }); n++;
   }
   await saveProj(p, true);
-  if (target === "scriptImgs") { if (proj === p) renderScript(); if (n) toast("Page du scénario ajoutée : Claude la lira en écrivant le scénario"); return; }
+  if (target === "scriptImgs") { if (proj === p) renderScript(); if (n) toast(`${n > 1 ? `${n} pages ajoutées` : "Page ajoutée"} au scénario : Claude les lira en écrivant les scènes`); return; }
   if (proj === p) { renderImages(); renderStoryboard(); }
   if (n) toast(n > 1 ? `${n} dessins ajoutés` : "Dessin ajouté");
 }
@@ -602,7 +602,8 @@ function renderAll() {
       <h3>📝 Le scénario écrit à la main (facultatif)</h3>
       <div class="hint" style="margin:0">Si l'enfant a écrit son histoire sur papier, prenez chaque page en photo : Claude la suivra pour écrire les scènes.</div>
       <div class="script-pages" id="script-pages"></div>
-      <div class="row"><button class="small" id="btn-script-cam" onclick="addScriptPage()">📷 Photographier le scénario écrit</button></div>
+      <div class="row"><button class="small" id="btn-script-cam" onclick="addScriptPage()">📷 Photographier le scénario écrit</button>
+        <button class="small" id="btn-script-up" onclick="uploadScriptPages()">🖼️ Importer des photos</button></div>
     </div>
     <div class="row">
       <button class="blue" id="btn-ai-sb" onclick="generateStoryboard()">${AI_SB_LABEL}</button>
@@ -645,6 +646,7 @@ async function renderScript() {
   $("#btn-script-cam").textContent = pages.length ? "📷 Ajouter une page" : "📷 Photographier le scénario écrit";
 }
 async function addScriptPage() { const f = await pickFile($("#file-cam")); if (f) importImages([f], "scriptImgs"); }
+async function uploadScriptPages() { const fs = await pickFile($("#file-imgs"), true); if (fs?.length) importImages(fs, "scriptImgs"); }
 async function deleteScriptPage(id) {
   if (!confirm("Supprimer cette page du scénario ?")) return;
   proj.scriptImgs = proj.scriptImgs.filter(i => i.id !== id);
