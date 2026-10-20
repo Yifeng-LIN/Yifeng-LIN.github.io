@@ -81,6 +81,11 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 .scene p{margin:0;font-size:.85rem;line-height:1.4;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
 .scene .voice{display:flex;flex-direction:column;gap:.15rem;font-size:.74rem;font-weight:800;color:var(--muted)}
 .scene .voice audio{width:100%;height:32px}
+.save-row{display:flex;flex-wrap:wrap;gap:.3rem .5rem;align-items:center;margin-top:.4rem;padding-top:.6rem;border-top:1px dashed var(--line)}
+.save-row .hint{flex:1;min-width:14rem;margin:0}
+.redo{display:flex;flex-wrap:wrap;gap:.1rem}
+.redo button{padding:.3em .55em}
+.film-tools{display:flex;flex-wrap:wrap;gap:.5rem;margin:.2rem 0 .6rem}
 .err-msg{font-size:.78rem;color:var(--coral-d);word-break:break-word}
 .scene label{font-size:.74rem;font-weight:800;color:var(--muted)}
 .scene textarea{font-size:.85rem;line-height:1.4;padding:.4em .55em;border-radius:10px;margin-top:.15rem}
@@ -230,7 +235,15 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
     </table>
     <p class="hint">Exemple : 30 s (6 scènes) ≈ 0,90 $. Tout se change dans ⚙ Réglages (720p, sans bruitages, sans musique IA…).</p>
 
-    <h4>7. Conseils</h4>
+    <h4>7. Rien n'est perdu, rien n'est payé deux fois</h4>
+    <ul>
+      <li>Chaque élément (scènes, images, vidéos, voix, musique) est enregistré dès qu'il est prêt. Après une pause, une erreur ou un rechargement, le bouton <b>reprend là où c'était</b> : il ne refait que ce qui manque (par ex. « Continuer : montage », gratuit).</li>
+      <li>Une vidéo payée mais mal téléchargée est récupérée, jamais recommandée.</li>
+      <li>Une partie ne plaît pas ? Refaites <b>seulement</b> elle : 🔁 Image, 🔁 Vidéo ou 🔁 Voix sur la scène, 🔁 Refaire la référence, 🎵 Autre musique, 🧩 Refaire le montage (gratuit).</li>
+      <li>Les mises à jour de l'appli n'effacent rien. <b>💾 Sauvegarder ce projet</b> crée un fichier avec tout le projet, à rouvrir sur n'importe quel appareil avec <b>📂 Ouvrir une sauvegarde</b>. Sur iPhone/iPad, ajoutez l'appli à l'écran d'accueil : le navigateur garde alors mieux les données.</li>
+    </ul>
+
+    <h4>8. Conseils</h4>
     <ul>
       <li>Gardez l'écran allumé et la page ouverte pendant la génération ; le montage final se fait en temps réel.</li>
       <li>La vidéo n'est gardée que dans ce navigateur : téléchargez-la.</li>
@@ -267,12 +280,13 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 
 <input type="file" id="file-imgs" accept="image/*" multiple hidden>
 <input type="file" id="file-cam" accept="image/*" capture="environment" hidden>
+<input type="file" id="file-backup" hidden>
 <div id="toast" role="status"></div>
 
 <script>
 "use strict";
 /* ============ Version : date et heure de publication, écrites par `npm run publish` ============ */
-const BUILD = "2026-10-20 20:51";
+const BUILD = "2026-10-20 21:36";
 document.getElementById("app-version").textContent = BUILD === "dev" ? "version locale" : "v " + BUILD;
 
 /* Les téléphones gardent souvent une ancienne copie de la page : on regarde s'il existe une version plus récente */
@@ -696,7 +710,12 @@ Wide 16:9 shot. No text, no captions.`, refs);
 async function startVideo(p, sid) {
   const sc = findScene(p, sid); if (!sc) return;
   const key = `${p.id}:${sid}`;
-  if (p.jobs[sid]) return;
+  if (p.jobs[sid]) { if (!polling.has(key)) pollJob(p, sid); return; }
+  const kept = p.errors[sid]?.job;
+  if (kept) {   // vidéo déjà payée mais pas encore téléchargée : on la récupère au lieu d'en commander une autre
+    p.jobs[sid] = { ...kept, started: Date.now() }; delete p.errors[sid];
+    await saveProj(p, true); pollJob(p, sid); return;
+  }
   delete p.errors[sid]; status[key] = "Envoi…"; sceneChanged(p);
   try {
     const startImg = sc.frameId ? await db.get(K.img(p.id, sc.frameId)) : null;
@@ -730,7 +749,6 @@ async function pollJob(p, sid) {
     while (p.jobs[sid]) {
       const job = p.jobs[sid];
       const mins = Math.floor((Date.now() - job.started) / 60000);
-      if (Date.now() - job.started > 45 * 60000) throw new Error("Toujours pas prête après 45 minutes : abandon");
       const pollUrl = job.poll.startsWith("http") ? job.poll : (job.poll.startsWith("/api") ? "https://openrouter.ai" + job.poll : job.poll);
       let s;
       try { s = await readJson(await orFetch(pollUrl)); job.netFails = 0; }
@@ -742,19 +760,31 @@ async function pollJob(p, sid) {
       const st = s.status || "?";
       if (st === "completed") {
         status[key] = "Téléchargement…"; sceneChanged(p);
-        await putBlob(K.clip(p.id, sid), await withRetry(() => downloadClip(job, s), 4));
+        let blob;
+        try { blob = await withRetry(() => downloadClip(job, s), 4); }
+        catch (e) {   // la vidéo est déjà payée : on garde la commande et on réessaie de la télécharger, sans en recommander une
+          job.dlFails = (job.dlFails || 0) + 1; await saveProj(p, true);
+          if (job.dlFails >= 6) { const err = new Error(e.message); err.keepJob = true; throw err; }
+          status[key] = "Téléchargement : nouvel essai…"; sceneChanged(p);
+          await sleep(Math.max(POLL_MS, 4000)); continue;
+        }
+        await putBlob(K.clip(p.id, sid), blob);
         delete p.jobs[sid]; delete status[key];
         await saveProj(p, true); sceneChanged(p);
         break;
       }
       if (["failed", "cancelled", "expired"].includes(st)) throw new Error("La génération a échoué : " + (s.error?.message || s.error || st));
+      if (Date.now() - job.started > 45 * 60000) throw new Error("Toujours pas prête après 45 minutes : abandon");
       status[key] = ({ pending: "En attente", queued: "En attente", in_progress: "En cours", processing: "En cours", running: "En cours" }[st] || st) + (mins ? ` · ${mins} min` : "");
       sceneChanged(p);
       await sleep(POLL_MS);
     }
   } catch (e) {
+    const kept = e.keepJob ? { ...p.jobs[sid], dlFails: 0 } : null;
     delete p.jobs[sid]; delete status[key];
-    p.errors[sid] = { msg: e.message };
+    p.errors[sid] = kept
+      ? { msg: "La vidéo est prête mais n'a pas pu être téléchargée. Appuyez à nouveau : elle sera récupérée sans payer une nouvelle vidéo.", job: kept }
+      : { msg: e.message };
     await saveProj(p, true); sceneChanged(p);
   } finally { polling.delete(key); }
 }
@@ -1167,7 +1197,7 @@ async function autoRun(mode = "full") {
   auto = { cancel: false, p, step: 0 };
   const say = t => { lastMsg[p.id] = t; if (proj === p) { const m = $("#auto-msg"); if (m) m.textContent = t; } };
   const stepTo = i => { auto.step = i; if (proj === p) renderProgress(); };
-  const check = () => { if (auto.cancel) throw new Error("Arrêté. Appuyez à nouveau sur « Générer » pour reprendre là où ça s'est arrêté."); };
+  const check = () => { if (auto.cancel) throw new Error("Arrêté. Tout ce qui est fait est gardé : appuyez à nouveau sur « Continuer » pour reprendre là où ça s’est arrêté."); };
   renderAll();
   // Écran allumé pendant toute la génération : un téléphone verrouillé coupe les connexions
   let wake = null;
@@ -1212,7 +1242,9 @@ async function autoRun(mode = "full") {
       let done = 0, failed = 0;
       for (const sc of scs) {
         if (await db.get(K.clip(p.id, sc.id))) { done++; continue; }
-        if (p.jobs[sc.id] || status[`${p.id}:${sc.id}`]) continue;
+        if (p.jobs[sc.id]) { if (!polling.has(`${p.id}:${sc.id}`)) pollJob(p, sc.id); continue; }   // commande en cours (même d'avant un rechargement) : on la suit
+        if (status[`${p.id}:${sc.id}`]) continue;
+        if (p.errors[sc.id]?.job) { startVideo(p, sc.id); continue; }   // vidéo payée pas encore téléchargée : on la récupère (ne compte pas comme un essai)
         if ((tries[sc.id] || 0) < MAX_TRIES) { tries[sc.id] = (tries[sc.id] || 0) + 1; startVideo(p, sc.id); await sleep(600); }
         else failed++;
       }
@@ -1226,7 +1258,7 @@ async function autoRun(mode = "full") {
     say("Musique…"); await musicJob;
     check(); stepTo(4);
     const ok = await assemble(p, say);
-    if (!ok) throw new Error("Assemblage interrompu. Appuyez à nouveau sur « Générer » pour le relancer.");
+    if (!ok) { check(); throw new Error("Assemblage interrompu. Appuyez à nouveau : seul le montage sera refait (gratuit)."); }
     stepTo(5);
     say("✓ Terminé ! Votre vidéo est prête ci-dessous.");
     toast("🍿 La vidéo est prête, vous pouvez la télécharger");
@@ -1291,7 +1323,8 @@ function renderAll() {
       <h1>Collez un texte, recevez une vidéo</h1>
       <p>Texte, photos de pages écrites ou dessins : tout est automatique — découpage en scènes, personnages identiques d'une scène à l'autre, vidéos, voix off et musique. Il ne reste qu'à télécharger.</p>
       <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo</button>
-      <p style="margin-top:1rem"><button class="ghost" onclick="$('#dlg-help').showModal()">❓ Comment ça marche</button></p></div>`;
+      <p style="margin-top:1rem"><button class="ghost" onclick="$('#dlg-help').showModal()">❓ Comment ça marche</button>
+        <button class="ghost" onclick="openBackup()">📂 Ouvrir une sauvegarde</button></p></div>`;
     return;
   }
   const running = auto?.p === proj;
@@ -1323,6 +1356,11 @@ function renderAll() {
       ✋ Semi-automatique : scènes + images, puis s'arrête pour vos modifications. 🎬 Tout automatique : jusqu'à la vidéo finale. Gardez la page ouverte.</p>
     <ol class="steps" id="steps"></ol>
     <p id="auto-msg"></p>
+    <div class="save-row">
+      <span class="hint">✅ Tout ce qui est généré est enregistré au fur et à mesure : après une pause ou une erreur, le bouton reprend là où c'était.</span>
+      <button class="small ghost" id="btn-save" onclick="saveBackup()">💾 Sauvegarder ce projet</button>
+      <button class="small ghost" onclick="openBackup()" ${running ? "disabled" : ""}>📂 Ouvrir une sauvegarde</button>
+    </div>
   </section>
   <section class="card" id="sec-scenes" hidden>
     <h2>Les scènes</h2>
@@ -1354,16 +1392,28 @@ function renderAll() {
     if (f === "text") { sc.stale = true; const c = card.querySelector(".chip"); if (c) { c.className = "chip err"; c.textContent = "Image à refaire"; } }
     saveProj();
   };
-  sceneBox.onclick = async e => {
-    const b = e.target.closest("button[data-act=reframe]"); if (!b || auto) return;
+  sceneBox.onclick = async e => {   // refaire une seule partie d'une scène ; tout le reste est gardé
+    const b = e.target.closest("button[data-act]"); if (!b || auto) return;
     if (!settings.key) return toast("Il faut une clé API OpenRouter (dans les réglages).", true);
-    const p = proj, sc = findScene(p, b.closest(".scene").dataset.sid);
-    b.disabled = true; b.textContent = "🎨 Création…";
+    const p = proj, sc = findScene(p, b.closest(".scene").dataset.sid), n = sceneNo(p, sc.id), act = b.dataset.act;
+    const vcost = money(costPerScene() - 0.021);
+    if (act === "revideo" && !confirm(`Refaire seulement la vidéo de la scène ${n} (≈ ${vcost}) ? Le reste est gardé.`)) return;
+    b.disabled = true; b.textContent = "⏳…";
     try {
-      if (!p.refId) await makeRefImage(p);
-      await makeFrame(p, sc); sc.stale = false;
-      await delBlob(K.clip(p.id, sc.id)); await delBlob(K.film(p.id)); delete p.errors[sc.id];
-      await saveProj(p, true);
+      if (act === "reframe") {
+        if (!p.refId) await makeRefImage(p);
+        await makeFrame(p, sc); sc.stale = false;
+        await delBlob(K.clip(p.id, sc.id)); delete p.errors[sc.id];
+        toast(`Nouvelle image pour la scène ${n}. Sa vidéo sera refaite quand vous appuierez sur « Continuer ».`);
+      } else if (act === "revideo") {
+        await delBlob(K.clip(p.id, sc.id)); delete p.errors[sc.id];
+        await startVideo(p, sc.id);
+        toast(`Vidéo de la scène ${n} en cours. Ensuite : « Continuer » pour le montage.`);
+      } else if (act === "revoice") {
+        await delBlob(K.tts(p.id, sc.id)); sc.ttsText = null; delete sc.ttsError;
+        await makeTts(p, sc);
+      }
+      await delBlob(K.film(p.id)); await saveProj(p, true);
     } catch (err) { toast(err.message, true); }
     if (proj === p) { renderScenes(); renderFilmOut(); renderProgress(); }
   };
@@ -1388,10 +1438,14 @@ async function renderProgress() {
   box.innerHTML = STEP_NAMES.map(([ic, name], i) =>
     `<li class="${i < done ? "done" : running && i === done ? "active" : ""}"><span>${i < done ? "✓" : ic}</span>${name}</li>`).join("");
   box.hidden = !running && done === 0;
+  const btn = $("#btn-auto");   // le bouton dit ce qui reste à faire (ce qui est fait est gardé)
+  if (btn && !running && scenesOf(p).length && p.splitFrom === inputKey(p))
+    btn.textContent = done >= 5 ? "🔁 Tout refaire" : done === 4 ? "🎬 Continuer : montage (gratuit)"
+      : done >= 2 ? "🎬 Continuer : vidéos + montage" : "🎬 Continuer : images, vidéos + montage";
 }
 
 let sceneTimer;
-function sceneChanged(p) { if (proj === p) { clearTimeout(sceneTimer); sceneTimer = setTimeout(renderScenes, 150); } }
+function sceneChanged(p) { if (proj === p) { clearTimeout(sceneTimer); sceneTimer = setTimeout(() => { renderScenes(); renderProgress(); }, 150); } }
 
 async function renderScenes() {
   const p = proj; const sec = $("#sec-scenes"); if (!sec) return;
@@ -1411,7 +1465,11 @@ async function renderScenes() {
     const body = running ? `<p>${esc(sc.narration || sc.text)}</p>` :   // pendant la génération : lecture seule ; sinon modifiable
       `<label>Texte lu (voix off)<textarea data-f="narration" rows="3">${esc(sc.narration)}</textarea></label>
        <label>Ce que montrent l'image et la vidéo<textarea data-f="text" rows="3">${esc(sc.text)}</textarea></label>
-       <button class="small ghost" data-act="reframe">🔁 Nouvelle image</button>`;
+       <div class="redo">
+         <button class="small ghost" data-act="reframe" title="Redessiner la première image (≈ 0,02 $)">🔁 Image</button>
+         ${frame || clip || err ? `<button class="small ghost" data-act="revideo" title="Refaire seulement la vidéo de cette scène">🔁 Vidéo</button>` : ""}
+         ${(sc.narration || "").trim() ? `<button class="small ghost" data-act="revoice" title="Refaire seulement la voix off de cette scène">🔁 Voix</button>` : ""}
+       </div>`;
     const voiceUrl = sc.ttsText && sc.ttsText === (sc.narration || "").trim() ? await blobUrl(K.tts(p.id, sc.id)) : null;
     const voice = voiceUrl ? `<div class="voice"><span>🔊 Voix off</span><audio controls preload="none" src="${voiceUrl}"></audio></div>`
       : sc.ttsError ? `<div class="err-msg">🔇 Voix off impossible : ${esc(sc.ttsError)}</div>` : "";
@@ -1421,7 +1479,72 @@ async function renderScenes() {
   if (proj !== p) return;
   sec.hidden = !scs.length;
   $("#scenes").innerHTML = html;
-  $("#ref").innerHTML = ref ? `<div class="ref"><img src="${ref}" alt="Personnages"><div><b>Personnages</b> (gardés identiques dans toutes les scènes)\n${esc(p.bible)}</div></div>` : "";
+  $("#ref").innerHTML = ref ? `<div class="ref"><img src="${ref}" alt="Personnages"><div><b>Personnages</b> (gardés identiques dans toutes les scènes)\n${esc(p.bible)}
+    ${running ? "" : `<p><button class="small ghost" onclick="redoRef()">🔁 Refaire la référence</button></p>`}</div></div>` : "";
+}
+
+/* ---- Sauvegarde du projet dans un fichier (texte, images, vidéos, voix, musique, vidéo finale) ----
+   Format : "CTX1" + taille de l'en-tête (4 octets) + en-tête JSON + les fichiers les uns après les autres */
+async function saveBackup() {
+  const p = proj; if (!p) return;
+  const keys = [];
+  for (const pre of ["img", "clip", "tts", "voice"]) keys.push(...await db.keys(`${pre}:${p.id}:`));
+  keys.push(K.film(p.id), K.music(p.id));
+  const files = [], parts = [];
+  for (const k of keys) { const b = await db.get(k); if (b) { files.push({ key: k, type: b.type, size: b.size }); parts.push(b); } }
+  const { _t, ...project } = p;
+  const head = new TextEncoder().encode(JSON.stringify({ app: "cine-texte", format: 1, build: BUILD, saved: new Date().toISOString(), project, files }));
+  const len = new Uint8Array(4); new DataView(len.buffer).setUint32(0, head.length);
+  const blob = new Blob([new TextEncoder().encode("CTX1"), len, head, ...parts], { type: "application/octet-stream" });
+  const a = document.createElement("a"); a.href = URL.createObjectURL(blob);
+  a.download = (p.name || "video").replace(/[\\/:*?"<>|]/g, "-") + ".cinetexte";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  toast(`Projet sauvegardé (${(blob.size / 1e6).toFixed(1)} Mo). Gardez ce fichier : il se rouvre avec « 📂 Ouvrir une sauvegarde ».`);
+}
+async function openBackup() {
+  if (auto) return toast("Une génération est en cours : attendez la fin ou arrêtez-la.", true);
+  const f = await pickFile($("#file-backup")); if (!f) return;
+  try {
+    const buf = await f.arrayBuffer(), dv = new DataView(buf);
+    if (new TextDecoder().decode(buf.slice(0, 4)) !== "CTX1") throw new Error("ce n'est pas une sauvegarde Ciné-Texte");
+    const hl = dv.getUint32(4), meta = JSON.parse(new TextDecoder().decode(buf.slice(8, 8 + hl)));
+    const old = meta.project.id, pid = uid();
+    let off = 8 + hl;
+    for (const fl of meta.files) {   // mêmes fichiers, rangés sous le nouveau projet
+      const key = fl.key.replace(`:${old}:`, `:${pid}:`).replace(new RegExp(`:${old}$`), `:${pid}`);
+      await putBlob(key, new Blob([buf.slice(off, off + fl.size)], { type: fl.type })); off += fl.size;
+    }
+    const p = { ...meta.project, id: pid, kind: "text" };
+    p.jobs ||= {}; p.errors ||= {};
+    if (projects.some(x => x.name === p.name)) p.name += " (sauvegarde)";
+    loaded[pid] = p; await saveProj(p, true);
+    projects.unshift({ id: pid, name: p.name, kind: "text" }); await saveProjectList();
+    await openProject(pid);
+    toast(`« ${p.name} » rouvert : ${meta.files.length} fichiers récupérés.`);
+  } catch (e) { toast("Impossible d'ouvrir cette sauvegarde : " + e.message, true); }
+}
+
+/* ---- Refaire une seule partie (tout le reste est gardé) ---- */
+async function redoMontage() {   // gratuit : on remonte avec les vidéos, voix et musique déjà faites
+  if (auto) return;
+  await delBlob(K.film(proj.id)); await saveProj(proj, true);
+  autoRun();
+}
+async function redoMusic() {
+  const p = proj; if (auto) return;
+  if (!settings.key) return toast("Il faut une clé API OpenRouter (dans les réglages).", true);
+  if (!confirm(`Composer une autre musique (≈ ${money(musicCost(scenesOf(p).length))}) puis refaire le montage ? Le reste est gardé.`)) return;
+  await delBlob(K.music(p.id)); p.musicFor = null; delete p.musicError;
+  await delBlob(K.film(p.id)); await saveProj(p, true);
+  autoRun();
+}
+async function redoRef() {
+  const p = proj; if (auto) return;
+  if (!settings.key) return toast("Il faut une clé API OpenRouter (dans les réglages).", true);
+  if (!confirm("Redessiner l'image de référence des personnages (≈ 0,02 $) ? Les images des scènes déjà faites sont gardées ; refaites celles que vous voulez avec « 🔁 Image ».")) return;
+  try { await makeRefImage(p); } catch (e) { toast(e.message, true); }
+  if (proj === p) renderScenes();
 }
 
 async function renderFilmOut() {
@@ -1433,8 +1556,13 @@ async function renderFilmOut() {
   const u = await blobUrl(K.film(p.id));
   const ext = blob.type.includes("mp4") ? "mp4" : "webm";
   const name = (p.storyboard?.title || p.name).replace(/[\\/:*?"<>|]/g, "-") + "." + ext;
+  const busy = auto?.p === p;
   box.innerHTML = `<video controls playsinline src="${u}"></video>
     <a href="${u}" download="${esc(name)}"><button class="primary big">⬇ Télécharger la vidéo</button></a>
+    ${busy ? "" : `<div class="film-tools" style="margin-top:.7rem">
+      <button class="small" id="btn-remontage" onclick="redoMontage()">🧩 Refaire le montage (gratuit)</button>
+      ${settings.aiMusic !== false ? `<button class="small" id="btn-remusic" onclick="redoMusic()">🎵 Autre musique (≈ ${money(musicCost(scenesOf(p).length))})</button>` : ""}
+    </div>`}
     <p class="hint">La vidéo n'est gardée que dans ce navigateur : pensez à la télécharger.${ext === "webm" ? " Ce navigateur enregistre en WebM ; pour du MP4, utilisez une version récente de Chrome." : ""}</p>`;
 }
 
