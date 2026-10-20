@@ -67,6 +67,27 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 
 .steps{display:grid;grid-template-columns:repeat(5,1fr);gap:.5rem;margin:1.2rem 0 .3rem;padding:0;list-style:none}
 .steps li{background:var(--soft);border-radius:14px;padding:.55rem .6rem;font-size:.8rem;font-weight:800;color:var(--muted);box-shadow:inset 0 0 0 2px var(--line);text-align:center}
+.logo{cursor:pointer}
+.sync-state{font-size:.78rem;font-weight:800;color:var(--muted);background:#fff;border-radius:999px;padding:.25em .7em;box-shadow:inset 0 0 0 1.5px var(--line);cursor:pointer;white-space:nowrap}
+.sync-box{background:#f3f6ff;border-radius:14px;padding:.7rem .9rem;margin:.4rem 0 .8rem}
+.home-head{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;justify-content:space-between;margin-bottom:.8rem}
+.home-head h2,.home-head h3{margin:0}
+.gallery{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:1rem}
+.work{background:var(--soft);border-radius:18px;padding:.7rem;box-shadow:inset 0 0 0 2px var(--line);display:flex;flex-direction:column;gap:.35rem}
+.work .thumb{position:relative;aspect-ratio:16/9;border-radius:12px;overflow:hidden;background:#efe6da;display:grid;place-items:center;font-size:2rem;cursor:pointer}
+.work .thumb img{width:100%;height:100%;object-fit:cover}
+.work .play{position:absolute;inset:0;display:grid;place-items:center;font-size:2.2rem;color:#fff;text-shadow:0 2px 10px rgba(0,0,0,.6)}
+.work b{font-family:var(--display);font-weight:600;font-size:1.05rem}
+.work small{color:var(--muted);font-weight:700;font-size:.8rem}
+dialog.watch{width:min(900px,calc(100vw - 24px));padding:1rem}
+.watch video{width:100%;border-radius:12px;background:#000;display:block;margin-bottom:.7rem}
+.steps li.can{cursor:pointer}
+.steps li.can:hover{box-shadow:inset 0 0 0 2px var(--mint);background:#d9f2e5}
+.steps li small{display:block;font-size:.68rem;font-weight:700;color:var(--muted);margin-top:.1rem}
+dialog.step-dlg{width:min(480px,calc(100vw - 32px))}
+.step-dlg .choices{display:grid;gap:.6rem;margin-top:.8rem}
+.step-dlg .choices button{text-align:left;border-radius:16px;padding:.8em 1em}
+.step-dlg .choices small{display:block;font-weight:600;opacity:.85}
 .steps li span{display:block;font-size:1.25rem}
 .steps li.done{background:#e8f7ef;color:var(--mint);box-shadow:inset 0 0 0 2px #c5ead6}
 .steps li.active{background:#fff1ee;color:var(--coral-d);box-shadow:inset 0 0 0 2px #ffc9bf;animation:pulse 1.4s ease-in-out infinite}
@@ -171,7 +192,9 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 <body>
 <header>
   <div class="bar">
-    <div class="logo"><i>🎬</i><span>Ciné-<b>Texte</b></span><small class="ver" id="app-version" title="Version"></small></div>
+    <div class="logo" role="button" tabindex="0" title="Mes vidéos" onclick="goHome()"><i>🎬</i><span>Ciné-<b>Texte</b></span><small class="ver" id="app-version" title="Version"></small></div>
+    <button class="small" id="btn-home" title="Mes vidéos" onclick="goHome()">🏠<span class="btn-label"> Mes vidéos</span></button>
+    <span class="sync-state" id="sync-state" hidden onclick="openSettings()"></span>
     <select id="proj-select" aria-label="Vidéo"></select>
     <button class="small" id="btn-new" title="Nouvelle vidéo">＋<span class="btn-label"> Nouvelle</span></button>
     <button class="small ghost" id="btn-del-proj" title="Supprimer cette vidéo">🗑<span class="btn-label"> Supprimer</span></button>
@@ -181,6 +204,25 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 </header>
 
 <main id="main"></main>
+
+<dialog id="dlg-watch" class="watch">
+  <form method="dialog">
+    <div class="home-head"><h3 id="watch-title"></h3><button value="close" class="small ghost">✕ Fermer</button></div>
+    <div id="watch-body"></div>
+  </form>
+</dialog>
+
+<dialog id="dlg-step" class="step-dlg">
+  <form method="dialog">
+    <h3 id="step-title"></h3>
+    <p class="hint" id="step-keep"></p>
+    <div class="choices">
+      <button value="all" class="primary" id="step-all"></button>
+      <button value="one" id="step-one"></button>
+      <button value="cancel" class="ghost">Annuler</button>
+    </div>
+  </form>
+</dialog>
 
 <dialog id="dlg-help" class="help">
   <form method="dialog">
@@ -210,6 +252,13 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
       <li>La <b>vidéo</b> de chaque scène part exactement de sa première image.</li>
     </ol>
 
+    <h4>3 bis. Des scènes qui s'enchaînent</h4>
+    <ul>
+      <li>La vidéo de chaque scène <b>se termine sur la première image de la scène suivante</b> : le passage d'une scène à l'autre est continu.</li>
+      <li>Chaque vidéo dure assez longtemps pour sa voix off (4 à 12 s) : l'image ne se fige pas en attendant la fin de la phrase.</li>
+      <li>Au montage, les scènes se fondent l'une dans l'autre (0,4 s) et la suivante est préparée à l'avance : pas de noir, pas d'arrêt.</li>
+    </ul>
+
     <h4>4. Le son</h4>
     <ul>
       <li><b>Bruitages</b> générés avec chaque vidéo (vent, pas, oiseaux…), jamais de paroles.</li>
@@ -227,19 +276,21 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 
     <h4>6. Modèles et coûts (par défaut, les moins chers)</h4>
     <table>
-      <tr><td>Découpage</td><td>Claude Haiku</td><td>&lt; 0,01 $</td></tr>
-      <tr><td>Images</td><td>Seedream 5.0 Flash</td><td>≈ 0,02 $ / image</td></tr>
-      <tr><td>Vidéo + bruitages</td><td>Seedance 1.5 Pro, 480p, 5 s</td><td>≈ 0,12 $ / scène</td></tr>
-      <tr><td>Voix off</td><td>Gemini TTS</td><td>&lt; 0,01 $</td></tr>
-      <tr><td>Musique</td><td>Google Lyria 3</td><td>0,04–0,08 $ / vidéo</td></tr>
+      <tr><td>Découpage</td><td>Claude Haiku</td><td>0,001–0,006 $ (mesuré)</td></tr>
+      <tr><td>Images</td><td>Seedream 5.0 Flash</td><td>0,018 $ / image (mesuré)</td></tr>
+      <tr><td>Vidéo + bruitages</td><td>Seedance 1.5 Pro, 480p, 5 s</td><td>0,0243 $ / seconde : 0,12 $ pour 5 s (mesuré)</td></tr>
+      <tr><td>Voix off</td><td>Gemini TTS</td><td>≈ 0,001 $ / scène (mesuré)</td></tr>
+      <tr><td>Musique</td><td>Google Lyria 3</td><td>0,04 $ si ≤ 30 s (mesuré) ; 0,08 $ au-delà (prix annoncé)</td></tr>
     </table>
-    <p class="hint">Exemple : 30 s (6 scènes) ≈ 0,90 $. Tout se change dans ⚙ Réglages (720p, sans bruitages, sans musique IA…).</p>
+    <p class="hint">Exemple : 30 s (6 scènes de 5 s) ≈ 0,91 $ ; sans bruitages ≈ 0,55 $. Attention : une réponse de Lyria sans son est quand même facturée. Tout se change dans ⚙ Réglages (720p, sans bruitages, sans musique IA…).</p>
 
     <h4>7. Rien n'est perdu, rien n'est payé deux fois</h4>
     <ul>
       <li>Chaque élément (scènes, images, vidéos, voix, musique) est enregistré dès qu'il est prêt. Après une pause, une erreur ou un rechargement, le bouton <b>reprend là où c'était</b> : il ne refait que ce qui manque (par ex. « Continuer : montage », gratuit).</li>
       <li>Une vidéo payée mais mal téléchargée est récupérée, jamais recommandée.</li>
       <li>Une partie ne plaît pas ? Refaites <b>seulement</b> elle : 🔁 Image, 🔁 Vidéo ou 🔁 Voix sur la scène, 🔁 Refaire la référence, 🎵 Autre musique, 🧩 Refaire le montage (gratuit).</li>
+      <li>Vous pouvez <b>repartir de n'importe quelle étape</b> : touchez une étape faite (Scènes, Personnages, Images, Vidéos, Montage) → « refaire à partir d'ici » ou « seulement cette étape ». Tout ce qui est avant est gardé.</li>
+      <li><b>☁️ Partage entre appareils</b> (comme jeuEtude) : tout est enregistré en ligne, chiffré, dans le dépôt privé de jeuEtude. Un appareil déjà relié pour jeuEtude l'est aussi ici ; sinon, mot de passe des parents dans ⚙ Réglages. Toutes les vidéos apparaissent alors dans 🏠 Mes vidéos, sur chaque appareil.</li>
       <li>Les mises à jour de l'appli n'effacent rien. <b>💾 Sauvegarder ce projet</b> crée un fichier avec tout le projet, à rouvrir sur n'importe quel appareil avec <b>📂 Ouvrir une sauvegarde</b>. Sur iPhone/iPad, ajoutez l'appli à l'écran d'accueil : le navigateur garde alors mieux les données.</li>
     </ul>
 
@@ -260,6 +311,16 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
       <input type="password" id="s-key" placeholder="sk-or-..." autocomplete="off">
     </label>
     <p class="hint">À créer sur openrouter.ai/keys. Elle reste uniquement dans ce navigateur, sur cet appareil, et n'est envoyée qu'à OpenRouter. Conseil : fixez une limite de dépense pour cette clé sur OpenRouter.</p>
+    <div class="sync-box">
+      <b>☁️ Partage entre appareils (comme jeuEtude)</b>
+      <p class="hint" style="margin:.2rem 0">Les vidéos, images, voix et musiques sont enregistrées en ligne, chiffrées, dans le dépôt privé de jeuEtude : elles s'ouvrent sur tous vos appareils reliés.</p>
+      <p class="hint" id="s-sync-state" style="margin:.2rem 0;font-weight:700"></p>
+      <div class="row" id="s-sync-link"><input type="password" id="s-sync-pwd" placeholder="Mot de passe des parents" autocomplete="current-password" style="flex:1;min-width:10rem">
+        <button type="button" class="small" onclick="syncLinkUI()">Relier cet appareil</button></div>
+      <div class="row" id="s-sync-unlink" hidden><button type="button" class="small" onclick="syncPull(); syncPush()">🔄 Synchroniser maintenant</button>
+        <button type="button" class="small ghost" onclick="if (confirm('Délier cet appareil ? (jeuEtude sera aussi délié sur cet appareil)')) syncUnlink()">Délier</button></div>
+      <p class="hint" id="s-sync-msg" style="margin:.2rem 0"></p>
+    </div>
     <details><summary>Modèles (avancé)</summary>
       <label class="f">Découpage du texte<input type="text" id="s-text"></label>
       <label class="f">Images<input type="text" id="s-img"></label>
@@ -270,9 +331,9 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
         <label class="f">Voix off : modèle<input type="text" id="s-tts"></label>
         <label class="f">Voix<input type="text" id="s-voice"></label>
       </div>
-      <label class="switch"><input type="checkbox" id="s-sfx"> 🔊 Bruitages de chaque scène (générés avec la vidéo, ≈ +0,06 $ par scène)</label>
+      <label class="switch"><input type="checkbox" id="s-sfx"> 🔊 Bruitages de chaque scène (générés avec la vidéo, +0,06 $ par scène de 5 s)</label>
       <label class="switch"><input type="checkbox" id="s-aimusic"> 🎵 Musique composée par l'IA d'après l'histoire (Google Lyria, 0,04–0,08 $ par vidéo)</label>
-      <p class="hint">Par défaut, les modèles les moins chers : Claude Haiku pour le découpage, Seedream 5.0 Flash pour les images (≈ 0,02 $), Seedance 1.5 Pro en 480p, 5 s pour la vidéo (≈ 0,06 $ sans son, ≈ 0,12 $ avec bruitages), Gemini pour la voix off. Mettez 720p pour une image plus nette (coût vidéo × 2).</p>
+      <p class="hint">Par défaut, les modèles les moins chers : Claude Haiku pour le découpage, Seedream 5.0 Flash pour les images (≈ 0,02 $), Seedance 1.5 Pro en 480p, 5 s pour la vidéo (0,12 $ pour 5 s avec bruitages, 0,06 $ sans — mesuré), Gemini pour la voix off. Mettez 720p pour une image plus nette (coût vidéo × 2,25).</p>
     </details>
     <menu><button value="cancel" class="ghost">Annuler</button><button value="ok" class="primary" id="s-save">Enregistrer</button></menu>
   </form>
@@ -286,7 +347,7 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 <script>
 "use strict";
 /* ============ Version : date et heure de publication, écrites par `npm run publish` ============ */
-const BUILD = "2026-10-20 21:36";
+const BUILD = "2026-10-20 23:29";
 document.getElementById("app-version").textContent = BUILD === "dev" ? "version locale" : "v " + BUILD;
 
 /* Les téléphones gardent souvent une ancienne copie de la page : on regarde s'il existe une version plus récente */
@@ -296,7 +357,7 @@ function showUpdate(v) {
   bar.innerHTML = `✨ Nouvelle version disponible (v ${v.replace(/[<>&"]/g, "")}) <button class="small primary">Mettre à jour</button>`;
   bar.querySelector("button").onclick = () => {
     if (auto || playing) return toast("Attendez la fin de la génération, puis mettez à jour.", true);
-    location.replace(location.pathname + "?v=" + encodeURIComponent(v));
+    location.replace(location.pathname + "?v=" + encodeURIComponent(v) + location.hash);
   };
   document.body.prepend(bar);
 }
@@ -443,14 +504,20 @@ async function blobUrl(key) {
   return urls[key] = URL.createObjectURL(b);
 }
 function dropUrl(key) { if (urls[key]) { URL.revokeObjectURL(urls[key]); delete urls[key]; } }
-async function putBlob(key, b) { await db.set(key, b); dropUrl(key); }
-async function delBlob(key) { await db.del(key); dropUrl(key); }
+// Chaque fichier a un numéro de version (« ver:<clé> ») : la synchronisation sait ainsi ce qui a changé
+const pidOfKey = key => String(key).split(":")[1];
+async function putBlob(key, b) { await db.set(key, b); await db.set("ver:" + key, uid() + uid()); dropUrl(key); markDirty(pidOfKey(key)); }
+async function delBlob(key) {
+  const had = await db.get("ver:" + key);
+  await db.del(key); await db.del("ver:" + key); dropUrl(key);
+  if (had) markDirty(pidOfKey(key));
+}
 
 function saveProj(p = proj, now = false) {
   if (!p) return;
   p.updated = Date.now();
   clearTimeout(p._t);
-  const doit = () => { const { _t, ...clean } = p; return db.set("p:" + p.id, clean); };
+  const doit = () => { const { _t, ...clean } = p; markDirty(p.id); return db.set("p:" + p.id, clean); };
   if (now) return doit();
   p._t = setTimeout(doit, 400);
 }
@@ -706,6 +773,22 @@ Wide 16:9 shot. No text, no captions.`, refs);
   sc.frameId = uid(); await putBlob(K.img(p.id, sc.frameId), blob); await saveProj(p, true);
 }
 
+/* Durée de la vidéo d'une scène : au moins la durée choisie, et assez pour la voix off (sinon l'image se figerait en attendant la voix) */
+async function voiceSecOf(p, sc) {
+  const text = (sc.narration || "").trim();
+  if (!text || sc.ttsText !== text) return 0;
+  if (sc.voiceSec) return sc.voiceSec;
+  const b = await db.get(K.tts(p.id, sc.id)); if (!b) return 0;
+  try { sc.voiceSec = (await new OfflineAudioContext(1, 1, 44100).decodeAudioData(await b.arrayBuffer())).duration; } catch { return 0; }
+  return sc.voiceSec;
+}
+async function videoSecFor(p, sc, caps) {
+  const need = Math.max(sceneSec(), Math.ceil((await voiceSecOf(p, sc)) + VOICE_LEAD + VOICE_TAIL));
+  const ok = (Array.isArray(caps?.supported_durations) && caps.supported_durations.length ? caps.supported_durations : [4, 5, 6, 7, 8, 9, 10, 11, 12])
+    .map(Number).filter(n => n > 0).sort((a, b) => a - b);
+  return ok.find(d => d >= need) ?? ok[ok.length - 1];
+}
+
 /* ---- 4. Première image → vidéo (envoi → suivi → téléchargement) ---- */
 async function startVideo(p, sid) {
   const sc = findScene(p, sid); if (!sc) return;
@@ -718,18 +801,26 @@ async function startVideo(p, sid) {
   }
   delete p.errors[sid]; status[key] = "Envoi…"; sceneChanged(p);
   try {
+    const scs = scenesOf(p), next = scs[scs.indexOf(sc) + 1];
+    const model = settings.videoModel || DEF_VIDEO;
+    const caps = videoModels.find(m => m.id === model)?.caps;
     const startImg = sc.frameId ? await db.get(K.img(p.id, sc.frameId)) : null;
-    const body = { model: settings.videoModel || DEF_VIDEO,
-      prompt: sc.text + (startImg ? "\nStart exactly from the given first frame and keep the characters' look unchanged." : "") };
+    // Enchaînement : la vidéo se termine sur la première image de la scène suivante (si le modèle accepte une image de fin)
+    const lastOk = !caps?.supported_frame_images || caps.supported_frame_images.includes("last_frame");
+    const endImg = lastOk && startImg && next?.frameId && !next.stale ? await db.get(K.img(p.id, next.frameId)) : null;
+    const body = { model, prompt: sc.text +
+      (startImg ? "\nStart exactly from the given first frame and keep the characters' look unchanged." : "") +
+      (endImg ? "\nEnd exactly on the given last frame (it is the first image of the next scene), with one smooth continuous motion: no cut, no fade." : "") };
     if (startImg) body.frame_images = [{ type: "image_url", image_url: { url: await blobToDataURL(startImg) }, frame_type: "first_frame" }];
-    const caps = videoModels.find(m => m.id === body.model)?.caps;
+    if (endImg) body.frame_images.push({ type: "image_url", image_url: { url: await blobToDataURL(endImg) }, frame_type: "last_frame" });
+    sc.endFrameId = endImg ? next.frameId : null;   // pour savoir si la fin correspond encore à la scène suivante
     if (!caps || caps.generate_audio) {
       if (settings.sfx !== false) {   // bruitages de la scène générés avec la vidéo (jamais de paroles ni de musique : la voix off et la musique viennent à part)
         body.generate_audio = true;
         body.prompt += `\nAudio: ${sc.sound || "natural ambient sound of the scene"}. Ambient sounds and sound effects only: no speech, no voices, no singing, no music.`;
       } else body.generate_audio = false;
     }
-    if (settings.duration) body.duration = isNaN(+settings.duration) ? settings.duration : +settings.duration;
+    body.duration = await videoSecFor(p, sc, caps);   // assez longue pour la voix off : la vidéo ne s'arrête pas avant la fin de la phrase
     if (settings.resolution) body.resolution = settings.resolution;
     body.aspect_ratio = "16:9";
     const job = await readJson(await orFetch("/videos", { method: "POST", body: JSON.stringify(body) }));   // pas de nouvel essai ici : risque de payer deux vidéos
@@ -817,7 +908,7 @@ async function makeTts(p, sc) {
   }
   audio = await playableAudio(audio);
   await putBlob(K.tts(p.id, sc.id), audio);
-  sc.ttsText = text; delete sc.ttsError; await saveProj(p, true);
+  sc.ttsText = text; sc.voiceSec = null; delete sc.ttsError; await saveProj(p, true);
 }
 
 /* Le son reçu doit être lisible par le navigateur. Certains modèles (Gemini…) renvoient du PCM brut
@@ -886,9 +977,15 @@ async function makeMusic(p) {
     "Steady, gentle level, made to play quietly under a narrator.";
   const ask = format => withRetry(async () => readAudioReply(await orFetch("/chat/completions", { method: "POST", body: JSON.stringify({
     model, modalities: ["text", "audio"], audio: { format }, stream: true, messages: [{ role: "user", content: prompt }] }) })), 2);
-  let bytes;
-  try { bytes = await ask("wav"); }
-  catch (e) { if (!/format|wav/i.test(e.message)) throw e; bytes = await ask("mp3"); }
+  let bytes, format = "wav";
+  for (let attempt = 1; !bytes; attempt++) {   // Lyria renvoie parfois une réponse sans son : on redemande (jusqu'à 3 fois)
+    try { bytes = await ask(format); }
+    catch (e) {
+      if (/format|wav/i.test(e.message) && format === "wav") { format = "mp3"; continue; }
+      if (/aucun son/.test(e.message) && attempt < 2) continue;   // une réponse sans son est quand même facturée (0,04 $) : un seul nouvel essai
+      throw e;
+    }
+  }
   const head = String.fromCharCode(...bytes.slice(0, 4));   // reconnaître le format (Lyria renvoie souvent du MP3)
   const type = head.startsWith("ID3") || (bytes[0] === 0xff && (bytes[1] & 0xe0) === 0xe0) ? "audio/mpeg" : head === "RIFF" ? "audio/wav" : head === "OggS" ? "audio/ogg" : "";
   const blob = await playableAudio(new Blob([bytes], type ? { type } : {}), 48000, 2);
@@ -985,7 +1082,7 @@ function drawContain(g, src, sw, sh) {
   const s = Math.min(W / sw, H / sh); const dw = sw * s, dh = sh * s;
   g.drawImage(src, (W - dw) / 2, (H - dh) / 2, dw, dh);
 }
-function runFrames(dur, draw) {
+function runFrames(dur, draw) {   // appelle draw(t) à chaque image pendant dur secondes (temps réel)
   return new Promise(res => {
     const t0 = performance.now();
     const step = () => {
@@ -1023,35 +1120,44 @@ async function buildSegments(p, ac, out) {
     let voice = null, video = null, still = null;
     if (voiceBlob) { try { voice = await ac.decodeAudioData(await voiceBlob.arrayBuffer()); } catch {} }
     if (clipUrl) { try { video = await videoMeta(clipUrl); video.muted = false; } catch { toast(`La vidéo de la scène ${sceneNo(p, sc.id)} ne se lit pas : image fixe à la place`, true); } }
-    if (!video && frameUrl) { try { still = await createImageBitmap(await db.get(K.img(p.id, sc.frameId))); } catch {} }
+    // l'image de départ est toujours prête : affichée tant que la vidéo n'a pas sa première image (jamais de noir ni d'arrêt)
+    if (frameUrl) { try { still = await createImageBitmap(await db.get(K.img(p.id, sc.frameId))); } catch {} }
     const base = video && isFinite(video.duration) ? video.duration : DEFAULT_DUR;
     const dur = Math.max(base, voice ? voice.duration + VOICE_LEAD + VOICE_TAIL : 0);
     segs.push({ dur,
-      start(music) {
-        const n = ac.currentTime, vStart = n + VOICE_LEAD, vEnd = voice ? vStart + voice.duration : n;
+      start(music, delay = 0) {   // delay : la vidéo démarre un peu en avance (pré-lecture), le son de la scène commence à l'heure
+        const n = ac.currentTime + delay, vStart = n + VOICE_LEAD, vEnd = voice ? vStart + voice.duration : n;
         if (music) {   // la musique baisse pendant la voix off (et un peu sous les bruitages)
-          const d = music.duck.gain; d.cancelScheduledValues(n); d.setValueAtTime(d.value, n);
+          const d = music.duck.gain; d.cancelScheduledValues(ac.currentTime); d.setValueAtTime(d.value, ac.currentTime);
           const rest = video ? 0.7 : 1;
           if (voice) { d.setTargetAtTime(0.3, vStart - 0.2, 0.12); d.setTargetAtTime(rest, vEnd, 0.3); }
           else d.setTargetAtTime(rest, n, 0.2);
         }
         if (video) {   // bruitages de la vidéo : présents, mais plus bas pendant la voix off
           const src = ac.createMediaElementSource(video); const gain = ac.createGain();
-          gain.gain.setValueAtTime(SFX_VOL, n);
+          gain.gain.setValueAtTime(0, ac.currentTime); gain.gain.linearRampToValueAtTime(SFX_VOL, n + 0.15);   // fondu d'entrée des bruitages
           if (voice) { gain.gain.setTargetAtTime(SFX_UNDER_VOICE, vStart - 0.2, 0.12); gain.gain.setTargetAtTime(SFX_VOL, vEnd, 0.3); }
-          src.connect(gain).connect(out); video.currentTime = 0; video.play().catch(() => {});
+          src.connect(gain).connect(out); this.gain = gain; video.currentTime = 0; video.play().catch(() => {});
         }
-        if (voice) { const s = ac.createBufferSource(); s.buffer = voice; s.connect(out); s.start(ac.currentTime + VOICE_LEAD); this.voiceNode = s; }
+        if (voice) { const s = ac.createBufferSource(); s.buffer = voice; s.connect(out); s.start(vStart); this.voiceNode = s; }
       },
+      fadeOut(sec) { if (this.gain) { const t = ac.currentTime; this.gain.gain.cancelScheduledValues(t); this.gain.gain.setValueAtTime(this.gain.gain.value, t); this.gain.gain.linearRampToValueAtTime(0, t + sec); } },
       stop() { if (video) video.pause(); try { this.voiceNode?.stop(); } catch {} },
-      draw(g) {
-        g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
-        if (video) { if (video.readyState >= 2) drawContain(g, video, video.videoWidth, video.videoHeight); }
+      draw(g) {   // dessine la scène (sans fond : le montage gère le fondu enchaîné)
+        if (video && video.readyState >= 2 && (video.currentTime > 0 || !still)) drawContain(g, video, video.videoWidth, video.videoHeight);
         else if (still) drawContain(g, still, still.width, still.height);
-        else drawCard(g, sc.narration || sc.text);
+        else if (!video) drawCard(g, sc.narration || sc.text);
       } });
   }
   return segs;
+}
+
+/* Place les scènes sur une ligne de temps : chaque scène commence XFADE s avant la fin de la précédente (fondu enchaîné) */
+const XFADE = 0.4, PREROLL = 0.3;
+function timeline(segs) {
+  let t = 0;
+  segs.forEach((s, i) => { s.at = t; t += s.dur - (i < segs.length - 1 ? XFADE : 0); });
+  return segs.length ? segs[segs.length - 1].at + segs[segs.length - 1].dur : 0;
 }
 
 function pickMime() {
@@ -1079,18 +1185,27 @@ async function assemble(p, say) {
     rec = new MediaRecorder(stream, { mimeType: mime || undefined, videoBitsPerSecond: 6_000_000 });
     rec.ondataavailable = e => e.data.size && chunks.push(e.data);
     rec.start(500);
-    const total = segs.reduce((a, s) => a + s.dur, 0); let done = 0;
+    const total = timeline(segs);
     let musicBuf = null;
     const mb = settings.aiMusic !== false && p.musicFor === p.musicPrompt ? await db.get(K.music(p.id)) : null;
     if (mb) { try { musicBuf = await ac.decodeAudioData(await mb.arrayBuffer()); } catch {} }
     const music = startMusic(ac, out, total, musicBuf);
-    for (const s of segs) {
-      say?.(`Assemblage · ${Math.round(done)} / ${Math.round(total)} s (gardez la page ouverte)`);
-      s.start(music);
-      const fine = await runFrames(s.dur, t => s.draw(g, t));
-      s.stop(); done += s.dur;
-      if (!fine) break;
-    }
+    // Une seule boucle d'images pour tout le film : la scène suivante est lancée en avance (pré-lecture)
+    // puis apparaît en fondu enchaîné par-dessus la précédente — pas de coupure, pas d'arrêt.
+    let lastSay = -1;
+    await runFrames(total, T => {
+      for (const s of segs) {
+        if (!s.started && T >= s.at - PREROLL) { s.started = true; s.start(music, Math.max(0, s.at - T)); }
+        if (s.started && !s.fading && s !== segs[segs.length - 1] && T >= s.at + s.dur - XFADE) { s.fading = true; s.fadeOut(XFADE); }
+        if (s.started && !s.stopped && T >= s.at + s.dur) { s.stopped = true; s.stop(); }
+      }
+      g.globalAlpha = 1; g.fillStyle = "#000"; g.fillRect(0, 0, W, H);
+      const visible = segs.filter(s => T >= s.at && T < s.at + s.dur);
+      visible.forEach((s, k) => { g.globalAlpha = k === 0 ? 1 : Math.min(1, (T - s.at) / XFADE); s.draw(g, T - s.at); });
+      g.globalAlpha = 1;
+      if (Math.floor(T) !== lastSay) { lastSay = Math.floor(T); say?.(`Assemblage · ${lastSay} / ${Math.round(total)} s (gardez la page ouverte)`); }
+    });
+    for (const s of segs) if (s.started && !s.stopped) s.stop();
     await new Promise(r => { rec.onstop = r; rec.stop(); });
     if (!playing.stop) {
       await putBlob(K.film(p.id), new Blob(chunks, { type: (mime || "video/webm").split(";")[0] }));
@@ -1120,14 +1235,20 @@ function sceneCountOf(p) {
   if (n > 0) return n;
   return +p.totalSec ? Math.max(1, Math.round(+p.totalSec / sceneSec())) : suggestedScenes(p);
 }
+/* Prix MESURÉS sur la facture OpenRouter (test réel du 20/10/2026) :
+   Seedance 1.5 Pro 480p avec bruitages : 0,1215 $ pour 5 s → 0,0243 $/s (sans son : moitié, prix officiel par jeton ÷ 2) ;
+   720p / 1080p : même prix par jeton, proportionnel au nombre de pixels (×2,25 / ×5,06, calculé, pas mesuré).
+   Seedream 5.0 Flash : 0,018 $ l'image. Gemini TTS : ≈ 0,001 $ par phrase. Claude Haiku : 0,001 à 0,006 $ par découpage.
+   Lyria 3 clip (≤ 30 s) : 0,04 $ (mesuré) ; Lyria 3 pro (plus long) : 0,08 $ (prix annoncé par OpenRouter, pas encore mesuré). */
+const VIDEO_PER_SEC_SFX = { "480p": 0.0243, "720p": 0.0547, "1080p": 0.123 };
 function costPerScene() {
   const s = sceneSec(), res = settings.resolution || DEF_VRES;
-  let perSec = (settings.videoModel || DEF_VIDEO) === DEF_VIDEO ? ({ "480p": 0.0115, "720p": 0.026, "1080p": 0.06 }[res] || 0.026) : 0.03;
-  if (settings.sfx !== false) perSec *= 2;   // Seedance : la vidéo avec son coûte le double
-  return 0.018 + s * perSec + 0.003;   // image + vidéo + voix off
+  let perSec = (settings.videoModel || DEF_VIDEO) === DEF_VIDEO ? (VIDEO_PER_SEC_SFX[res] || VIDEO_PER_SEC_SFX["720p"]) : 0.06;
+  if (settings.sfx === false) perSec /= 2;   // Seedance : sans le son du modèle, moitié prix
+  return 0.018 + s * perSec + 0.001;   // image + vidéo + voix off
 }
 const musicCost = n => settings.aiMusic === false ? 0 : n * sceneSec() <= 30 ? 0.04 : 0.08;   // Lyria : extrait 30 s / morceau complet
-const totalCost = n => 0.03 + n * costPerScene() + musicCost(n);
+const totalCost = n => 0.005 + 0.018 + n * costPerScene() + musicCost(n);   // découpage + image de référence + scènes + musique
 const money = x => x.toFixed(2).replace(".", ",") + " $";
 const fmtDur = s => s < 60 ? `${s} s` : `${Math.floor(s / 60)} min${s % 60 ? " " + (s % 60) + " s" : ""}`;
 function updateEstimate() {
@@ -1156,7 +1277,7 @@ async function resetGeneration(p) {
 }
 
 /* mode "full" : du texte à la vidéo finale ; mode "semi" : s'arrête quand les scènes (texte + image) sont prêtes */
-async function autoRun(mode = "full") {
+async function autoRun(mode = "full", opts = {}) {   // opts.confirmed : le coût a déjà été confirmé (refaire une étape)
   const p = proj;
   if (auto) { auto.cancel = true; stopPlayback(); return; }
   p.story = $("#story").value; p.sceneCount = $("#scene-count").value; await saveProj(p, true);
@@ -1188,13 +1309,14 @@ async function autoRun(mode = "full") {
     if (!confirm("La vidéo est déjà prête. Tout refaire depuis le début ? Cela coûte à nouveau.")) return;
     await resetGeneration(p);
   }
-  if (!splitOnly && (!scenesOf(p).length || !p.refId)) {   // avant de dépenser pour les images / vidéos : confirmer le budget
+  if (!splitOnly && !opts.confirmed && (!scenesOf(p).length || !p.refId)) {   // avant de dépenser pour les images / vidéos : confirmer le budget
     const n = scenesOf(p).length || sceneCountOf(p);
     const cost = semi ? 0.03 + n * 0.018 : totalCost(n);
     if (!confirm(`${semi ? "Préparer les scènes (texte + image) ?" : "Générer la vidéo ?"}\n\n${n} scènes × ${sceneSec()} s = ${fmtDur(n * sceneSec())}, coût estimé ≈ ${money(cost)}` +
       `${semi ? " (images seulement ; les vidéos viendront quand vous appuierez sur « Continuer »)" : ""}.\nGardez la page ouverte jusqu'au bout.`)) return;
   }
   auto = { cancel: false, p, step: 0 };
+  lastMsg[p.id] = "";   // pas d'ancien « Terminé » affiché pendant le travail
   const say = t => { lastMsg[p.id] = t; if (proj === p) { const m = $("#auto-msg"); if (m) m.textContent = t; } };
   const stepTo = i => { auto.step = i; if (proj === p) renderProgress(); };
   const check = () => { if (auto.cancel) throw new Error("Arrêté. Tout ce qui est fait est gardé : appuyez à nouveau sur « Continuer » pour reprendre là où ça s’est arrêté."); };
@@ -1217,6 +1339,7 @@ async function autoRun(mode = "full") {
     }
     check(); stepTo(1);
     if (!p.refId) { say("Création de l'image de référence des personnages…"); await makeRefImage(p); renderScenes(); }
+    if (mode === "ref") { stepTo(2); say("✓ Nouvelle image de référence. Ensuite : « Continuer » pour les images, vidéos et le montage."); return; }
     check(); stepTo(2);
     const scs = scenesOf(p);
     for (let i = 0; i < scs.length; i++) {
@@ -1256,6 +1379,7 @@ async function autoRun(mode = "full") {
       await sleep(Math.min(POLL_MS, 3000));
     }
     say("Musique…"); await musicJob;
+    if (mode === "videos") { stepTo(4); say("✓ Vidéos prêtes. Regardez-les ci-dessous ; ensuite « Continuer : montage » (gratuit)."); return; }
     check(); stepTo(4);
     const ok = await assemble(p, say);
     if (!ok) { check(); throw new Error("Assemblage interrompu. Appuyez à nouveau : seul le montage sera refait (gratuit)."); }
@@ -1293,8 +1417,68 @@ async function openProject(id) {
   if (!proj) { proj = null; renderAll(); return; }
   proj.jobs ||= {}; proj.errors ||= {};
   lsSet("cinetexte-last", id);
-  renderAll();
+  try { history.replaceState(null, "", "#v=" + id); } catch {}   // un rechargement de la page revient sur cette vidéo
+  renderAll(); scrollTo(0, 0);
   for (const sid of Object.keys(proj.jobs)) pollJob(proj, sid);
+}
+
+/* 🏠 Accueil : la galerie « Mes vidéos » */
+function goHome() {
+  if (auto) return toast("Une génération est en cours : attendez la fin ou arrêtez-la.", true);
+  stopPlayback(); proj = null;
+  try { history.replaceState(null, "", location.pathname + location.search); } catch {}
+  renderAll(); scrollTo(0, 0);
+}
+
+async function renderHome(main, keyBanner) {
+  const list = myProjects();
+  if (!list.length) {
+    main.innerHTML = keyBanner + `<div class="hero">
+      <div class="art"><span>📋</span><em>→</em><span>🎬</span></div>
+      <h1>Collez un texte, recevez une vidéo</h1>
+      <p>Texte, photos de pages écrites ou dessins : tout est automatique — découpage en scènes, personnages identiques d'une scène à l'autre, vidéos, voix off et musique. Il ne reste qu'à télécharger.</p>
+      <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo</button>
+      <p style="margin-top:1rem"><button class="ghost" onclick="$('#dlg-help').showModal()">❓ Comment ça marche</button>
+        <button class="ghost" onclick="openBackup()">📂 Importer une sauvegarde</button></p></div>`;
+    return;
+  }
+  let cards = "";
+  for (const x of list) {
+    const p = loaded[x.id] || (loaded[x.id] = await db.get("p:" + x.id)); if (!p) continue;
+    const done = await stepsDone(p), film = done >= 5;
+    const thumbKey = p.refId ? K.img(p.id, p.refId) : scenesOf(p).find(s => s.frameId) ? K.img(p.id, scenesOf(p).find(s => s.frameId).frameId)
+      : (p.inputs || [])[0] ? K.img(p.id, p.inputs[0].id) : null;
+    const thumb = thumbKey ? await blobUrl(thumbKey) : null;
+    const st = film ? "✓ Vidéo prête" : !scenesOf(p).length ? "Pas encore commencée" : `En cours : ${["scènes", "personnages", "images", "vidéos", "montage"][done]} à faire`;
+    const when = p.updated ? new Date(p.updated).toLocaleDateString("fr-FR", { day: "numeric", month: "short", year: "numeric" }) : "";
+    cards += `<article class="work" data-id="${p.id}">
+      <div class="thumb" onclick="${film ? `openWatch('${p.id}')` : `openProject('${p.id}')`}">${thumb ? `<img src="${thumb}" alt="">` : "🎬"}${film ? `<span class="play">▶</span>` : ""}</div>
+      <b>${esc(p.name)}</b><small>${esc(st)}${when ? " · " + when : ""}</small>
+      <div class="row">${film ? `<button class="small primary" onclick="openWatch('${p.id}')">▶ Regarder</button>` : ""}
+        <button class="small" onclick="openProject('${p.id}')">${film ? "✏️ Modifier" : "✏️ Continuer"}</button></div>
+    </article>`;
+  }
+  if (proj) return;   // on a ouvert une vidéo entre-temps
+  main.innerHTML = keyBanner + `<section class="card">
+    <div class="home-head"><h2>🎬 Mes vidéos</h2>
+      <div class="row"><button class="primary" onclick="newProject()">＋ Nouvelle vidéo</button>
+        <button onclick="openBackup()">📂 Importer une sauvegarde</button>
+        <button class="ghost" onclick="$('#dlg-help').showModal()">❓ Aide</button></div></div>
+    <div class="gallery">${cards}</div>
+  </section>`;
+}
+
+async function openWatch(id) {
+  const p = loaded[id] || (loaded[id] = await db.get("p:" + id)); if (!p) return;
+  const blob = await db.get(K.film(id)); if (!blob) return openProject(id);
+  const u = await blobUrl(K.film(id)), ext = blob.type.includes("mp4") ? "mp4" : "webm";
+  const name = (p.storyboard?.title || p.name).replace(/[\\/:*?"<>|]/g, "-") + "." + ext;
+  $("#watch-title").textContent = p.storyboard?.title || p.name;
+  $("#watch-body").innerHTML = `<video controls playsinline autoplay src="${u}"></video>
+    <div class="row"><a href="${u}" download="${esc(name)}"><button class="primary">⬇ Télécharger</button></a>
+      <button onclick="$('#dlg-watch').close(); openProject('${id}')">✏️ Modifier / continuer</button></div>`;
+  const d = $("#dlg-watch"); d.showModal();
+  d.addEventListener("close", () => { const v = d.querySelector("video"); if (v) v.pause(); }, { once: true });
 }
 
 async function deleteProject() {
@@ -1304,9 +1488,8 @@ async function deleteProject() {
   for (const pre of ["img", "clip", "voice", "tts"]) for (const k of await db.keys(`${pre}:${pid}:`)) await delBlob(k);
   await delBlob(K.film(pid)); await delBlob(K.music(pid)); await db.del("p:" + pid); delete loaded[pid];
   projects = projects.filter(x => x.id !== pid); await saveProjectList();
-  proj = null;
-  const rest = myProjects();
-  if (rest.length) await openProject(rest[0].id); else renderAll();
+  markDirty(pid);   // la suppression est aussi partagée avec les autres appareils
+  goHome();
 }
 
 /* ============ Affichage ============ */
@@ -1317,16 +1500,7 @@ function renderAll() {
   const main = $("#main");
   const keyBanner = settings.key ? "" :
     `<div class="banner"><span>💡</span><div>Pour commencer : touchez <b>⚙ Réglages</b> et collez votre clé API OpenRouter (à créer sur openrouter.ai/keys).</div></div>`;
-  if (!proj) {
-    main.innerHTML = keyBanner + `<div class="hero">
-      <div class="art"><span>📋</span><em>→</em><span>🎬</span></div>
-      <h1>Collez un texte, recevez une vidéo</h1>
-      <p>Texte, photos de pages écrites ou dessins : tout est automatique — découpage en scènes, personnages identiques d'une scène à l'autre, vidéos, voix off et musique. Il ne reste qu'à télécharger.</p>
-      <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo</button>
-      <p style="margin-top:1rem"><button class="ghost" onclick="$('#dlg-help').showModal()">❓ Comment ça marche</button>
-        <button class="ghost" onclick="openBackup()">📂 Ouvrir une sauvegarde</button></p></div>`;
-    return;
-  }
+  if (!proj) { renderHome(main, keyBanner); return; }
   const running = auto?.p === proj;
   main.innerHTML = keyBanner + `
   <section class="card" id="sec-text">
@@ -1396,7 +1570,7 @@ function renderAll() {
     const b = e.target.closest("button[data-act]"); if (!b || auto) return;
     if (!settings.key) return toast("Il faut une clé API OpenRouter (dans les réglages).", true);
     const p = proj, sc = findScene(p, b.closest(".scene").dataset.sid), n = sceneNo(p, sc.id), act = b.dataset.act;
-    const vcost = money(costPerScene() - 0.021);
+    const vcost = money(costPerScene() - 0.019);
     if (act === "revideo" && !confirm(`Refaire seulement la vidéo de la scène ${n} (≈ ${vcost}) ? Le reste est gardé.`)) return;
     b.disabled = true; b.textContent = "⏳…";
     try {
@@ -1435,8 +1609,10 @@ async function renderProgress() {
   const running = auto?.p === p;
   const done = running ? auto.step : await stepsDone(p);
   if (proj !== p) return;
-  box.innerHTML = STEP_NAMES.map(([ic, name], i) =>
-    `<li class="${i < done ? "done" : running && i === done ? "active" : ""}"><span>${i < done ? "✓" : ic}</span>${name}</li>`).join("");
+  box.innerHTML = STEP_NAMES.map(([ic, name], i) => {
+    const can = !running && i < done;   // étape faite : on peut la refaire (et garder tout ce qui est avant)
+    return `<li class="${i < done ? "done" : running && i === done ? "active" : ""}${can ? " can" : ""}" ${can ? `role="button" tabindex="0" title="Refaire à partir d'ici" onclick="stepClick(${i})"` : ""}>` +
+      `<span>${i < done ? "✓" : ic}</span>${name}${can ? "<small>🔁 refaire</small>" : ""}</li>`; }).join("");
   box.hidden = !running && done === 0;
   const btn = $("#btn-auto");   // le bouton dit ce qui reste à faire (ce qui est fait est gardé)
   if (btn && !running && scenesOf(p).length && p.splitFrom === inputKey(p))
@@ -1525,6 +1701,237 @@ async function openBackup() {
   } catch (e) { toast("Impossible d'ouvrir cette sauvegarde : " + e.message, true); }
 }
 
+/* ============ ☁️ Partage entre appareils : synchronisation GitHub (comme jeuEtude) ============
+   Dépôt GitHub PRIVÉ Yifeng-LIN/jeu-progres, dossier filmmaker/ (les fichiers de jeuEtude, etats/, ne sont pas touchés).
+   Tout est CHIFFRÉ (AES-256-GCM) avec la même clé K que jeuEtude ; K est ouverte par le mot de passe des parents
+   (PBKDF2-SHA256, jeuetude/cle.json) puis gardée dans ce navigateur (« jeu-github-cle-v1 », partagée avec jeuEtude :
+   un appareil déjà relié pour jeuEtude l'est aussi ici). Le jeton GitHub est dans cle.json, chiffré par K.
+   filmmaker/index.json : la liste des vidéos ; filmmaker/<id>/projet.json : la vidéo et la liste de ses fichiers ;
+   filmmaker/<id>/f/<version>.bin : chaque fichier (image, vidéo, voix, musique, vidéo finale). */
+const GH = { repo: "Yifeng-LIN/jeu-progres", dir: "filmmaker", cleUrl: "https://yifeng-lin.github.io/jeuetude/cle.json", ls: "jeu-github-cle-v1" };
+const SYNC = { on: false, K: null, token: null, dirty: new Set(), busy: false, err: "", status: 0, pulling: false, fetching: new Set() };
+const b64e = buf => { const u = new Uint8Array(buf); let s = ""; for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000)); return btoa(s); };
+const b64d = t => Uint8Array.from(atob(String(t).replace(/\s/g, "")), c => c.charCodeAt(0));
+async function encBytes(bytes) { const iv = crypto.getRandomValues(new Uint8Array(12)); const ct = await crypto.subtle.encrypt({ name: "AES-GCM", iv }, SYNC.K, bytes);
+  const out = new Uint8Array(12 + ct.byteLength); out.set(iv); out.set(new Uint8Array(ct), 12); return out; }
+async function decBytes(buf) { const u = new Uint8Array(buf); return crypto.subtle.decrypt({ name: "AES-GCM", iv: u.slice(0, 12) }, SYNC.K, u.slice(12)); }
+async function decJeton(o) { return new TextDecoder().decode(await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64d(o.iv) }, SYNC.K, b64d(o.ct))); }
+
+function gh(path, opts = {}, accept = "application/vnd.github+json") {
+  return fetch(`https://api.github.com/repos/${GH.repo}/contents/${GH.dir}/${path}`, { cache: "no-store", ...opts,
+    headers: { Authorization: "Bearer " + SYNC.token, Accept: accept, "X-GitHub-Api-Version": "2022-11-28", ...(opts.body ? { "Content-Type": "application/json" } : {}) } });
+}
+async function ghCheck(r) { SYNC.status = r.status; if (!r.ok) throw new Error("GitHub " + r.status + (r.status === 401 ? " (clé expirée)" : "")); return r; }
+async function ghReadJson(path) {
+  let r; try { r = await gh(path); } catch { throw new NetError(NET_MSG); }
+  if (r.status === 404) return null;
+  const j = await (await ghCheck(r)).json();
+  const raw = j.content ? b64d(j.content) : new Uint8Array(await (await ghCheck(await gh(path, {}, "application/vnd.github.raw"))).arrayBuffer());
+  return { data: JSON.parse(new TextDecoder().decode(await decBytes(raw))), sha: j.sha };
+}
+async function ghWrite(path, bytes, sha) {   // false = conflit (quelqu'un a écrit entre-temps)
+  const body = { message: "Ciné-Texte", content: b64e(await encBytes(bytes)) }; if (sha) body.sha = sha;
+  let r; try { r = await gh(path, { method: "PUT", body: JSON.stringify(body) }); } catch { throw new NetError(NET_MSG); }
+  if (r.status === 409 || r.status === 422) return false;
+  return (await (await ghCheck(r)).json()).content.sha;
+}
+const ghWriteJson = (path, obj, sha) => ghWrite(path, new TextEncoder().encode(JSON.stringify(obj)), sha);
+async function ghDelete(path, sha) { try { await gh(path, { method: "DELETE", body: JSON.stringify({ message: "Ciné-Texte", sha }) }); } catch {} }
+async function ghReadBin(path) {
+  let r; try { r = await gh(path, {}, "application/vnd.github.raw"); } catch { throw new NetError(NET_MSG); }
+  return decBytes(await (await ghCheck(r)).arrayBuffer());
+}
+
+async function syncStart() {   // au démarrage : si cet appareil est relié (ici ou par jeuEtude), on synchronise
+  let raw = null; try { raw = localStorage.getItem(GH.ls); } catch {}
+  if (!raw) { SYNC.on = false; syncUI(); return false; }
+  try {
+    SYNC.K = await crypto.subtle.importKey("raw", b64d(raw), "AES-GCM", false, ["encrypt", "decrypt"]);
+    const c = await (await fetch(GH.cleUrl, { cache: "no-store" })).json();
+    SYNC.token = await decJeton(c.jeton); SYNC.on = true; SYNC.err = "";
+  } catch (e) { SYNC.on = false; SYNC.err = "Impossible de lire la clé (internet ?)"; syncUI(); return false; }
+  syncUI(); await syncPull(); return true;
+}
+async function syncLink(pwd) {   // relier cet appareil avec le mot de passe des parents (comme dans jeuEtude)
+  const c = await (await fetch(GH.cleUrl, { cache: "no-store" })).json();
+  const base = await crypto.subtle.importKey("raw", new TextEncoder().encode(pwd), "PBKDF2", false, ["deriveKey"]);
+  const kek = await crypto.subtle.deriveKey({ name: "PBKDF2", salt: b64d(c.sel), iterations: c.iter, hash: "SHA-256" }, base, { name: "AES-GCM", length: 256 }, false, ["decrypt"]);
+  const raw = await crypto.subtle.decrypt({ name: "AES-GCM", iv: b64d(c.cle.iv) }, kek, b64d(c.cle.ct));   // mauvais mot de passe → erreur
+  localStorage.setItem(GH.ls, b64e(raw));
+  return syncStart();
+}
+function syncUnlink() { try { localStorage.removeItem(GH.ls); } catch {} SYNC.on = false; SYNC.K = SYNC.token = null; syncUI(); }
+
+function markDirty(pid) {
+  if (!SYNC.on || !pid || SYNC.pulling) return;
+  SYNC.dirty.add(pid); clearTimeout(SYNC.t); SYNC.t = setTimeout(syncPush, 3000); syncUI();
+}
+async function syncPush() {
+  if (SYNC.busy || !SYNC.on) return;
+  SYNC.busy = true; syncUI(); let pid = null;
+  try {
+    while (SYNC.dirty.size) { pid = [...SYNC.dirty][0]; SYNC.dirty.delete(pid); await pushProject(pid); pid = null; }
+    SYNC.err = "";
+  } catch (e) { if (pid) SYNC.dirty.add(pid); SYNC.err = e.message; setTimeout(syncPush, 15000); }
+  SYNC.busy = false; syncUI();
+}
+async function verOf(key) { let v = await db.get("ver:" + key); if (!v) { v = uid() + uid(); await db.set("ver:" + key, v); } return v; }
+async function projectKeys(pid) {
+  const keys = [];
+  for (const pre of ["img", "clip", "tts"]) keys.push(...await db.keys(`${pre}:${pid}:`));
+  for (const k of [K.film(pid), K.music(pid)]) if (await db.get(k)) keys.push(k);
+  return keys;
+}
+async function pushProject(pid) {
+  const p = loaded[pid] || await db.get("p:" + pid);
+  const idxEntry = p ? { id: pid, name: p.name, updated: p.updated || Date.now() } : { id: pid, deleted: true, updated: Date.now() };
+  if (p && p.kind !== "text") return;
+  if (p) {
+    let remote = await ghReadJson(`${pid}/projet.json`);
+    if (remote && (remote.data.updated || 0) > (p.syncAt || 0)) {   // un autre appareil a changé cette vidéo depuis : on récupère d'abord ses fichiers
+      await db.set("rfiles:" + pid, remote.data.files || {}); await fetchFiles(pid, true);
+    }
+    const files = { ...(remote?.data.files || {}) }, keys = await projectKeys(pid);
+    for (const key of keys) {
+      const ver = await verOf(key);
+      if (files[key]?.ver === ver) continue;
+      const blob = await db.get(key); if (!blob) continue;
+      const path = `${pid}/f/${ver}.bin`;
+      const sha = await ghWrite(path, new Uint8Array(await blob.arrayBuffer()));
+      const old = files[key];
+      files[key] = { ver, type: blob.type, size: blob.size, path, sha: sha || null };
+      await db.set("sver:" + key, ver);   // cette version est maintenant en ligne
+      if (old?.path && old.path !== path && old.sha) ghDelete(old.path, old.sha);
+      syncUI();
+    }
+    for (const key of Object.keys(files)) if (!keys.includes(key)) { const f = files[key]; delete files[key]; if (f.sha) ghDelete(f.path, f.sha); }
+    const { _t, syncAt, ...clean } = p;
+    for (let tries = 0; ; tries++) {
+      const ok = await ghWriteJson(`${pid}/projet.json`, { project: clean, files, updated: idxEntry.updated }, remote?.sha);
+      if (ok) break; if (tries >= 3) throw new Error("conflit GitHub");
+      remote = await ghReadJson(`${pid}/projet.json`);
+    }
+    await db.set("rfiles:" + pid, files);
+    p.syncAt = idxEntry.updated; await db.set("p:" + pid, { ...clean, syncAt: p.syncAt });
+  }
+  for (let tries = 0; ; tries++) {   // la liste des vidéos
+    const idx = await ghReadJson("index.json");
+    const list = (idx?.data.projects || []).filter(x => x.id !== pid); list.unshift(idxEntry);
+    if (await ghWriteJson("index.json", { projects: list }, idx?.sha)) break;
+    if (tries >= 3) throw new Error("conflit GitHub");
+  }
+}
+async function syncPull() {   // récupère ce que les autres appareils ont fait
+  if (!SYNC.on || SYNC.pulling) return;
+  SYNC.pulling = true; syncUI();
+  try {
+    const idx = await ghReadJson("index.json");
+    for (const e of idx?.data.projects || []) {
+      const local = loaded[e.id] || await db.get("p:" + e.id);
+      if (e.deleted) {
+        if (local && (local.updated || 0) <= e.updated && auto?.p?.id !== e.id) await deleteLocal(e.id);
+        continue;
+      }
+      if (local && (e.updated <= (local.syncAt || 0) || e.updated <= (local.updated || 0))) continue;   // rien de plus récent en ligne
+      if (auto?.p?.id === e.id) continue;
+      const r = await ghReadJson(`${e.id}/projet.json`); if (!r) continue;
+      const p = { ...r.data.project, syncAt: r.data.updated, updated: r.data.updated };
+      p.jobs ||= {}; p.errors ||= {};
+      await db.set("p:" + e.id, p); await db.set("rfiles:" + e.id, r.data.files || {});
+      loaded[e.id] = p; if (proj?.id === e.id) proj = p;
+      if (!projects.some(x => x.id === e.id)) projects.unshift({ id: e.id, name: p.name, kind: "text" });
+      else projects = projects.map(x => x.id === e.id ? { ...x, name: p.name } : x);
+    }
+    await saveProjectList();
+    for (const x of myProjects()) {   // vidéos jamais envoyées (ou modifiées hors ligne) : on les envoie
+      const p = loaded[x.id] || await db.get("p:" + x.id);
+      if (p && (!p.syncAt || (p.updated || 0) > p.syncAt)) SYNC.dirty.add(x.id);
+    }
+    SYNC.err = "";
+  } catch (e) { SYNC.err = e.message; }
+  SYNC.pulling = false; syncUI();
+  if (!auto) renderAll();
+  const order = [proj?.id, ...myProjects().map(x => x.id)].filter((v, i, a) => v && a.indexOf(v) === i);
+  for (const id of order) await fetchFiles(id).catch(() => {});   // les fichiers (la vidéo ouverte d'abord)
+  if (SYNC.dirty.size) syncPush();
+}
+async function fetchFiles(pid, force = false) {   // télécharge les fichiers qui manquent ou ont changé sur un autre appareil
+  if (SYNC.fetching.has(pid) && !force) return;
+  SYNC.fetching.add(pid); syncUI();
+  try {
+    const files = (await db.get("rfiles:" + pid)) || {};
+    let got = 0;
+    for (const [key, f] of Object.entries(files)) {
+      const mine = await db.get("ver:" + key), synced = await db.get("sver:" + key), have = !!(await db.get(key));
+      if (mine === f.ver && have) continue;
+      if (have && mine && mine !== synced) continue;   // changé sur cet appareil depuis la dernière synchro : on garde cette version (elle sera envoyée)
+      const bytes = await ghReadBin(f.path);
+      if ((await db.get("ver:" + key)) !== mine) continue;   // modifié pendant le téléchargement : on garde la version locale
+      await db.set(key, new Blob([bytes], { type: f.type || "" })); await db.set("ver:" + key, f.ver); await db.set("sver:" + key, f.ver); dropUrl(key); got++;
+    }
+    if (got && !auto) { if (proj?.id === pid) { renderScenes(); renderFilmOut(); renderProgress(); renderInputs(); } else if (!proj) renderAll(); }
+  } finally { SYNC.fetching.delete(pid); syncUI(); }
+}
+async function deleteLocal(pid) {
+  for (const pre of ["img", "clip", "voice", "tts"]) for (const k of await db.keys(`${pre}:${pid}:`)) { await db.del(k); await db.del("ver:" + k); dropUrl(k); }
+  for (const k of [K.film(pid), K.music(pid)]) { await db.del(k); await db.del("ver:" + k); dropUrl(k); }
+  await db.del("p:" + pid); await db.del("rfiles:" + pid); delete loaded[pid];
+  projects = projects.filter(x => x.id !== pid); await saveProjectList();
+  if (proj?.id === pid) proj = null;
+}
+function syncText() {
+  if (!SYNC.on) return SYNC.err ? "⚠️ " + SYNC.err : "";
+  if (SYNC.err) return SYNC.status === 401 ? "⚠️ La clé GitHub a expiré : à renouveler (comme pour jeuEtude)." : "⚠️ Pas encore partagé (internet ?), nouvel essai…";
+  if (SYNC.busy || SYNC.dirty.size) return "☁️ Envoi…";
+  if (SYNC.pulling || SYNC.fetching.size) return "☁️ Réception…";
+  return "☁️ Partagé (chiffré)";
+}
+function syncUI() {
+  const el = $("#sync-state"); if (el) { el.textContent = syncText(); el.hidden = !el.textContent; }
+  const st = $("#s-sync-state"); if (st) st.textContent = SYNC.on ? "✅ Cet appareil est relié. " + syncText() : "Cet appareil n'est pas relié.";
+  const lk = $("#s-sync-link"), ul = $("#s-sync-unlink"); if (lk) lk.hidden = SYNC.on; if (ul) ul.hidden = !SYNC.on;
+}
+async function syncLinkUI() {
+  const i = $("#s-sync-pwd"), m = $("#s-sync-msg"); if (!i.value) return;
+  m.textContent = "⏳ Vérification…";
+  try { await syncLink(i.value); i.value = ""; m.textContent = "✅ Relié : les vidéos sont maintenant partagées entre vos appareils."; }
+  catch { m.textContent = "❌ Mot de passe incorrect (ou pas d'internet)."; }
+}
+document.addEventListener("visibilitychange", () => { if (!document.hidden && SYNC.on && !auto) syncPull(); });
+window.addEventListener("online", () => { if (SYNC.on) { syncPull(); syncPush(); } });
+
+/* ---- Refaire à partir d'une étape (tout ce qui est avant est gardé) ---- */
+async function stepClick(i) {
+  const p = proj; if (auto || !p) return;
+  if (!settings.key) return toast("Il faut une clé API OpenRouter (dans les réglages).", true);
+  const n = scenesOf(p).length, IMG = 0.018, voice = 0.001, vid = costPerScene() - IMG - voice;
+  const what = [   // cost1 : seulement cette étape ; costAll : de cette étape jusqu'à la fin
+    { name: "Scènes", keep: "Le texte et les images données sont gardés. Tout le reste sera refait.", mode: "split",
+      cost1: 0.01, costAll: 0.01 + IMG + n * (IMG + vid + voice) + musicCost(n) },
+    { name: "Personnages", keep: "Les scènes, les voix et la musique sont gardées.", mode: "ref", cost1: IMG, costAll: IMG + n * (IMG + vid) },
+    { name: "Images", keep: "Les scènes, la référence des personnages, les voix et la musique sont gardées.", mode: "semi", cost1: n * IMG, costAll: n * (IMG + vid) },
+    { name: "Vidéos", keep: "Les scènes, toutes les images, les voix et la musique sont gardées.", mode: "videos", cost1: n * vid, costAll: n * vid },
+    { name: "Montage", keep: "Tout est gardé : seul l'assemblage est refait.", mode: "full", cost1: 0, costAll: 0 },
+  ][i];
+  $("#step-title").textContent = `Refaire « ${what.name} »`;
+  $("#step-keep").textContent = what.keep;
+  $("#step-all").innerHTML = `🔁 Refaire à partir d'ici jusqu'à la vidéo finale<small>≈ ${money(what.costAll)}${i === 4 ? " (gratuit)" : ""}</small>`;
+  $("#step-one").innerHTML = `✋ Refaire seulement cette étape, puis m'arrêter<small>≈ ${money(what.cost1)} — vous regardez, puis « Continuer »</small>`;
+  $("#step-one").hidden = i === 4;
+  const dlg = $("#dlg-step"); dlg.returnValue = ""; dlg.showModal();
+  const choice = await new Promise(r => dlg.addEventListener("close", () => r(dlg.returnValue), { once: true }));
+  if (choice !== "all" && choice !== "one") return;
+  // effacer l'étape choisie et ce qui en dépend
+  const scs = scenesOf(p);
+  if (i === 0) await resetGeneration(p);
+  if (i === 1 && p.refId) { await delBlob(K.img(p.id, p.refId)); p.refId = null; }
+  if (i <= 2 && i >= 1) for (const sc of scs) { if (sc.frameId) await delBlob(K.img(p.id, sc.frameId)); sc.frameId = null; sc.stale = false; }
+  if (i <= 3 && i >= 1) for (const sc of scs) { await delBlob(K.clip(p.id, sc.id)); delete p.errors[sc.id]; delete p.jobs[sc.id]; }
+  await delBlob(K.film(p.id)); await saveProj(p, true);
+  renderAll();
+  autoRun(choice === "all" ? "full" : what.mode, { confirmed: true });
+}
+
 /* ---- Refaire une seule partie (tout le reste est gardé) ---- */
 async function redoMontage() {   // gratuit : on remonte avec les vidéos, voix et musique déjà faites
   if (auto) return;
@@ -1572,6 +1979,7 @@ const SETTING_FIELDS = [["#s-key", "key", ""], ["#s-text", "textModel", DEF_TEXT
 function openSettings() {
   for (const [sel, k, d] of SETTING_FIELDS) $(sel).value = settings[k] || d;
   $("#s-sfx").checked = settings.sfx !== false; $("#s-aimusic").checked = settings.aiMusic !== false;
+  $("#s-sync-msg").textContent = ""; syncUI();
   $("#dlg-settings").showModal();
 }
 $("#dlg-settings").onclose = () => {
@@ -1595,9 +2003,12 @@ window.addEventListener("beforeunload", e => { if (auto || playing) { e.preventD
 
 (async function init() {
   projects = (await db.get("projects")) || [];
-  const list = myProjects(), last = lsGet("cinetexte-last");
-  if (list.length) await openProject(list.find(x => x.id === last)?.id || list[0].id);
+  // l'appli s'ouvre sur la galerie « Mes vidéos » ; après un rechargement en cours de travail, on revient sur la même vidéo
+  const want = (location.hash.match(/^#v=(\w+)/) || [])[1];
+  if (want && myProjects().some(x => x.id === want)) await openProject(want);
   else renderAll();
+  syncStart();   // ☁️ partage entre appareils (si cet appareil est relié)
+  setInterval(() => { if (SYNC.on && !auto && !document.hidden) syncPull(); }, 120000);
 })();
 </script>
 </body>
