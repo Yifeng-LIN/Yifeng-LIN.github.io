@@ -89,6 +89,16 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 .switch input{width:1.15rem;height:1.15rem;flex:none;margin-top:.1rem;accent-color:var(--coral)}
 .inputs{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.7rem}
 .inputs:empty{display:none}
+.add-media{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin-top:.8rem}
+.tile{display:flex;flex-direction:column;align-items:center;gap:.1rem;padding:.9rem .6rem;border-radius:18px;background:var(--soft);
+  box-shadow:inset 0 0 0 2.5px #f3d9bd;font-weight:800;text-align:center;line-height:1.25}
+.tile span{font-size:1.9rem;line-height:1.1}
+.tile b{font-size:1rem}
+.tile small{font-weight:600;color:var(--muted);font-size:.78rem}
+.tile:hover:not(:disabled){box-shadow:inset 0 0 0 2.5px var(--coral);background:#fff5f2}
+#update-bar{position:sticky;top:0;z-index:30;display:flex;gap:.6rem;align-items:center;justify-content:center;flex-wrap:wrap;
+  background:var(--ink);color:#fff;padding:.55rem 16px;font-weight:700;font-size:.92rem}
+#update-bar button{padding:.35em 1em;font-size:.88rem}
 .in-pic{position:relative;width:110px;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
 .in-pic img{width:100%;height:100%;object-fit:cover;display:block}
 .in-pic span{position:absolute;left:.3rem;bottom:.3rem;background:rgba(255,255,255,.92);border-radius:8px;padding:0 .4rem;font-size:.72rem;font-weight:800}
@@ -259,8 +269,31 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 <script>
 "use strict";
 /* ============ Version : date et heure de publication, écrites par `npm run publish` ============ */
-const BUILD = "2026-10-20 20:16";
+const BUILD = "2026-10-20 20:32";
 document.getElementById("app-version").textContent = BUILD === "dev" ? "version locale" : "v " + BUILD;
+
+/* Les téléphones gardent souvent une ancienne copie de la page : on regarde s'il existe une version plus récente */
+function showUpdate(v) {
+  if (document.getElementById("update-bar")) return;
+  const bar = document.createElement("div"); bar.id = "update-bar";
+  bar.innerHTML = `✨ Nouvelle version disponible (v ${v.replace(/[<>&"]/g, "")}) <button class="small primary">Mettre à jour</button>`;
+  bar.querySelector("button").onclick = () => {
+    if (auto || playing) return toast("Attendez la fin de la génération, puis mettez à jour.", true);
+    location.replace(location.pathname + "?v=" + encodeURIComponent(v));
+  };
+  document.body.prepend(bar);
+}
+async function checkUpdate() {
+  if (BUILD === "dev" || location.protocol === "file:") return;
+  try {
+    const t = await (await fetch(location.pathname + "?check=" + Date.now(), { cache: "no-store" })).text();
+    const v = (t.match(/const BUILD = "([^"]+)"/) || [])[1];
+    if (v && v !== "dev" && v > BUILD) showUpdate(v);
+  } catch {}
+}
+checkUpdate();
+document.addEventListener("visibilitychange", () => { if (!document.hidden) checkUpdate(); });
+setInterval(checkUpdate, 10 * 60000);
 
 /* ============ Configuration ============ */
 const API = "https://openrouter.ai/api/v1";
@@ -1210,7 +1243,7 @@ function renderAll() {
     main.innerHTML = keyBanner + `<div class="hero">
       <div class="art"><span>📋</span><em>→</em><span>🎬</span></div>
       <h1>Collez un texte, recevez une vidéo</h1>
-      <p>Tout est automatique : découpage en scènes, personnages identiques d'une scène à l'autre, vidéos, voix off et musique. Il ne reste qu'à télécharger.</p>
+      <p>Texte, photos de pages écrites ou dessins : tout est automatique — découpage en scènes, personnages identiques d'une scène à l'autre, vidéos, voix off et musique. Il ne reste qu'à télécharger.</p>
       <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo</button>
       <p style="margin-top:1rem"><button class="ghost" onclick="$('#dlg-help').showModal()">❓ Comment ça marche</button></p></div>`;
     return;
@@ -1218,14 +1251,14 @@ function renderAll() {
   const running = auto?.p === proj;
   main.innerHTML = keyBanner + `
   <section class="card" id="sec-text">
-    <h2>Votre texte</h2>
-    <textarea id="story" rows="10" placeholder="Collez votre texte ici (une histoire, un script, un article…). Vous pouvez aussi y écrire vos consignes, par ex. « style manga »." ${running ? "disabled" : ""}></textarea>
-    <div class="inputs" id="inputs"></div>
-    <div class="row" style="margin-top:.6rem">
-      <button class="small" id="btn-in-cam" onclick="addInputs(true)" ${running ? "disabled" : ""}>📷 Photo</button>
-      <button class="small" id="btn-in-up" onclick="addInputs(false)" ${running ? "disabled" : ""}>🖼️ Ajouter des images</button>
-      <span class="hint" style="flex:1;min-width:14rem">Une image de texte (page écrite, capture d'écran) est lue et ajoutée au texte ; un dessin ou une photo sert de modèle pour les personnages, les décors et le style.</span>
+    <h2>Votre texte et vos images</h2>
+    <textarea id="story" rows="8" placeholder="Collez votre texte ici (une histoire, un script, un article…). Vous pouvez aussi y écrire vos consignes, par ex. « style manga »." ${running ? "disabled" : ""}></textarea>
+    <div class="add-media">
+      <button class="tile" id="btn-in-cam" onclick="addInputs(true)" ${running ? "disabled" : ""}><span>📷</span><b>Prendre une photo</b><small>page écrite, dessin…</small></button>
+      <button class="tile" id="btn-in-up" onclick="addInputs(false)" ${running ? "disabled" : ""}><span>🖼️</span><b>Ajouter des images</b><small>depuis la galerie</small></button>
     </div>
+    <div class="inputs" id="inputs"></div>
+    <p class="hint">📝 Une image de texte (page écrite, capture d'écran) est <b>lue</b> et ajoutée au texte. 🎨 Un dessin ou une photo sert de <b>modèle</b> pour les personnages, les décors et le style.</p>
     <div class="plan">
       <label class="count">Durée de la vidéo
         <select id="total-sec" ${running ? "disabled" : ""}>${[["", "auto"], [15, "15 s"], [30, "30 s"], [45, "45 s"], [60, "1 min"], [90, "1 min 30"], [120, "2 min"], [180, "3 min"], [300, "5 min"]]
