@@ -87,6 +87,12 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 .count{display:inline-flex;align-items:center;gap:.4rem;font-size:.85rem;font-weight:700;color:var(--muted)}
 .switch{display:flex;align-items:flex-start;gap:.5rem;font-size:.86rem;font-weight:700;margin:.5rem 0;cursor:pointer}
 .switch input{width:1.15rem;height:1.15rem;flex:none;margin-top:.1rem;accent-color:var(--coral)}
+.inputs{display:flex;gap:.6rem;flex-wrap:wrap;margin-top:.7rem}
+.inputs:empty{display:none}
+.in-pic{position:relative;width:110px;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
+.in-pic img{width:100%;height:100%;object-fit:cover;display:block}
+.in-pic span{position:absolute;left:.3rem;bottom:.3rem;background:rgba(255,255,255,.92);border-radius:8px;padding:0 .4rem;font-size:.72rem;font-weight:800}
+.in-pic button{position:absolute;top:.25rem;right:.25rem;padding:0;width:1.7rem;height:1.7rem;font-size:.8rem}
 .plan{display:flex;gap:.7rem 1rem;flex-wrap:wrap;align-items:center;margin-top:.9rem}
 .count select{border:2px solid var(--line);border-radius:999px;padding:.35em .7em;background:#fff;font-weight:700}
 .estimate{font-size:.88rem;font-weight:800;color:var(--ink);background:#fff7e0;border-radius:999px;padding:.3em .9em}
@@ -107,6 +113,15 @@ dialog{border:none;border-radius:var(--radius);padding:1.4rem 1.5rem;width:min(5
 dialog::backdrop{background:rgba(46,42,53,.4)}
 dialog h3{margin:0 0 .9rem;font-size:1.4rem}
 dialog menu{display:flex;justify-content:flex-end;gap:.6rem;padding:0;margin:1rem 0 0}
+dialog.help{width:min(760px,calc(100vw - 32px));line-height:1.6}
+.help .lead{font-size:1rem;margin:0 0 .6rem}
+.help h4{font-family:var(--display);font-weight:600;font-size:1.1rem;margin:1.1rem 0 .3rem;color:var(--coral-d)}
+.help ul,.help ol{margin:.2rem 0;padding-left:1.3rem}
+.help li{margin:.25rem 0}
+.help p{margin:.3rem 0}
+.help table{border-collapse:collapse;width:100%;font-size:.9rem}
+.help td{border-bottom:1px solid var(--line);padding:.35rem .4rem}
+.help td:last-child{text-align:right;white-space:nowrap;font-weight:700}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:.6rem}
 details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0 .6rem}
 
@@ -143,11 +158,74 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
     <select id="proj-select" aria-label="Vidéo"></select>
     <button class="small" id="btn-new" title="Nouvelle vidéo">＋<span class="btn-label"> Nouvelle</span></button>
     <button class="small ghost" id="btn-del-proj" title="Supprimer cette vidéo">🗑<span class="btn-label"> Supprimer</span></button>
+    <button class="small" id="btn-help" title="Comment ça marche" onclick="$('#dlg-help').showModal()">❓<span class="btn-label"> Aide</span></button>
     <button class="small" id="btn-settings" title="Réglages">⚙<span class="btn-label"> Réglages</span></button>
   </div>
 </header>
 
 <main id="main"></main>
+
+<dialog id="dlg-help" class="help">
+  <form method="dialog">
+    <h3>Comment ça marche</h3>
+    <p class="lead">Vous donnez un texte (et si vous voulez des images) ; l'appli fabrique une vidéo complète : images, animation, bruitages, voix off, musique et montage. Chaque étape utilise un modèle d'IA différent, via votre clé OpenRouter.</p>
+
+    <h4>1. Ce que vous donnez</h4>
+    <ul>
+      <li><b>Le texte</b> : une histoire, un script, un article… Vous pouvez y écrire des consignes (« style manga », « ambiance de nuit »…).</li>
+      <li><b>Des images</b> (📷 Photo ou 🖼️ Ajouter) :
+        une <b>image de texte</b> (page manuscrite, page imprimée, capture d'écran) est <b>lue</b> et ajoutée au texte ;
+        un <b>dessin ou une photo</b> sert de <b>modèle</b> : les personnages, les décors et le style des images en partent.
+        Si le texte demande un autre style, c'est le texte qui l'emporte.</li>
+      <li><b>La durée</b> : chaque scène dure 5 s. Choisissez la durée totale, le nombre de scènes est proposé (modifiable), avec le coût estimé.
+        Si le texte est trop long pour la durée, il est résumé.</li>
+    </ul>
+
+    <h4>2. Le découpage (Claude)</h4>
+    <p>Claude lit le texte et les images, puis écrit pour chaque scène : ce que montrent l'image et la vidéo, la phrase de la voix off, les bruitages, et le ton de la voix.
+      Il écrit aussi une <b>fiche des personnages et des décors</b> (visage, cheveux, vêtements, couleurs, style) et une description de la musique.</p>
+
+    <h4>3. Des personnages qui restent les mêmes</h4>
+    <ol>
+      <li>Une <b>image de référence</b> est dessinée d'après la fiche (et vos images modèles).</li>
+      <li>La <b>première image de chaque scène</b> est dessinée en s'appuyant sur cette référence <b>et</b> sur l'image de la scène précédente.</li>
+      <li>La <b>vidéo</b> de chaque scène part exactement de sa première image.</li>
+    </ol>
+
+    <h4>4. Le son</h4>
+    <ul>
+      <li><b>Bruitages</b> générés avec chaque vidéo (vent, pas, oiseaux…), jamais de paroles.</li>
+      <li><b>Voix off</b> lue avec le ton de chaque scène.</li>
+      <li><b>Musique</b> composée d'après l'histoire (sinon une petite musique intégrée).</li>
+      <li>Au montage, la voix passe devant : bruitages et musique baissent quand elle parle.</li>
+    </ul>
+
+    <h4>5. Les trois boutons</h4>
+    <ul>
+      <li><b>✂️ Découper</b> : seulement le découpage (presque gratuit). Changez le nombre de scènes et redécoupez autant que vous voulez.</li>
+      <li><b>✋ Semi-automatique</b> : découpage + images, puis pause. Corrigez les textes, refaites une image, puis « Continuer ».</li>
+      <li><b>🎬 Tout automatique</b> : jusqu'à la vidéo finale. Si quelque chose s'arrête, appuyez à nouveau : ça reprend là où c'était.</li>
+    </ul>
+
+    <h4>6. Modèles et coûts (par défaut, les moins chers)</h4>
+    <table>
+      <tr><td>Découpage</td><td>Claude Haiku</td><td>&lt; 0,01 $</td></tr>
+      <tr><td>Images</td><td>Seedream 5.0 Flash</td><td>≈ 0,02 $ / image</td></tr>
+      <tr><td>Vidéo + bruitages</td><td>Seedance 1.5 Pro, 480p, 5 s</td><td>≈ 0,12 $ / scène</td></tr>
+      <tr><td>Voix off</td><td>Gemini TTS</td><td>&lt; 0,01 $</td></tr>
+      <tr><td>Musique</td><td>Google Lyria 3</td><td>0,04–0,08 $ / vidéo</td></tr>
+    </table>
+    <p class="hint">Exemple : 30 s (6 scènes) ≈ 0,90 $. Tout se change dans ⚙ Réglages (720p, sans bruitages, sans musique IA…).</p>
+
+    <h4>7. Conseils</h4>
+    <ul>
+      <li>Gardez l'écran allumé et la page ouverte pendant la génération ; le montage final se fait en temps réel.</li>
+      <li>La vidéo n'est gardée que dans ce navigateur : téléchargez-la.</li>
+      <li>Votre clé reste sur cet appareil et n'est envoyée qu'à OpenRouter. Le texte et les images sont envoyés aux modèles d'IA pour fabriquer la vidéo.</li>
+    </ul>
+    <menu><button value="ok" class="primary">Compris</button></menu>
+  </form>
+</dialog>
 
 <dialog id="dlg-settings">
   <form method="dialog">
@@ -174,12 +252,14 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
   </form>
 </dialog>
 
+<input type="file" id="file-imgs" accept="image/*" multiple hidden>
+<input type="file" id="file-cam" accept="image/*" capture="environment" hidden>
 <div id="toast" role="status"></div>
 
 <script>
 "use strict";
 /* ============ Version : date et heure de publication, écrites par `npm run publish` ============ */
-const BUILD = "2026-10-20 00:34";
+const BUILD = "2026-10-20 20:16";
 document.getElementById("app-version").textContent = BUILD === "dev" ? "version locale" : "v " + BUILD;
 
 /* ============ Configuration ============ */
@@ -217,6 +297,14 @@ And give "music": in English, a prompt for instrumental background music that fi
 
 Return ONLY a JSON object, no other text:
 { "title": "...", "bible": "...", "music": "...", "scenes": [ { "visual": "...", "narration": "...", "sound": "...", "tone": "..." } ] }`;
+
+const IMAGES_PROMPT = `The user also gave the images labelled "Image 1", "Image 2"… above. For each image decide:
+- "text": the image mainly shows written words (handwritten or printed page, screenshot, sign): transcribe them faithfully
+  and treat them as part of the story, in reading order after the typed text;
+- "reference": the image is a picture (drawing, photo, painting) of characters, places or objects: describe them precisely in "bible"
+  so they look the same in the video (same face, hair, clothes, colors, shapes). Keep the image's art style,
+  unless the typed text asks for another style (then the typed text wins).
+Add to the JSON: "images": [ { "image": 1, "kind": "text" or "reference", "content": "<transcription, or what it shows and how it is used>" } ]`;
 
 /* ============ Petits outils ============ */
 const $ = s => document.querySelector(s);
@@ -408,11 +496,19 @@ async function askClaude(content, maxTokens = 6000, onProgress) {
 /* ---- 1. Claude découpe le texte en scènes + fiche des personnages ---- */
 async function aiSplit(p, onProgress) {
   const n = sceneCountOf(p), s = sceneSec() - 1;
-  const content = [{ type: "text", text: "Text:\n" + p.story }, { type: "text", text: SPLIT_PROMPT },
+  const ins = p.inputs || [];
+  const content = [{ type: "text", text: "Text:\n" + (p.story.trim() || "(no typed text: the story is in the images)") }];
+  for (let i = 0; i < ins.length; i++) {
+    const b = await db.get(K.img(p.id, ins[i].id)); if (!b) continue;
+    content.push({ type: "text", text: `Image ${i + 1}:` }, { type: "image_url", image_url: { url: await blobToDataURL(b) } });
+  }
+  content.push({ type: "text", text: SPLIT_PROMPT });
+  if (ins.length) content.push({ type: "text", text: IMAGES_PROMPT });
+  content.push(
     { type: "text", text: `Make exactly ${n} scenes (no more, no less), covering the whole story in order.
 Each scene lasts ${sceneSec()} seconds, so each "narration" must be readable aloud in about ${s} seconds
 (at most about ${Math.round(s * 2.5)} words, or about ${Math.round(s * 4)} Chinese characters).
-If the text is too long for that, condense the narration and keep the key moments; if it is short, you may stay close to the original words.` }];
+If the text is too long for that, condense the narration and keep the key moments; if it is short, you may stay close to the original words.` });
   const text = await askClaude(content, 6000, onProgress);
   let sb;
   try { sb = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); }
@@ -424,9 +520,52 @@ If the text is too long for that, condense the narration and keep the key moment
   p.musicPrompt = (sb.music || "").trim();
   p.storyboard = { title: (sb.title || p.name).trim(), scenes: list.map(x => ({ id: nextSid(p), text: (x.visual || x.narration).trim(),
     narration: (x.narration || "").trim(), sound: (x.sound || "").trim(), tone: (x.tone || "").trim() })) };
-  p.splitFrom = p.story;
+  for (const im of sb.images || []) {   // ce que Claude a vu dans chaque image : texte lu, ou modèle visuel
+    const x = (p.inputs || [])[(+im.image || 0) - 1];
+    if (x) { x.kind = im.kind === "text" ? "text" : "reference"; x.content = (im.content || "").trim(); }
+  }
+  p.splitFrom = inputKey(p);
   await saveProj(p, true);
   return list.length;
+}
+
+/* ---- Images données avec le texte ---- */
+const inputKey = p => (p.story || "") + "\u0001" + (p.inputs || []).map(x => x.id).join(",");   // ce qui a servi au découpage
+const refInputs = p => (p.inputs || []).filter(x => x.kind !== "text").slice(0, 4);           // images utilisées comme modèles
+
+function pickFile(input, multiple = false) {
+  return new Promise(res => { input.value = ""; input.onchange = () => res(multiple ? [...input.files] : input.files[0]); input.click(); });
+}
+async function addInputs(camera) {
+  const files = camera ? [await pickFile($("#file-cam"))].filter(Boolean) : await pickFile($("#file-imgs"), true);
+  if (!files?.length) return;
+  const p = proj; p.inputs ||= []; let n = 0;
+  for (const f of files) {
+    let blob;
+    try { blob = await shrinkToJpeg(f, 1568); }
+    catch { toast(`Impossible d'ouvrir ${f.name || "l'image"} (format non pris en charge)`, true); continue; }
+    const id = uid(); await putBlob(K.img(p.id, id), blob);
+    p.inputs.push({ id, name: f.name || "photo" }); n++;
+  }
+  await saveProj(p, true);
+  if (proj === p) renderAll();
+  if (n) toast(n > 1 ? `${n} images ajoutées` : "Image ajoutée");
+}
+async function deleteInput(id) {
+  if (auto) return;
+  proj.inputs = (proj.inputs || []).filter(x => x.id !== id);
+  await delBlob(K.img(proj.id, id)); await saveProj(proj, true); renderAll();
+}
+async function renderInputs() {
+  const p = proj, box = $("#inputs"); if (!box) return;
+  const running = auto?.p === p;
+  let html = "";
+  for (const [i, x] of (p.inputs || []).entries()) {
+    const badge = x.kind === "text" ? "📝 texte lu" : x.kind === "reference" ? "🎨 modèle" : `Image ${i + 1}`;
+    html += `<div class="in-pic" title="${esc(x.content || x.name)}"><img src="${await blobUrl(K.img(p.id, x.id))}" alt="Image ${i + 1}">
+      <span>${badge}</span>${running ? "" : `<button class="small" title="Retirer" onclick="deleteInput('${x.id}')">✕</button>`}</div>`;
+  }
+  if (proj === p) box.innerHTML = html;
 }
 
 /* ---- 2–3. Images : référence des personnages, puis première image de chaque scène (OpenRouter /images) ---- */
@@ -452,11 +591,12 @@ async function genImage(prompt, refKeys = []) {
 }
 
 async function makeRefImage(p) {
+  const refs = refInputs(p);   // dessins / photos donnés par l'utilisateur : modèles pour les personnages et les décors
   const blob = await genImage(`Character and setting reference sheet for an animated video.
 Show ONLY the characters described below (do not add any other person or animal), full body, side by side on a plain light background,
 clearly separated, plus small views of the main places and objects described.
-${p.bible || p.story.slice(0, 1500)}
-No text, no labels.`);
+${refs.length ? "Base the characters, places and objects on the given reference images (same identity, design and colors); use the art style described below.\n" : ""}${p.bible || p.story.slice(0, 1500)}
+No text, no labels.`, refs.map(x => K.img(p.id, x.id)));
   if (p.refId) await delBlob(K.img(p.id, p.refId));
   p.refId = uid(); await putBlob(K.img(p.id, p.refId), blob); await saveProj(p, true);
 }
@@ -864,7 +1004,8 @@ function readingSec(text) {   // temps pour lire le texte à voix haute (≈ 4 c
   const words = text.replace(/[㐀-鿿豈-﫿]/g, " ").split(/\s+/).filter(Boolean).length;
   return cjk / 4 + words / 2.5;
 }
-const suggestedScenes = p => Math.max(1, Math.min(40, Math.ceil(readingSec(p.story || "") / (sceneSec() - 1))));
+const allText = p => [p.story || "", ...(p.inputs || []).filter(x => x.kind === "text").map(x => x.content || "")].join("\n");   // texte tapé + texte lu dans les images
+const suggestedScenes = p => Math.max(1, Math.min(40, Math.ceil(Math.max(readingSec(allText(p)), (p.inputs || []).length ? 8 : 0) / (sceneSec() - 1))));
 function sceneCountOf(p) {
   const n = parseInt(p.sceneCount, 10);
   if (n > 0) return n;
@@ -884,9 +1025,9 @@ function updateEstimate() {
   const p = proj, box = $("#estimate"), cnt = $("#scene-count"); if (!box || !p) return;
   const sug = suggestedScenes(p);
   cnt.placeholder = String(+p.totalSec ? Math.max(1, Math.round(+p.totalSec / sceneSec())) : sug);
-  if (!(p.story || "").trim()) { box.textContent = ""; return; }
+  if (!(p.story || "").trim() && !(p.inputs || []).length) { box.textContent = ""; return; }
   const n = sceneCountOf(p), total = n * sceneSec();
-  const long = readingSec(p.story) > total * 1.25;
+  const long = readingSec(allText(p)) > total * 1.25;
   box.textContent = `≈ ${n} scènes × ${sceneSec()} s = ${fmtDur(total)} · coût ≈ ${money(totalCost(n))}` +
     (long ? ` · texte long pour cette durée : il sera résumé (${sug} scènes pour tout lire)` : "");
 }
@@ -910,10 +1051,10 @@ async function autoRun(mode = "full") {
   const p = proj;
   if (auto) { auto.cancel = true; stopPlayback(); return; }
   p.story = $("#story").value; p.sceneCount = $("#scene-count").value; await saveProj(p, true);
-  if (!p.story.trim()) return toast("Collez d'abord un texte", true);
+  if (!p.story.trim() && !(p.inputs || []).length) return toast("Collez d'abord un texte ou ajoutez des images", true);
   if (!settings.key) { openSettings(); return toast("Il faut une clé API OpenRouter : collez-la dans les réglages, puis appuyez à nouveau.", true); }
   const semi = mode === "semi", splitOnly = mode === "split";
-  const changed = p.splitFrom !== p.story;
+  const changed = p.splitFrom !== inputKey(p);
   const hasFilm = !!(await db.get(K.film(p.id)));
   if (splitOnly && scenesOf(p).length) {   // redécouper : nouvelles scènes, donc images et vidéos à refaire
     let media = !!p.refId || hasFilm;
@@ -930,7 +1071,7 @@ async function autoRun(mode = "full") {
   }
   if (splitOnly) {}
   else if (scenesOf(p).length && changed) {
-    if (!confirm("Le texte a changé : tout refaire (scènes, images, vidéos) ? Cela coûte à nouveau.")) return;
+    if (!confirm("Le texte ou les images ont changé : tout refaire (scènes, images, vidéos) ? Cela coûte à nouveau.")) return;
     await resetGeneration(p);
   } else if (hasFilm && edited) {
     await delBlob(K.film(p.id));   // des scènes ont été modifiées : on refait seulement ce qui a changé, puis le montage
@@ -1070,14 +1211,21 @@ function renderAll() {
       <div class="art"><span>📋</span><em>→</em><span>🎬</span></div>
       <h1>Collez un texte, recevez une vidéo</h1>
       <p>Tout est automatique : découpage en scènes, personnages identiques d'une scène à l'autre, vidéos, voix off et musique. Il ne reste qu'à télécharger.</p>
-      <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo</button></div>`;
+      <button class="primary big" onclick="newProject()">＋ Nouvelle vidéo</button>
+      <p style="margin-top:1rem"><button class="ghost" onclick="$('#dlg-help').showModal()">❓ Comment ça marche</button></p></div>`;
     return;
   }
   const running = auto?.p === proj;
   main.innerHTML = keyBanner + `
   <section class="card" id="sec-text">
     <h2>Votre texte</h2>
-    <textarea id="story" rows="10" placeholder="Collez votre texte ici (une histoire, un script, un article…)" ${running ? "disabled" : ""}></textarea>
+    <textarea id="story" rows="10" placeholder="Collez votre texte ici (une histoire, un script, un article…). Vous pouvez aussi y écrire vos consignes, par ex. « style manga »." ${running ? "disabled" : ""}></textarea>
+    <div class="inputs" id="inputs"></div>
+    <div class="row" style="margin-top:.6rem">
+      <button class="small" id="btn-in-cam" onclick="addInputs(true)" ${running ? "disabled" : ""}>📷 Photo</button>
+      <button class="small" id="btn-in-up" onclick="addInputs(false)" ${running ? "disabled" : ""}>🖼️ Ajouter des images</button>
+      <span class="hint" style="flex:1;min-width:14rem">Une image de texte (page écrite, capture d'écran) est lue et ajoutée au texte ; un dessin ou une photo sert de modèle pour les personnages, les décors et le style.</span>
+    </div>
     <div class="plan">
       <label class="count">Durée de la vidéo
         <select id="total-sec" ${running ? "disabled" : ""}>${[["", "auto"], [15, "15 s"], [30, "30 s"], [45, "45 s"], [60, "1 min"], [90, "1 min 30"], [120, "2 min"], [180, "3 min"], [300, "5 min"]]
@@ -1089,7 +1237,7 @@ function renderAll() {
       ${running ? `<button class="big" id="btn-auto" onclick="autoRun()">■ Arrêter</button>` : `
       <button class="big" id="btn-split" onclick="autoRun('split')">${scenesOf(proj).length ? "✂️ Redécouper" : "✂️ Découper"}</button>
       <button class="big" id="btn-semi" onclick="autoRun('semi')">✋ Semi-automatique</button>
-      <button class="primary big" id="btn-auto" onclick="autoRun()">${scenesOf(proj).length && proj.splitFrom === proj.story ? "🎬 Continuer : vidéos + montage" : "🎬 Tout automatique"}</button>`}
+      <button class="primary big" id="btn-auto" onclick="autoRun()">${scenesOf(proj).length && proj.splitFrom === inputKey(proj) ? "🎬 Continuer : vidéos + montage" : "🎬 Tout automatique"}</button>`}
     </div>
     <p class="hint">✂️ Découper : seulement le découpage en scènes (presque gratuit) — changez le nombre de scènes et redécoupez autant que vous voulez.
       ✋ Semi-automatique : scènes + images, puis s'arrête pour vos modifications. 🎬 Tout automatique : jusqu'à la vidéo finale. Gardez la page ouverte.</p>
@@ -1106,6 +1254,7 @@ function renderAll() {
     <div class="stage-wrap" id="stage-wrap" hidden><canvas id="stage" width="${W}" height="${H}"></canvas></div>
     <div id="film-out"></div>
   </section>`;
+  renderInputs();
   const story = $("#story"); story.value = proj.story;
   story.oninput = () => { proj.story = story.value; saveProj(); updateEstimate(); };
   $("#auto-msg").textContent = lastMsg[proj.id] || "";
