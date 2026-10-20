@@ -99,6 +99,8 @@ section.card{background:var(--card);border-radius:var(--radius);padding:1.4rem 1
 #update-bar{position:sticky;top:0;z-index:30;display:flex;gap:.6rem;align-items:center;justify-content:center;flex-wrap:wrap;
   background:var(--ink);color:#fff;padding:.55rem 16px;font-weight:700;font-size:.92rem}
 #update-bar button{padding:.35em 1em;font-size:.88rem}
+.inputs-read{margin-top:.6rem;background:#f3f6ff;border-radius:14px;padding:.6rem .8rem;font-size:.86rem}
+.inputs-read ul{margin:.3rem 0 0;padding-left:1.1rem}
 .in-pic{position:relative;width:110px;aspect-ratio:1;border-radius:14px;overflow:hidden;background:#fff;box-shadow:inset 0 0 0 2px var(--line)}
 .in-pic img{width:100%;height:100%;object-fit:cover;display:block}
 .in-pic span{position:absolute;left:.3rem;bottom:.3rem;background:rgba(255,255,255,.92);border-radius:8px;padding:0 .4rem;font-size:.72rem;font-weight:800}
@@ -185,7 +187,8 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
       <li><b>Le texte</b> : une histoire, un script, un article… Vous pouvez y écrire des consignes (« style manga », « ambiance de nuit »…).</li>
       <li><b>Des images</b> (📷 Photo ou 🖼️ Ajouter) :
         une <b>image de texte</b> (page manuscrite, page imprimée, capture d'écran) est <b>lue</b> et ajoutée au texte ;
-        un <b>dessin ou une photo</b> sert de <b>modèle</b> : les personnages, les décors et le style des images en partent.
+        un <b>dessin ou une photo</b> sert de <b>modèle</b> : les personnages, les décors et le style des images en partent ;
+        une <b>page avec un dessin et du texte écrit à la main</b> : les deux sont utilisés. Le texte lu s'affiche sous les images pour vérifier.
         Si le texte demande un autre style, c'est le texte qui l'emporte.</li>
       <li><b>La durée</b> : chaque scène dure 5 s. Choisissez la durée totale, le nombre de scènes est proposé (modifiable), avec le coût estimé.
         Si le texte est trop long pour la durée, il est résumé.</li>
@@ -269,7 +272,7 @@ details summary{cursor:pointer;font-weight:800;color:var(--muted);margin:.3rem 0
 <script>
 "use strict";
 /* ============ Version : date et heure de publication, écrites par `npm run publish` ============ */
-const BUILD = "2026-10-20 20:32";
+const BUILD = "2026-10-20 20:51";
 document.getElementById("app-version").textContent = BUILD === "dev" ? "version locale" : "v " + BUILD;
 
 /* Les téléphones gardent souvent une ancienne copie de la page : on regarde s'il existe une version plus récente */
@@ -328,16 +331,21 @@ so that every image can be drawn identically.
 And give "music": in English, a prompt for instrumental background music that fits the whole story
 (genre, instruments, tempo, mood and how it evolves), soft enough to sit under a narrator.
 
-Return ONLY a JSON object, no other text:
+Be concise: each "visual" under 70 words, "bible" under 200 words.
+Return ONLY a JSON object, no other text, no markdown:
 { "title": "...", "bible": "...", "music": "...", "scenes": [ { "visual": "...", "narration": "...", "sound": "...", "tone": "..." } ] }`;
 
-const IMAGES_PROMPT = `The user also gave the images labelled "Image 1", "Image 2"… above. For each image decide:
-- "text": the image mainly shows written words (handwritten or printed page, screenshot, sign): transcribe them faithfully
-  and treat them as part of the story, in reading order after the typed text;
-- "reference": the image is a picture (drawing, photo, painting) of characters, places or objects: describe them precisely in "bible"
-  so they look the same in the video (same face, hair, clothes, colors, shapes). Keep the image's art style,
-  unless the typed text asks for another style (then the typed text wins).
-Add to the JSON: "images": [ { "image": 1, "kind": "text" or "reference", "content": "<transcription, or what it shows and how it is used>" } ]`;
+const IMAGES_PROMPT = `The user also gave the images labelled "Image 1", "Image 2"… above. Look carefully at each one.
+An image can contain written words (handwritten or printed: a page, a caption, speech bubbles, a screenshot), a picture
+(drawing, photo, painting of characters, places or objects), or BOTH on the same page (e.g. a child's drawing with handwritten sentences).
+- Written words: transcribe them faithfully (even messy handwriting, keep the original language) and use them as part of the story,
+  in reading order after the typed text.
+- Pictures: describe the characters, places and objects precisely in "bible" so they look the same in the video
+  (same face, hair, clothes, colors, shapes); keep the picture's art style unless the typed text asks for another style (then the text wins).
+You MUST fill "images" in the JSON with one entry per image:
+kind = "text" (only words), "reference" (only a picture) or "both"; "text" = the transcription ("" if none);
+"description" = what the picture shows ("" if none).`;
+const IMAGES_JSON = `"images": [ { "image": 1, "kind": "text | reference | both", "text": "...", "description": "..." } ], `;
 
 /* ============ Petits outils ============ */
 const $ = s => document.querySelector(s);
@@ -519,11 +527,30 @@ async function askClaude(content, maxTokens = 6000, onProgress) {
         let j; try { j = JSON.parse(data); } catch { continue; }
         if (j.error) throw new Error("OpenRouter : " + (j.error.message || JSON.stringify(j.error)));
         text += j.choices?.[0]?.delta?.content || "";
+        if (j.choices?.[0]?.finish_reason) askClaude.finish = j.choices[0].finish_reason;
         onProgress?.(text.length);
       }
     }
     return text;
   }, 2);
+}
+
+/* Lire le JSON renvoyé par Claude, même avec ```json, des virgules en trop ou des retours à la ligne dans les textes */
+function parseLooseJson(text) {
+  let t = String(text).replace(/```(?:json)?/gi, "");
+  t = t.slice(t.indexOf("{"), t.lastIndexOf("}") + 1);
+  if (!t) throw new Error("aucun objet JSON dans la réponse");
+  try { return JSON.parse(t); } catch {}
+  let out = "", inStr = false, esc = false;   // échapper les retours à la ligne à l'intérieur des chaînes
+  for (const c of t) {
+    if (inStr) {
+      if (esc) esc = false; else if (c === "\\") esc = true; else if (c === '"') inStr = false;
+      else if (c === "\n") { out += "\\n"; continue; } else if (c === "\r" || c === "\t") { out += " "; continue; }
+    } else if (c === '"') inStr = true;
+    out += c;
+  }
+  out = out.replace(/,\s*([}\]])/g, "$1");
+  return JSON.parse(out);
 }
 
 /* ---- 1. Claude découpe le texte en scènes + fiche des personnages ---- */
@@ -535,17 +562,29 @@ async function aiSplit(p, onProgress) {
     const b = await db.get(K.img(p.id, ins[i].id)); if (!b) continue;
     content.push({ type: "text", text: `Image ${i + 1}:` }, { type: "image_url", image_url: { url: await blobToDataURL(b) } });
   }
-  content.push({ type: "text", text: SPLIT_PROMPT });
   if (ins.length) content.push({ type: "text", text: IMAGES_PROMPT });
+  content.push({ type: "text", text: ins.length ? SPLIT_PROMPT.replace('"scenes": [', IMAGES_JSON + '"scenes": [') : SPLIT_PROMPT });
   content.push(
     { type: "text", text: `Make exactly ${n} scenes (no more, no less), covering the whole story in order.
 Each scene lasts ${sceneSec()} seconds, so each "narration" must be readable aloud in about ${s} seconds
 (at most about ${Math.round(s * 2.5)} words, or about ${Math.round(s * 4)} Chinese characters).
 If the text is too long for that, condense the narration and keep the key moments; if it is short, you may stay close to the original words.` });
-  const text = await askClaude(content, 6000, onProgress);
-  let sb;
-  try { sb = JSON.parse(text.slice(text.indexOf("{"), text.lastIndexOf("}") + 1)); }
-  catch { throw new Error("Le découpage reçu n'est pas dans le bon format, réessayez"); }
+  // Jusqu'à 3 essais : réponse coupée (trop longue) → on redemande plus court ; JSON abîmé → on demande de le réparer
+  const maxTok = Math.min(16000, 2500 + n * 600);
+  let sb, why = "", text = "";
+  for (let attempt = 1; attempt <= 3 && !sb; attempt++) {
+    askClaude.finish = "";
+    if (attempt === 1) text = await askClaude(content, maxTok, onProgress);
+    else if (why === "length") text = await askClaude([...content, { type: "text", text:
+      "IMPORTANT: your previous answer was too long and got cut off. Be much more concise: each \"visual\" under 40 words, \"bible\" under 120 words, \"music\" under 40 words." }], 16000, onProgress);
+    else text = await askClaude([{ type: "text", text: "Rewrite the following as ONE valid JSON object with exactly the same content " +
+      "(escape quotes and line breaks inside strings, no comments, no trailing commas). Return only the JSON.\n\n" + text }], 16000, onProgress);
+    try { sb = parseLooseJson(text); }
+    catch (e) { why = askClaude.finish === "length" ? "length" : "json"; console.warn("Découpage illisible (essai " + attempt + ")", why, e.message); }
+  }
+  if (!sb) throw new Error(why === "length"
+    ? "Le découpage est trop long pour être reçu en entier. Choisissez moins de scènes (ou un texte plus court), puis réessayez."
+    : "Le découpage reçu n'est pas dans le bon format (après 3 essais). Réessayez ; si ça continue, raccourcissez le texte.");
   let list = (sb.scenes || []).filter(s => (s.visual || s.narration || "").trim());
   if (!list.length) throw new Error("Claude n'a renvoyé aucune scène, réessayez");
   if (n > 0 && list.length > n) list = list.slice(0, n);
@@ -553,9 +592,13 @@ If the text is too long for that, condense the narration and keep the key moment
   p.musicPrompt = (sb.music || "").trim();
   p.storyboard = { title: (sb.title || p.name).trim(), scenes: list.map(x => ({ id: nextSid(p), text: (x.visual || x.narration).trim(),
     narration: (x.narration || "").trim(), sound: (x.sound || "").trim(), tone: (x.tone || "").trim() })) };
-  for (const im of sb.images || []) {   // ce que Claude a vu dans chaque image : texte lu, ou modèle visuel
-    const x = (p.inputs || [])[(+im.image || 0) - 1];
-    if (x) { x.kind = im.kind === "text" ? "text" : "reference"; x.content = (im.content || "").trim(); }
+  for (const [i, im] of (sb.images || []).entries()) {   // ce que Claude a vu dans chaque image : texte lu, dessin, ou les deux
+    const x = (p.inputs || [])[(+String(im.image ?? "").replace(/\D+/g, "") || i + 1) - 1]; if (!x) continue;
+    const text = String(im.text ?? (im.kind === "text" ? im.content : "") ?? "").trim();
+    const desc = String(im.description ?? (im.kind !== "text" ? im.content : "") ?? "").trim();
+    const k = String(im.kind || "").toLowerCase();
+    x.kind = k.includes("both") || (text && desc) ? "both" : k.includes("text") || (text && !desc) ? "text" : "reference";
+    x.text = text; x.content = desc || text;
   }
   p.splitFrom = inputKey(p);
   await saveProj(p, true);
@@ -594,11 +637,14 @@ async function renderInputs() {
   const running = auto?.p === p;
   let html = "";
   for (const [i, x] of (p.inputs || []).entries()) {
-    const badge = x.kind === "text" ? "📝 texte lu" : x.kind === "reference" ? "🎨 modèle" : `Image ${i + 1}`;
-    html += `<div class="in-pic" title="${esc(x.content || x.name)}"><img src="${await blobUrl(K.img(p.id, x.id))}" alt="Image ${i + 1}">
+    const badge = x.kind === "text" ? "📝 texte lu" : x.kind === "reference" ? "🎨 modèle" : x.kind === "both" ? "📝🎨 texte + dessin" : `Image ${i + 1}`;
+    html += `<div class="in-pic" title="${esc([x.text, x.content].filter(Boolean).join(" — ") || x.name)}"><img src="${await blobUrl(K.img(p.id, x.id))}" alt="Image ${i + 1}">
       <span>${badge}</span>${running ? "" : `<button class="small" title="Retirer" onclick="deleteInput('${x.id}')">✕</button>`}</div>`;
   }
-  if (proj === p) box.innerHTML = html;
+  const read = (p.inputs || []).map((x, i) => x.text ? `<li><b>Image ${i + 1}</b> : « ${esc(x.text.length > 300 ? x.text.slice(0, 300) + "…" : x.text)} »</li>` : "").join("");
+  if (proj !== p) return;
+  box.innerHTML = html;
+  const rd = $("#inputs-read"); if (rd) { rd.innerHTML = read ? `<b>📝 Texte lu dans les images</b><ul>${read}</ul>` : ""; rd.hidden = !read; }
 }
 
 /* ---- 2–3. Images : référence des personnages, puis première image de chaque scène (OpenRouter /images) ---- */
@@ -1037,7 +1083,7 @@ function readingSec(text) {   // temps pour lire le texte à voix haute (≈ 4 c
   const words = text.replace(/[㐀-鿿豈-﫿]/g, " ").split(/\s+/).filter(Boolean).length;
   return cjk / 4 + words / 2.5;
 }
-const allText = p => [p.story || "", ...(p.inputs || []).filter(x => x.kind === "text").map(x => x.content || "")].join("\n");   // texte tapé + texte lu dans les images
+const allText = p => [p.story || "", ...(p.inputs || []).map(x => x.text || (x.kind === "text" ? x.content : "") || "")].join("\n");   // texte tapé + texte lu dans les images
 const suggestedScenes = p => Math.max(1, Math.min(40, Math.ceil(Math.max(readingSec(allText(p)), (p.inputs || []).length ? 8 : 0) / (sceneSec() - 1))));
 function sceneCountOf(p) {
   const n = parseInt(p.sceneCount, 10);
@@ -1258,7 +1304,8 @@ function renderAll() {
       <button class="tile" id="btn-in-up" onclick="addInputs(false)" ${running ? "disabled" : ""}><span>🖼️</span><b>Ajouter des images</b><small>depuis la galerie</small></button>
     </div>
     <div class="inputs" id="inputs"></div>
-    <p class="hint">📝 Une image de texte (page écrite, capture d'écran) est <b>lue</b> et ajoutée au texte. 🎨 Un dessin ou une photo sert de <b>modèle</b> pour les personnages, les décors et le style.</p>
+    <div class="inputs-read" id="inputs-read" hidden></div>
+    <p class="hint">📝 Les mots écrits sur une image (même à la main) sont <b>lus</b> et ajoutés au texte. 🎨 Un dessin ou une photo sert de <b>modèle</b> pour les personnages, les décors et le style. Une page avec un dessin <b>et</b> du texte : les deux sont utilisés.</p>
     <div class="plan">
       <label class="count">Durée de la vidéo
         <select id="total-sec" ${running ? "disabled" : ""}>${[["", "auto"], [15, "15 s"], [30, "30 s"], [45, "45 s"], [60, "1 min"], [90, "1 min 30"], [120, "2 min"], [180, "3 min"], [300, "5 min"]]
