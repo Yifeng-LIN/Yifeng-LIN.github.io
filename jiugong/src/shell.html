@@ -1,4 +1,4 @@
-<title>我的九宫世界</title>
+<title>我的三地世界</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap">
@@ -32,7 +32,7 @@ h3{font-size:12.5px;margin:0;color:var(--muted);font-weight:700;letter-spacing:.
 .top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
 @media (max-width:940px){.top{grid-template-columns:minmax(0,1fr)}}
 .col{display:flex;flex-direction:column;gap:12px;min-width:0}
-#map{width:100%;aspect-ratio:1/1;max-width:100%;display:block;border-radius:14px;background:#3c4a3a;cursor:pointer;touch-action:manipulation}
+#map{width:100%;aspect-ratio:5/6;max-width:100%;display:block;border-radius:14px;background:#3c4a3a;cursor:pointer;touch-action:manipulation}
 .bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 button{font:inherit;color:inherit;cursor:pointer}
 .btn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 13px;font-weight:500}
@@ -128,21 +128,36 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
 .logbox summary{cursor:pointer;font-weight:600}
 .close{margin-left:auto;border:0;background:none;color:var(--muted);padding:6px 4px;order:9}
 .tabs{align-items:center}
+.reps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.reps{grid-template-columns:minmax(0,1fr)}.rep{display:grid;grid-template-columns:2.2em minmax(0,1fr);gap:0 10px;align-items:center;padding:6px 10px}.rep .no{grid-row:1/4}}
+.rep{border:1.5px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;gap:2px;min-width:0;cursor:pointer;background:var(--soft);text-align:left}
+.rep:hover{border-color:var(--accent)}
+.rep .no{display:inline-flex;align-items:center;justify-content:center;width:26px;height:26px;border-radius:50%;border:2px solid currentColor;font-family:var(--f-display);font-weight:900;font-size:14px}
+.rep .rn{font-family:var(--f-display);font-weight:600;font-size:16px}
+.rep .rw{font-size:12px;color:var(--muted)}
+.rep .rbio{font-size:12.5px}
+.rep.mountain{color:#6b7280}.rep.village{color:#4c8a3c}.rep.coast{color:#2a79a8}
+.rep>*:not(.no){color:var(--ink)}.rep .rw{color:var(--muted)}
+.vbar{display:grid;grid-template-columns:2.2em 4.6em minmax(0,1fr) 2.6em;gap:6px;align-items:center;font-size:13px;font-variant-numeric:tabular-nums}
+.vbar i{display:block;height:10px;border-radius:5px;background:var(--line)}
+.vbar.won i{background:var(--accent)}
+.vbar.won b{border:2px solid var(--accent);border-radius:50%;padding:0 5px}
+.vbars{display:flex;flex-direction:column;gap:4px}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
 <div class="wrap">
   <header>
     <div>
-      <h1>我的九宫世界</h1>
-      <p class="sub">八个世界不用现代社会的钱，自己种地、打鱼、打猎、放羊、挖矿；中间的补给中心提供药品和铁器工具。三百多个有名字的人在这里一年四季地生活、生病、出生、老去。这样的社会能好好运转吗？</p>
+      <h1>我的三地世界</h1>
+      <p class="sub">山区有矿，乡村有稻田，海边有鱼和贝壳。三个地区各选出一位代表来管事，三百多个有名字的人在这里一年四季地生活、生病、出生、老去。三位代表能不能让大家都吃饱、有药用？</p>
     </div>
     <div class="date"><b id="date">第 1 年 · 春</b><span id="dateSub">第 1 周</span></div>
   </header>
 
   <section class="top">
     <div class="col">
-      <canvas id="map" aria-label="九宫格地图：八个世界和中间的补给中心。小人是正在干活或去赶集的人，点击格子查看详情"></canvas>
+      <canvas id="map" aria-label="三个地区的地图：上面是山区，中间是乡村，下面是海边。小人是正在干活或运货的人，点击地区查看详情"></canvas>
       <div class="bar">
         <button class="btn primary" id="play">▶ 开始</button>
         <button class="btn" id="stepBtn">下一周</button>
@@ -152,7 +167,8 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
       </div>
       <div class="panel" id="detailPanel" hidden>
         <div class="tabs" role="tablist"><button class="close" id="closeDetail" aria-label="关上">关上</button>
-          <button role="tab" id="tabWorld" aria-selected="true">这个世界</button>
+          <button role="tab" id="tabWorld" aria-selected="true">这个地区</button>
+          <button role="tab" id="tabRep" aria-selected="false">代表</button>
           <button role="tab" id="tabPeople" aria-selected="false">住在这里的人</button>
           <button role="tab" id="tabPerson" aria-selected="false" hidden>人物</button>
         </div>
@@ -161,17 +177,22 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
     </div>
 
     <div class="col">
+      <div class="panel" id="elecPanel">
+        <h2>三位代表</h2>
+        <div class="reps" id="reps"></div>
+        <div class="bar"><button class="btn" id="votesBtn">看全部候选人的票</button><button class="btn" id="reelect">现在重新选一次</button><span class="note" id="elecNote"></span></div>
+        <div id="votes" hidden></div>
+      </div>
       <div class="panel">
-        <h2>大家怎么交换东西？</h2>
+        <h2>三个地区怎么交换东西？</h2>
         <div class="seg" id="modes">
-          <button data-mode="free"><b>不要钱 · 想要就拿</b><span>东西都交到中心，谁需要谁去拿</span></button>
-          <button data-mode="barter"><b>以物易物</b><span>拿自己的东西换别人的东西</span></button>
-          <button data-mode="labor"><b>劳动积分</b><span>干一小时活记一分，用分换东西</span></button>
-          <button data-mode="money"><b>用钱买卖</b><span>中心发钱、定价，大家用钱买卖</span></button>
+          <button data-mode="free"><b>不要钱 · 各取所需</b><span>东西交给代表，代表送给缺的人和别的地区</span></button>
+          <button data-mode="barter"><b>以物易物</b><span>人和人、代表和代表，拿东西换东西</span></button>
+          <button data-mode="money"><b>用贝壳当钱</b><span>海边的贝壳当钱，大家用贝壳买卖</span></button>
         </div>
         <div class="slider"><label for="kind">大家有多自觉</label><input type="range" id="kind" min="0" max="100" step="5"><output id="kindOut"></output></div>
-        <div class="slider" id="printRow"><label for="print">每月新印的钱</label><input type="range" id="print" min="0" max="30" step="1"><output id="printOut"></output></div>
-        <div class="slider"><label for="staff">补给中心人手</label><input type="range" id="staff" min="8" max="40" step="2"><output id="staffOut"></output></div>
+        <div class="slider"><label for="shell">海边拾贝的人</label><input type="range" id="shell" min="0" max="60" step="1"><output id="shellOut"></output></div>
+        <p class="note" id="shellNote">拾贝的人越多，贝壳越多。贝壳当钱时，钱多了东西就会变贵；不当钱时，贝壳是乡村稻田的肥料。</p>
       </div>
       <div class="panel">
         <div class="grp kid"><h3><span class="who">小朋友</span>的假设</h3><div class="chips" id="kidChips"></div></div>
@@ -184,7 +205,7 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
           <button data-r="kid" aria-pressed="true">我是小朋友</button>
           <button data-r="parent" aria-pressed="false">我是爸爸妈妈</button>
         </div>
-        <textarea id="ideaText" placeholder="比如：如果补给中心先把药给最需要的人呢？&#10;或者：现实里冬天会特别冷，还会闹瘟疫。"></textarea>
+        <textarea id="ideaText" placeholder="比如：如果三位代表都很清廉呢？&#10;或者：现实里乡村的代表会把粮食留给自己，还会闹瘟疫。"></textarea>
         <div class="bar"><button class="btn primary" id="ideaGo">放进世界里试试</button><span class="note" id="ideaNote"></span></div>
       </div>
     </div>
