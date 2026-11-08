@@ -1,0 +1,203 @@
+<title>我的九宫世界</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=Noto+Serif+SC:wght@600;900&display=swap">
+<style>
+/* Layout: a field-station logbook. Live map on the left, the rulebook on the right, the ledger of results underneath. */
+:root{
+  --bg:#eef1ec; --panel:#fbfcf9; --ink:#1d2621; --muted:#5d6a62; --line:#d3dbd2; --soft:#f1f4ee;
+  --accent:#2f5d50; --kid:#c96a1b; --parent:#2a6f8f;
+  --good:#2e8a4e; --warn:#b98112; --bad:#c2412f; --hubc:#3f4fa8;
+  --f-display:"Noto Serif SC","Songti SC","STSong",serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#121815; --panel:#19211d; --ink:#e3ebe5; --muted:#97a69d; --line:#2c3832; --soft:#1f2924;
+  --accent:#8cc7b2; --kid:#f0a35e; --parent:#6cbcdf; --good:#5cc985; --warn:#e3b54a; --bad:#f07563; --hubc:#9aa7ff; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#121815; --panel:#19211d; --ink:#e3ebe5; --muted:#97a69d; --line:#2c3832; --soft:#1f2924;
+  --accent:#8cc7b2; --kid:#f0a35e; --parent:#6cbcdf; --good:#5cc985; --warn:#e3b54a; --bad:#f07563; --hubc:#9aa7ff; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14.5px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px}
+.wrap{max-width:1280px;margin:0 auto;display:flex;flex-direction:column;gap:18px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:10px 20px}
+h1{font-family:var(--f-display);font-weight:900;font-size:clamp(28px,4.6vw,42px);line-height:1.1;margin:0;letter-spacing:2px}
+.sub{color:var(--muted);margin:6px 0 0;max-width:62ch;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:600;font-size:19px;margin:0;letter-spacing:.5px}
+h3{font-size:12.5px;margin:0;color:var(--muted);font-weight:700;letter-spacing:.06em}
+.date{display:flex;flex-direction:column;align-items:flex-end;gap:2px;font-variant-numeric:tabular-nums}
+.date b{font-family:var(--f-display);font-size:24px;color:var(--accent);font-weight:600}
+.date span{font-size:12.5px;color:var(--muted)}
+.top{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr);gap:18px;align-items:start}
+@media (max-width:940px){.top{grid-template-columns:minmax(0,1fr)}}
+.col{display:flex;flex-direction:column;gap:12px;min-width:0}
+#map{width:100%;aspect-ratio:1/1;max-width:100%;display:block;border-radius:14px;background:#3c4a3a;cursor:pointer;touch-action:manipulation}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:1.5px solid var(--line);background:var(--panel);border-radius:9px;padding:6px 13px;font-weight:500}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--panel);font-weight:700}
+.btn:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.seg{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}
+.seg button{border:1.5px solid var(--line);background:var(--panel);border-radius:10px;padding:7px 10px;text-align:left;line-height:1.3}
+.seg button b{display:block;font-size:14.5px}
+.seg button span{font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,var(--panel))}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:4px 11px;font-size:13px;display:inline-flex;gap:6px;align-items:center;text-align:left}
+.chip::before{content:"";flex:none;width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;opacity:.55}
+.chip[aria-pressed="true"]::before{background:currentColor;opacity:1}
+.kid .chip[aria-pressed="true"]{border-color:var(--kid);color:var(--kid);background:color-mix(in srgb,var(--kid) 9%,var(--panel))}
+.parent .chip[aria-pressed="true"]{border-color:var(--parent);color:var(--parent);background:color-mix(in srgb,var(--parent) 9%,var(--panel))}
+.grp{display:flex;flex-direction:column;gap:7px}
+.who{display:inline-block;padding:1px 8px;border-radius:6px;color:var(--panel);margin-right:6px;letter-spacing:0}
+.kid .who{background:var(--kid)} .parent .who{background:var(--parent)}
+.slider{display:grid;grid-template-columns:7.5em minmax(0,1fr) 3.6em;gap:10px;align-items:center;font-size:13px}
+.slider input{width:100%;accent-color:var(--accent)}
+.slider output{font-variant-numeric:tabular-nums;text-align:right;font-weight:700}
+textarea{width:100%;min-height:58px;resize:vertical;font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--soft);color:var(--ink)}
+.who-toggle{display:flex;gap:6px}
+.who-toggle button{border:1.5px solid var(--line);background:var(--panel);border-radius:8px;padding:3px 10px;font-size:13px}
+.who-toggle button[data-r="kid"][aria-pressed="true"]{border-color:var(--kid);color:var(--kid)}
+.who-toggle button[data-r="parent"][aria-pressed="true"]{border-color:var(--parent);color:var(--parent)}
+.note{font-size:12.5px;color:var(--muted)}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line)}
+.tabs button{border:0;background:none;padding:6px 10px;border-bottom:2.5px solid transparent;color:var(--muted);font-weight:500}
+.tabs button[aria-selected="true"]{color:var(--ink);border-bottom-color:var(--accent)}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:3px 16px;font-variant-numeric:tabular-nums;font-size:13.5px}
+.kv span b{font-weight:700}
+.flow{font-size:13px;display:flex;flex-direction:column;gap:3px}
+.flow span{color:var(--muted)}
+.table-wrap{overflow:auto;max-height:340px;border:1px solid var(--line);border-radius:10px}
+table{border-collapse:collapse;width:100%;font-size:12.8px;font-variant-numeric:tabular-nums}
+th,td{padding:5px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:500;position:sticky;top:0;background:var(--panel)}
+tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
+.pill{display:inline-block;min-width:40px;padding:0 6px;border-radius:6px;text-align:center}
+.pill.good{background:color-mix(in srgb,var(--good) 18%,transparent)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 22%,transparent)}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:5px;color:var(--panel);margin-left:3px}
+.tag.bad{background:var(--bad)} .tag.warn{background:var(--warn)} .tag.info{background:var(--muted)} .tag.good{background:var(--good)}
+.person h4{margin:0;font-family:var(--f-display);font-size:18px;font-weight:600}
+.person ul{margin:0;padding-left:18px;font-size:13px;color:var(--muted)}
+.verdict{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:baseline;border-radius:14px;padding:12px 18px;border:2px solid var(--line);background:var(--panel)}
+.verdict .face{font-family:var(--f-display);font-size:25px;font-weight:900}
+.verdict.good{border-color:var(--good)} .verdict.good .face{color:var(--good)}
+.verdict.warn{border-color:var(--warn)} .verdict.warn .face{color:var(--warn)}
+.verdict.bad{border-color:var(--bad)} .verdict.bad .face{color:var(--bad)}
+.verdict p{margin:0;flex:1 1 320px;min-width:0}
+.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+@media (max-width:700px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:9px 12px;min-width:0}
+.stat .l{font-size:12px;color:var(--muted)}
+.stat .v{font-size:21px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.25}
+.stat .d{font-size:12px;color:var(--muted)}
+.charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+@media (max-width:940px){.charts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:620px){.charts{grid-template-columns:minmax(0,1fr)}}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:5px;min-width:0}
+.chart canvas{width:100%;height:150px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:11.5px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+.lower{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,0.9fr);gap:14px;align-items:start}
+@media (max-width:1050px){.lower{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
+@media (max-width:700px){.lower{grid-template-columns:minmax(0,1fr)}}
+.list{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;max-height:430px;overflow:auto}
+.finds li{padding:8px 11px;border-radius:9px;background:var(--soft);border-left:4px solid var(--line);font-size:13.5px}
+.finds li.good{border-left-color:var(--good)} .finds li.warn{border-left-color:var(--warn)} .finds li.bad{border-left-color:var(--bad)}
+.news li,.log li{font-size:13px;padding:6px 9px;border-radius:8px;background:var(--soft)}
+.news li .t,.log li .t{color:var(--muted);font-size:11.5px;font-variant-numeric:tabular-nums;margin-right:6px}
+.news li.bad{box-shadow:inset 3px 0 0 var(--bad)} .news li.good{box-shadow:inset 3px 0 0 var(--good)} .news li.info{box-shadow:inset 3px 0 0 var(--muted)}
+.rtag{display:inline-block;font-size:11px;font-weight:700;padding:0 6px;border-radius:5px;color:var(--panel);margin-right:5px}
+.rtag.kid{background:var(--kid)} .rtag.parent{background:var(--parent)} .rtag.sys{background:var(--muted)}
+.log .ex{display:block;color:var(--muted);margin-top:2px}
+.ai{white-space:pre-wrap;font-size:13.5px;background:var(--soft);border-radius:9px;padding:9px 11px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div>
+      <h1>我的九宫世界</h1>
+      <p class="sub">八个世界不用现代社会的钱，自己种地、打鱼、打猎、放羊、挖矿；中间的补给中心提供药品和铁器工具。三百多个有名字的人在这里一年四季地生活、生病、出生、老去。这样的社会能好好运转吗？</p>
+    </div>
+    <div class="date"><b id="date">第 1 年 · 春</b><span id="dateSub">第 1 周</span></div>
+  </header>
+
+  <section class="top">
+    <div class="col">
+      <canvas id="map" aria-label="九宫格地图：八个世界和中间的补给中心。小人是正在干活或去赶集的人，点击格子查看详情"></canvas>
+      <div class="bar">
+        <button class="btn primary" id="play">▶ 开始</button>
+        <button class="btn" id="stepBtn">下一周</button>
+        <button class="btn" id="speed">速度 1×</button>
+        <button class="btn" id="reset">从头再来</button>
+        <span class="note" id="tickNote"></span>
+      </div>
+      <div class="panel" id="detailPanel">
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tabWorld" aria-selected="true">这个世界</button>
+          <button role="tab" id="tabPeople" aria-selected="false">住在这里的人</button>
+          <button role="tab" id="tabPerson" aria-selected="false" hidden>人物</button>
+        </div>
+        <div id="detail"></div>
+      </div>
+    </div>
+
+    <div class="col">
+      <div class="panel">
+        <h2>大家怎么交换东西？</h2>
+        <div class="seg" id="modes">
+          <button data-mode="free"><b>不要钱 · 想要就拿</b><span>东西都交到中心，谁需要谁去拿</span></button>
+          <button data-mode="barter"><b>以物易物</b><span>拿自己的东西换别人的东西</span></button>
+          <button data-mode="labor"><b>劳动积分</b><span>干一小时活记一分，用分换东西</span></button>
+          <button data-mode="money"><b>用钱买卖</b><span>中心发钱、定价，大家用钱买卖</span></button>
+        </div>
+        <div class="slider"><label for="kind">大家有多自觉</label><input type="range" id="kind" min="0" max="100" step="5"><output id="kindOut"></output></div>
+        <div class="slider" id="printRow"><label for="print">每月新印的钱</label><input type="range" id="print" min="0" max="30" step="1"><output id="printOut"></output></div>
+        <div class="slider"><label for="staff">补给中心人手</label><input type="range" id="staff" min="8" max="40" step="2"><output id="staffOut"></output></div>
+      </div>
+      <div class="panel">
+        <div class="grp kid"><h3><span class="who">小朋友</span>的假设</h3><div class="chips" id="kidChips"></div></div>
+        <div class="grp parent"><h3><span class="who">爸爸妈妈</span>的现实制约</h3><div class="chips" id="parentChips"></div></div>
+        <p class="note">四季、生老病死、东西会坏、鱼和猎物会被打光，这些一直都在，不用开关。</p>
+      </div>
+      <div class="panel">
+        <h2>说出你的想法</h2>
+        <div class="who-toggle" role="group" aria-label="谁在提想法">
+          <button data-r="kid" aria-pressed="true">我是小朋友</button>
+          <button data-r="parent" aria-pressed="false">我是爸爸妈妈</button>
+        </div>
+        <textarea id="ideaText" placeholder="比如：如果补给中心先把药给最需要的人呢？&#10;或者：现实里冬天会特别冷，还会闹瘟疫。"></textarea>
+        <div class="bar"><button class="btn primary" id="ideaGo">放进世界里试试</button><span class="note" id="ideaNote"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></section>
+  <section class="stats" id="stats"></section>
+  <section class="charts" id="charts"></section>
+
+  <section class="lower">
+    <div class="panel">
+      <h2>发生了什么，为什么</h2>
+      <ul class="list finds" id="finds"></ul>
+      <div class="bar" id="aiBar" hidden><button class="btn" id="aiBtn">请 Claude 讲讲为什么</button></div>
+      <div class="ai" id="aiOut" hidden></div>
+    </div>
+    <div class="panel">
+      <h2>九宫新闻</h2>
+      <ul class="list news" id="news"></ul>
+    </div>
+    <div class="panel">
+      <h2>实验记录</h2>
+      <p class="note">每次改规则都记在这里，图上的竖线就是这些时刻。</p>
+      <ul class="list log" id="log"></ul>
+    </div>
+  </section>
+</div>
