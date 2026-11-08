@@ -45,6 +45,7 @@ const JOB={
  shell:{n:'拾贝人',out:{shell:[110,110,110,90]}},
  smith:{n:'铁匠',heavy:1,pub:1},clerk:{n:'仓库管事',pub:1},rep:{n:'地区代表',pub:1},
  artist:{n:'自由玩耍、画画'},
+ homesteader:{n:'自耕农',out:{tuber:[14,30,80,36],veg:[10,20,14,5],egg:[0.8,1.2,0.8,0.4]},heavy:1},
 };
 // adults = how many voters live there (80 + 95 + 43 = 218, the total of the votes in the drawing)
 const RG=[
@@ -73,6 +74,7 @@ const MID=['小','大','阿','春','秋','冬','金','玉','德','永','文','�
 const BASECAP={rice:40000,veg:600,tuber:6000,egg:400,fish:600,dfish:3000,meat:300,smeat:800,salt:800,wood:12000,ore:2000,cloth:300,pot:400,med:300,tool:60,shell:20000};
 
 let S,P,R;
+const allW=()=>S.F?[...S.worlds,S.F]:S.worlds;
 const DEF={mode:'free',kindness:0.6,shellShare:0.17,needFirst:false,share:false,freedom:false,migrate:false,reputation:false,priceCap:false,elections:true,honest:false,
   greed:false,freeRide:false,disasters:false,contagion:false,distance:false,corruption:false,rivalry:false};
 const add=(o,g,q)=>{o[g]=(o[g]||0)+q};
@@ -99,6 +101,7 @@ function mkPerson(hh,age,sex){const p={id:S.nid++,name:nameOf(hh.sur,sex),sex,ag
   health:0.85+R()*0.15,sick:null,kcov:1,warm:1,variety:2,prot:0.2,comfort:0.5,saltOk:1,effort:0,hours:0,clothes:age<1?0.9:0.55+R()*0.4,happy:0.7,grief:0,log:[],alive:true,vote:0,cand:0};
   hh.members.push(p);S.people.push(p);assignJob(p);return p}
 function assignJob(p){const w=p.hh.world;if(p.age<16||p.age>=72){p.job=null;return}
+  if(p.hh.free){p.job='homesteader';return}
   if(p.cand&&candOf(w)&&candOf(w).no===p.cand&&w.repNo===p.cand){p.job='rep';return}
   if(P.freedom&&R()<0.12){p.job='artist';return}
   p.job=pick(w.jobs)}
@@ -121,7 +124,7 @@ function populate(w){let a=0;
 function ensureStaff(){ // the smithy and the granary need people; when some die or move away, others take over
   S.worlds.forEach(w=>{const need=[['clerk',2]];if(w.id==='mountain')need.push(['smith',2]);
     need.forEach(([j,n])=>{const have=w.hhs.reduce((a,h)=>a+h.members.filter(p=>p.job===j&&p.age>=16&&p.age<72).length,0);
-      for(let i=have;i<n;i++){const c=w.hhs.flatMap(h=>h.members.filter(p=>p.age>=18&&p.age<60&&p.job&&!JOB[p.job].pub&&!p.cand));if(!c.length)return;const p=c[R()*c.length|0];p.job=j;logP(p,`成了${JOB[j].n}`)}})})}
+      for(let i=have;i<n;i++){const c=w.hhs.flatMap(h=>h.members.filter(p=>p.age>=18&&p.age<60&&p.job&&!JOB[p.job].pub&&!p.cand&&!p.hh.free));if(!c.length)return;const p=c[R()*c.length|0];p.job=j;logP(p,`成了${JOB[j].n}`)}})})}
 
 // ---------- targets: what a household wants to have at home ----------
 function targets(h,greedy){
@@ -194,14 +197,14 @@ function step(){
   S.worlds.forEach(w=>distribute(w,plan(w)));
   priceUpdate();
   consume(se,wk);health();family();spoil();money(wk);relations();
-  if(wk%4===0){flee();migrate();ensureStaff()}
+  if(wk%4===0){flee();migrate();ensureStaff();leave();peddle()}
   if(P.elections&&t>=S.nextElection)holdElection(false);
   record();
 }
 
 function illness(se){
-  S.plagueW=new Set(S.worlds.filter(w=>w.hhs.some(h=>h.members.some(p=>p.sick&&p.sick.type==='plague'))).map(w=>w.id));
-  S.worlds.forEach(w=>{const ps=w.hhs.flatMap(h=>h.members);const inf=ps.filter(p=>p.sick&&p.sick.type==='plague').length,frac=ps.length?inf/ps.length:0;
+  S.plagueW=new Set(allW().filter(w=>w.hhs.some(h=>h.members.some(p=>p.sick&&p.sick.type==='plague'))).map(w=>w.id));
+  allW().forEach(w=>{const ps=w.hhs.flatMap(h=>h.members);const inf=ps.filter(p=>p.sick&&p.sick.type==='plague').length,frac=ps.length?inf/ps.length:0;
     ps.forEach(p=>{if(p.sick)return;let r=R();
       const cold=0.006+(se===3?0.012:0)+(p.clothes<0.4?0.008:0)+(S.harsh?0.008:0);
       const dys=0.0015+(se===1?0.003:0)+(p.kcov<0.7?0.004:0);
@@ -213,7 +216,7 @@ function illness(se){
       else if((r-=inj)<cold){p.sick={type:'cold',wk:2}}})})}
 
 function work(se,wk){
-  S.worlds.forEach(w=>w.made={});
+  allW().forEach(w=>w.made={});
   const land={};S.worlds.forEach(w=>{if(!w.land)return;for(const j in w.land){const n=w.hhs.reduce((a,h)=>a+h.members.filter(p=>p.job===j&&!p.sick&&p.age>=16).length,0);land[w.id+j]=n>w.land[j]?Math.pow(w.land[j]/n,0.6):1}});
   const resF={fish:clamp(S.res.fish/0.7,0,1.25),game:clamp(S.res.game/0.7,0,1.25),forest:clamp(S.res.forest/0.7,0,1.2)};
   const take={fish:0,game:0,forest:0};S.forF={};S.forN=S.forN||{};S.worlds.forEach(w=>{const n=S.forN[w.id]||0;S.forF[w.id]=n>30?Math.pow(30/n,0.7):1});S.forN={};
@@ -237,7 +240,7 @@ function work(se,wk){
       if(p.job==='weaver'){const n=3*eff*toolF*ev;add(h.inv,'cloth',n);add(w.made,'cloth',n);h.toolDur=Math.max(0,h.toolDur-0.02*lab);return}
       if(!j.out)return;
       const lf=w.land&&w.land[p.job]?land[w.id+p.job]:1;
-      for(const g in j.out){let q=j.out[g][se]*eff*toolF*ev*lf;if(j.res){q*=resF[j.res];take[j.res]+=q}
+      for(const g in j.out){let q=j.out[g][se]*eff*toolF*ev*lf*(h.plotQ||1);if(j.res){q*=resF[j.res];take[j.res]+=q}
         if(g==='shell'&&P.mode==='money')h.money+=q;else add(h.inv,g,q);add(w.made,g,q)}
       h.toolDur=Math.max(0,h.toolDur-0.02*lab)});
     // gathering brush and driftwood for the fire
@@ -270,13 +273,13 @@ function publicWork(){
 
 function share(){ // neighbours inside one region help families that have nothing
   const rate=P.share?0.6:0.25,wkf=h=>kcalOf(h.inv)/Math.max(1,hhKcal(h));
-  S.worlds.forEach(w=>{const hs=w.hhs.filter(h=>h.members.length),donors=hs.filter(h=>wkf(h)>8),needy=hs.filter(h=>wkf(h)<1);
+  S.worlds.forEach(w=>{const hs=w.hhs.filter(h=>h.members.length&&!h.free),donors=hs.filter(h=>wkf(h)>8),needy=hs.filter(h=>wkf(h)<1);
     needy.forEach(r=>{const want=hhKcal(r)*1.5-kcalOf(r.inv);for(const d of donors){if(want<=0)break;const ex=(wkf(d)-8)*hhKcal(d)*rate*kindOf(d);if(ex>0)takeFood(d.inv,Math.min(ex,want),BY_FRESH,r.inv)}});
     if(P.mode==='money'){const cost=h=>hhKcal(h)/15400*45*S.moneyFactor,poor=hs.filter(h=>kcalOf(h.inv)<hhKcal(h)*1.5&&h.money<cost(h)*2),rich=hs.filter(h=>h.money>cost(h)*10);
       poor.forEach(r=>{for(const d of rich){const g=Math.min((d.money-cost(d)*10)*rate*kindOf(d),cost(r)*3-r.money);if(g>0){d.money-=g;r.money+=g;break}}})}})}
 
 // ---------- the commons of each region: deposit, trade between regions, distribute ----------
-function plan(w){const hs=w.hhs.filter(h=>h.members.length).map(h=>{const tg=targets(h,true),tn=targets(h,false);return{h,need:needs(h,tg),real:needs(h,tn),sur:surplus(h,tg)}});
+function plan(w){const hs=w.hhs.filter(h=>h.members.length&&!h.free).map(h=>{const tg=targets(h,true),tn=targets(h,false);return{h,need:needs(h,tg),real:needs(h,tn),sur:surplus(h,tg)}});
   for(let i=hs.length-1;i>0;i--){const j=R()*(i+1)|0;[hs[i],hs[j]]=[hs[j],hs[i]]}
   return hs.sort((a,b)=>(b.h.staff?1:0)-(a.h.staff?1:0))}
 const pace=(w,x)=>{if(x.h.staff)return true;const k=x.h.id;if(w.seen.has(k))return !w.blocked.has(k);w.seen.add(k);w.served++;if(w.served>w.cap){w.queue++;w.blocked.add(k);return false}return true};
@@ -366,7 +369,7 @@ function priceUpdate(){if(P.mode!=='money')return;const p=S.prices;
   S.shortAll={}}
 
 // ---------- trade between the three regions: done by the representatives ----------
-function balance(w){const H=w.store,hs=w.hhs.filter(h=>h.members.length),N={};let Fk=0,pk=0;
+function balance(w){const H=w.store,hs=w.hhs.filter(h=>h.members.length&&!h.free),N={};let Fk=0,pk=0;
   hs.forEach(h=>{const nd=needs(h,targets(h,false));Fk+=nd.food||0;pk+=hhKcal(h);for(const g in nd)if(g!=='food')N[g]=(N[g]||0)+nd[g]});
   GK.forEach(g=>{if(!G[g].food)w.dem[g]=(w.dem[g]||0)*0.85+(N[g]||0)*0.15});
   // households keep their own food for the year; the commons keeps a small reserve, and a region that depends on imports also stocks up at harvest for the months ahead
@@ -478,10 +481,10 @@ function family(){
         if(S.yr.births%6===1)news('good',`${w.name}的${mom.name}家添了孩子${b.name}。`,w)}}
     m.filter(p=>p.age>=20&&p.age<=32&&p!==mom&&p!==dad&&m.length>=4&&!p.cand).forEach(p=>{if(R()<0.012){
       const mate=S.hhs.filter(x=>x.world===w&&x!==h).flatMap(x=>x.members).find(q=>q.sex!==p.sex&&q.age>=20&&q.age<=34&&q.hh.members.length>=3&&!q.cand&&!q.hh.members.some(z=>z!==q&&z.sex!==q.sex&&z.age>=18&&z.age<=60&&Math.abs(z.age-q.age)<8));
-      const nh=mkHH(w,p.hh.sur);[p,mate].filter(Boolean).forEach(q=>{q.hh.members=q.hh.members.filter(z=>z!==q);q.hh=nh;nh.members.push(q)});
+      const nh=mkHH(w,p.hh.sur);if(w===S.F){nh.free=true;claimPlot(nh)}[p,mate].filter(Boolean).forEach(q=>{q.hh.members=q.hh.members.filter(z=>z!==q);q.hh=nh;nh.members.push(q)});
       const sh=0.15;for(const g in h.inv){const q=(h.inv[g]||0)*sh;h.inv[g]-=q;add(nh.inv,g,q)}nh.money=h.money*sh;h.money-=nh.money;nh.toolDur=Math.min(h.toolDur,1);h.toolDur-=nh.toolDur;
       if(mate)logP(p,`和${mate.name}结婚，成了新的一家`);else logP(p,'搬出来自己住了')}})});
-  S.hhs=S.hhs.filter(h=>h.members.length);S.worlds.forEach(w=>w.hhs=w.hhs.filter(h=>h.members.length))}
+  S.hhs=S.hhs.filter(h=>h.members.length);allW().forEach(w=>w.hhs=w.hhs.filter(h=>h.members.length))}
 function spoil(){
   const lose=inv=>{for(const g in inv){const r=G[g]&&G[g].rot;if(!r)continue;const l=inv[g]*r;if(G[g].food)S.cnt.spoilK+=l*G[g].kcal;inv[g]-=l}};
   S.hhs.forEach(h=>lose(h.inv));S.worlds.forEach(w=>lose(w.store));
@@ -499,16 +502,33 @@ function money(wk){
   }else S.trust=Math.min(1,S.trust+0.02)}
 function flee(){const food=w=>{const m=w.hhs.flatMap(h=>h.members);return m.length?m.reduce((a,p)=>a+p.kcov,0)/m.length:0};
   S.hhs.forEach(h=>{h.hungry=(h.hungry||0)*0.5+(h.members.reduce((a,p)=>a+p.kcov,0)/Math.max(1,h.members.length)<0.8?2:0)});
-  S.worlds.forEach(w=>{w.hhs.slice().forEach(h=>{if(h.hungry<3||R()>0.15||h.members.some(p=>p.cand))return;const to=S.worlds.filter(o=>o!==w&&o.hhs.length).sort((a,b)=>food(b)-food(a))[0];if(!to||food(to)<0.9)return;
+  S.worlds.forEach(w=>{w.hhs.slice().forEach(h=>{if(h.free||h.hungry<3||R()>0.15||h.members.some(p=>p.cand))return;const to=S.worlds.filter(o=>o!==w&&o.hhs.length).sort((a,b)=>food(b)-food(a))[0];if(!to||food(to)<0.9)return;
     w.hhs=w.hhs.filter(x=>x!==h);h.world=to;to.hhs.push(h);h.hungry=0;h.members.forEach(p=>{if(p.job){assignJob(p);p.skill*=0.85}logP(p,`吃不饱，全家从${w.name}逃荒到了${to.name}`)});
     S.cnt.fled=(S.cnt.fled||0)+h.members.length;news('bad',`${h.sur}家在${w.name}吃不饱，逃荒去了${to.name}。`,to)})})}
 function migrate(){
   if(!P.migrate)return;const ws=S.worlds.filter(w=>w.hhs.length),hap=w=>{const ps=w.hhs.flatMap(h=>h.members);return ps.reduce((a,p)=>a+p.happy,0)/Math.max(1,ps.length)};
   const best=[...ws].sort((a,b)=>hap(b)-hap(a))[0];
   ws.forEach(w=>{if(w===best||hap(best)-hap(w)<0.12)return;w.hhs.slice().forEach(h=>{const hp=h.members.reduce((a,p)=>a+p.happy,0)/h.members.length;
-    if(hp<0.5&&R()<0.08&&!h.members.some(p=>p.cand)){w.hhs=w.hhs.filter(x=>x!==h);h.world=best;best.hhs.push(h);h.members.forEach(p=>{if(p.job){assignJob(p);p.skill*=0.8}logP(p,`全家从${w.name}搬到了${best.name}`)});
+    if(hp<0.5&&R()<0.08&&!h.free&&!h.members.some(p=>p.cand)){w.hhs=w.hhs.filter(x=>x!==h);h.world=best;best.hhs.push(h);h.members.forEach(p=>{if(p.job){assignJob(p);p.skill*=0.8}logP(p,`全家从${w.name}搬到了${best.name}`)});
       S.cnt.moved+=h.members.length;news('info',`${h.sur}家从${w.name}搬去了${best.name}。`,best)}})})}
 
+// ---------- people who leave: to a lonely corner of their own country, or out to the empty land ----------
+function claimPlot(h){const free=S.plots.map((p,i)=>[p,i]).filter(([p])=>!p.own);if(!free.length){h.plotQ=0.5;return}
+  let best=null;for(let k=0;k<40;k++){const c=free[R()*free.length|0];if(!best||c[0].q>best[0].q)best=c}
+  best[0].own=h.id;h.plot=best[1];h.plotQ=best[0].q;S.fclaims.push([S.t,best[1],best[0].q,h.sur+'家'])}
+function settle(h,w,hermit){h.free=true;h.members.forEach(p=>{if(p.age>=16&&p.age<72)p.job='homesteader'});
+  if(hermit){h.hermit=true;h.plotQ=0.75+R()*0.3;S.cnt.hermit+=h.members.length;h.members.forEach(p=>logP(p,`对${w.name}的代表不满，全家搬到${w.name}偏远的角落独自住`));news('info',`${h.sur}家对${w.name}的代表不满，搬到角落独自住了。`,w)}
+  else{w.hhs=w.hhs.filter(x=>x!==h);h.world=S.F;S.F.hhs.push(h);claimPlot(h);for(const g in h.inv)h.inv[g]*=0.75;h.toolDur*=0.7;S.cnt.front+=h.members.length;
+    h.members.forEach(p=>logP(p,`对${w.name}的代表不满，全家搬去荒地，占了一块地`));news('info',`${h.sur}家离开${w.name}，去荒地占了一块地（地力 ${h.plotQ.toFixed(2)}）。`,w)}
+  S.cnt.left+=h.members.length}
+function leave(){S.worlds.forEach(w=>w.hhs.slice().forEach(h=>{if(h.free||h.members.some(p=>p.cand))return;const ad=h.members.filter(p=>p.age>=18);if(!ad.length)return;
+  if(ad.filter(p=>p.vote&&p.vote!==w.repNo).length/ad.length<0.5)return;const hap=h.members.reduce((a,p)=>a+p.happy,0)/h.members.length;
+  const pr=0.004+0.05*clamp((0.8-hap)/0.2,0,1)+(P.corruption?0.004:0);if(R()<pr)settle(h,w,R()<(w.id==='mountain'?0.55:0.15))}))}
+// out there nobody runs a granary; a travelling pedlar sells salt, cloth, pots, medicine and tools at 1.8 times their value, paid in the family's surplus
+function peddle(){S.hhs.forEach(h=>{if(!h.free||!h.members.length)return;const t=targets(h,false),nd=needs(h,t),sur=surplus(h,t);let avail=0;for(const g in sur)avail+=sur[g]*G[g].v;
+  for(const g of ['med','salt','tool','cloth','pot']){let q=nd[g];if(!q||avail<=0)continue;const unit=G[g].v*1.8;q=Math.min(q,avail/unit);if(INT[g]||g==='med')q=Math.floor(q);if(q<=0)continue;
+    let owe=q*unit;for(const k in sur){if(owe<=0)break;const pay=Math.min(sur[k]*G[k].v,owe),amt=pay/G[k].v;h.inv[k]=Math.max(0,(h.inv[k]||0)-amt);sur[k]-=amt;owe-=pay;avail-=pay}
+    if(g==='tool')h.toolDur+=q;else add(h.inv,g,q)}})}
 // ---------- elections ----------
 function giniOf(a){if(a.length<2)return 0;a=[...a].sort((x,y)=>x-y);const n=a.length,s=a.reduce((x,y)=>x+y,0);if(s<=0)return 0;let c=0;a.forEach((x,i)=>c+=(2*(i+1)-n-1)*x);return c/(n*s)}
 function setRep(w,c){const old=repPerson(w);if(old){old.job=null;assignJob(old)}w.repNo=c.no;const p=S.people.find(q=>q.id===c.pid);if(p){p.job='rep';logP(p,`当选${w.name}的代表`)}}
@@ -532,7 +552,7 @@ function nominate(){S.worlds.forEach(w=>{let cs=S.cands.filter(c=>c.home===w.id&
 function holdElection(initial){
   if(!initial)nominate();
   const rows=[],won={};S.cands.forEach(c=>c.votes=0);
-  S.worlds.forEach(w=>{const cs=S.cands.filter(c=>c.home===w.id&&c.alive),ad=w.hhs.flatMap(h=>h.members.filter(p=>p.age>=18));if(!cs.length)return;
+  S.worlds.forEach(w=>{const cs=S.cands.filter(c=>c.home===w.id&&c.alive),ad=w.hhs.filter(h=>!h.free).flatMap(h=>h.members.filter(p=>p.age>=18));if(!cs.length)return;
     if(initial){const pool=[];cs.forEach(c=>{for(let i=0;i<c.v0;i++)pool.push(c.no)});while(pool.length<ad.length)pool.push(cs[0].no);
       for(let i=pool.length-1;i>0;i--){const j=R()*(i+1)|0;[pool[i],pool[j]]=[pool[j],pool[i]]}ad.forEach((p,i)=>{p.vote=pool[i];const c=cs.find(x=>x.no===p.vote);if(c)c.votes++})}
     else ad.forEach(p=>{const c=voteFor(p,cs,w);p.vote=c.no;c.votes++});
@@ -551,6 +571,7 @@ function happiness(){
   S.people.forEach(p=>{let x=0.28*p.kcov+0.16*p.health+0.08*Math.min(1,p.variety/3)+0.1*p.warm+0.07*(p.comfort||0)+0.1*Math.min(1,autonomy)+0.09*(1-gini)+0.08*Math.min(1,(p.hh.foodWeeks||0)/6)+0.04;
     if(p.job==='artist')x+=0.08;if(P.mode==='money'&&S.inflM>0.04)x-=Math.min(0.2,S.inflM*1.2);if(p.sick)x-=0.1;x-=p.grief*0.25;x-=(1-p.hh.world.trust)*0.12;
     if(P.mode==='free'&&P.freeRide&&p.effort>0.85)x-=0.05;
+    const hw=p.hh.world;if(p.hh.free)x+=0.03;else if(p.age>=18&&p.vote&&hw.repNo&&p.vote!==hw.repNo)x-=0.15; // people who voted for someone else are unhappy under the winners
     p.happy+=(clamp(x,0,1)-p.happy)*0.3})}
 function record(){
   happiness();
@@ -559,17 +580,18 @@ function record(){
     const ws=m.filter(p=>p.job&&p.job!=='artist'&&!JOB[p.job].pub).length,td=w.hhs.reduce((a,h)=>a+Math.min(h.toolDur,workers(h).length),0);
     const o={id:w.id,pop:m.length,kcov:m.reduce((a,p)=>a+p.kcov,0)/k,health:m.reduce((a,p)=>a+p.health,0)/k,happy:m.reduce((a,p)=>a+p.happy,0)/k,sick:m.filter(p=>p.sick).length,
       hungry:m.filter(p=>p.kcov<0.85).length,cold:m.filter(p=>p.warm<0.6).length,noMed:m.filter(p=>p.sick&&!p.sick.treated&&ILL[p.sick.type].dose>1).length,tool:ws?clamp(td/ws,0,1):1,
-      foodWeeks:kcalOf(w.store)/Math.max(1,w.hhs.reduce((a,h)=>a+hhKcal(h),0)),queue:w.queue||0,adults:m.filter(p=>p.age>=18).length};
+      foodWeeks:kcalOf(w.store)/Math.max(1,w.hhs.reduce((a,h)=>a+hhKcal(h),0)),queue:w.queue||0,adults:m.filter(p=>p.age>=18).length,hermits:w.hhs.filter(h=>h.hermit).length};
     w.hungryN=o.hungry;w.approval+=((0.5*o.happy+0.5*o.kcov)-w.approval)*0.04;
     const infl=w.inflow&&Object.keys(w.inflow).reduce((a,g)=>a+w.inflow[g]*G[g].v,0)||0;
     const seen=infl>0?w.skimmed/(infl+w.skimmed):0;w.skimmedSeen=(w.skimmedSeen||0)*0.97+seen*0.2;
     if(w.skimmed>0)w.trust=Math.max(0.25,w.trust-Math.min(0.03,seen*0.3));else w.trust=Math.min(1,w.trust+0.004);
     return o});
   S.famine=ps.filter(p=>p.kcov<0.7).length/n;
+  {const fm=S.F.hhs.flatMap(h=>h.members),fr=S.plots.filter(p=>!p.own);S.fstat={pop:fm.length,hh:S.F.hhs.length,hungry:fm.filter(p=>p.kcov<0.85).length,sick:fm.filter(p=>p.sick).length,noMed:fm.filter(p=>p.sick&&!p.sick.treated&&ILL[p.sick.type].dose>1).length,claimed:S.plots.length-fr.length,freeQ:+(fr.reduce((a,p)=>a+p.q,0)/Math.max(1,fr.length)).toFixed(2)}}
   const c=S.cnt,by=c.by;
   S.hist.push({t:S.t,pop:ps.length,kcov:avg(p=>p.kcov),health:avg(p=>p.health),happy:avg(p=>p.happy),gini:S.gini,hungry:ps.filter(p=>p.kcov<0.85).length,sick:ps.filter(p=>p.sick).length,
     apple:P.mode==='money'?S.prices.rice:null,trust:S.trust,mode:P.mode,fish:S.res.fish,game:S.res.game,forest:S.res.forest,effort:(()=>{const w=ps.filter(p=>p.effort>0);return w.length?w.reduce((a,p)=>a+p.effort,0)/w.length:1})(),
-    cStarve:by['饥饿']||0,cNoMed:Object.keys(by).filter(k=>k.includes('没有药')).reduce((a,k)=>a+by[k],0),cCold:by['寒冷']||0,cFled:c.fled||0,cBirths:c.births,births:S.yr.births,deaths:S.yr.deaths,
+    cStarve:by['饥饿']||0,cNoMed:Object.keys(by).filter(k=>k.includes('没有药')).reduce((a,k)=>a+by[k],0),cCold:by['寒冷']||0,cFled:c.fled||0,cLeft:c.left,cHermit:c.hermit,cFront:c.front,cBirths:c.births,births:S.yr.births,deaths:S.yr.deaths,
     ws:S.wstat.map(o=>({kcov:o.kcov,hungry:o.hungry,noMed:o.noMed,cold:o.cold,tool:o.tool}))});
   if(S.hist.length>800)S.hist.shift()}
 
@@ -578,12 +600,14 @@ function newGame(params,seed){
   P=Object.assign({},DEF,params||{});R=mkRng(seed||20261108);
   S={t:0,nid:1,people:[],hhs:[],worlds:[],news:[],hist:[],log:[],res:{fish:0.72,game:0.72,forest:0.75},prices:{},sc:{},demand:{},supply:{},dem:{},sup:{},shortAll:{},moneyFactor:1,trust:1,cpiHist:[],priceIndex:1,inflM:0,M:0,printed:0,
     cands:CANDS.map(c=>({...c,alive:true,votes:c.v0,pid:0})),nextNo:10,elec:[],rel:[[0,.4,.4],[.4,0,.4],[.4,.4,0]],rv:[[0,0,0],[0,0,0],[0,0,0]],block:[[0,0,0],[0,0,0],[0,0,0]],flow:[],
-    cnt:{births:0,deaths:0,spoilK:0,leak:0,overK:0,by:{},moved:0,fled:0},yr:{births:0,deaths:0},famine:0,P,sizeErode:1,wk:{}};
+    cnt:{births:0,deaths:0,spoilK:0,leak:0,overK:0,by:{},moved:0,fled:0,left:0,hermit:0,front:0},yr:{births:0,deaths:0},famine:0,P,sizeErode:1,wk:{}};
   GK.forEach(g=>{S.prices[g]=G[g].v;S.sc[g]=1;S.demand[g]=0;S.supply[g]=0});
   S.demand.rice=600;S.demand.dfish=60;S.demand.egg=20;S.demand.wood=2000;S.demand.salt=40;S.demand.cloth=30;S.demand.med=12;S.demand.tool=4;S.demand.pot=4;
   RG.forEach((d,i)=>{const w={...d,i,hhs:[],ev:d.ev||[],event:null,evLeft:0,dem:{},why:{},tradeIn:{},tradeOut:{},made:{},inflow:{},short:{},trust:1,approval:0.7,repNo:null,cash:30000,cap:30,cl:2,queue:0,skimmed:0,skimmedSeen:0,reserveK:0,hungryN:0,
     store:i===0?{tool:12,med:30,wood:800,ore:100,tuber:200,smeat:50}:i===1?{rice:6000,cloth:12,pot:20,egg:20}:{salt:60,dfish:200,shell:300,wood:200},
     members(){return this.hhs.reduce((a,h)=>a+h.members.length,0)}};S.worlds.push(w)});
+  S.F={id:'frontier',name:'荒地',i:3,hhs:[],ev:[],event:null,store:{},made:{},dem:{},why:{},trust:1,approval:0.7,repNo:null,jobs:{homesteader:1},members(){return this.hhs.reduce((a,h)=>a+h.members.length,0)}};
+  S.plots=Array.from({length:200},()=>({q:+(0.55+0.95*Math.pow(R(),1.3)).toFixed(2),own:0}));S.fclaims=[];
   S.worlds.forEach(populate);
   // the nine candidates are real people living in their home regions
   S.cands.forEach(c=>{const w=S.worlds.find(x=>x.id===c.home);const pool=w.hhs.flatMap(h=>h.members.filter(p=>p.age>=28&&p.age<=62&&!p.cand&&(!c.sexStrict||p.sex===c.sex)&&p.hh.members.filter(q=>q.cand).length===0));

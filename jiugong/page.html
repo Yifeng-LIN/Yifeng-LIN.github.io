@@ -155,6 +155,7 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
       <canvas id="map" aria-label="三个地区的地图：上面是山区，中间是乡村，下面是海边"></canvas>
       <div class="bar"><button class="btn primary" id="play">▶ 播放</button><button class="btn" id="speed">速度 4×</button><button class="btn" id="home">回到开头</button><span class="note" id="note"></span></div>
       <input type="range" id="pos" min="0" max="0" value="0" aria-label="时间">
+      <div class="panel"><h2 id="frT">荒地</h2><canvas id="fr" aria-label="三个国家以外的荒地，圈越大地越好，谁先占就归谁" style="width:100%;height:170px;display:block;border-radius:10px"></canvas><p class="note">三个国家以外还有很多空地，谁先占就归谁。有圈有房子的是已经被占的，空圈是空着的（圈越大地越好）。离开三个国家的人搬到这里，没有代表，也没有公共仓库。</p></div>
     </div>
     <div class="col">
       <div class="panel"><h2>三位代表</h2><div class="reps" id="reps"></div></div>
@@ -280,6 +281,8 @@ function frame(){
     if(w.id==='mountain'&&Math.random()<0.5)fx.smoke.push({x:HALL.mountain[0]*SW+SW*0.07,y:HALL.mountain[1]*SH-SW*0.04,a:0.55,r:SW*0.008});
     if(w.event==='fire')fx.smoke.push({x:(0.05+Math.random()*0.9)*SW,y:(0.15+Math.random()*0.15)*SH,a:0.6,r:SW*0.02,fire:1})})}
   fx.smoke=fx.smoke.filter(p=>p.a>0.02).slice(-200);fx.smoke.forEach(p=>{if(running){p.y-=0.35;p.x+=0.12;p.r*=1.012;p.a*=0.975}cx.fillStyle=p.fire?`rgba(90,60,50,${p.a})`:`rgba(235,235,235,${p.a})`;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()});
+  // lone houses of the people who moved to a quiet corner of their own country
+  S.worlds.forEach(w=>{const b={mountain:[0.9,0.1],village:[0.9,0.63],coast:[0.9,0.72]}[w.id];for(let k=0;k<(w.hermits||0);k++)house(cx,(b[0]-(k%3)*0.04)*SW,(b[1]+Math.floor(k/3)*0.025)*SH,SW*0.03,'#e9e0d0','#6b4a35',0)});
   // carriers on the roads
   fx.traders=fx.traders.filter(k=>now<k.t0+k.dur);fx.traders.forEach(k=>{const q=(now-k.t0)/k.dur;if(q<0)return;const[px0,py0]=k.at(q),px=px0+(k.j-0.5)*SW*0.015,py=py0;
     drawFigure(px,py,Math.max(3,SW*0.011),'#3a3a3a');cx.fillStyle=k.col;cx.strokeStyle='rgba(0,0,0,0.45)';cx.lineWidth=0.8;const s=Math.max(3,SW*0.011);cx.fillRect(px+s*0.2,py-s*0.95,s*0.95,s*0.8);cx.strokeRect(px+s*0.2,py-s*0.95,s*0.95,s*0.8)});
@@ -304,9 +307,9 @@ function frame(){
 const when=t=>`第${Math.floor(t/52)+1}年${SEASON[Math.floor((t%52)/13)]}`;
 function rulesAt(w){const o={...D.start};D.rules.forEach(r=>{if(r.week<=w)Object.assign(o,r.set)});return o}
 function setFrame(i){if(!D)return;wk=clamp(Math.round(i),0,D.frames.length-1);const f=D.frames[wk];S.t=f[0];
-  S.worlds.forEach((w,j)=>{const r=f[1][j];w.hhs={length:r[4]};w.working=r[5];w.event=r[6]||null});S.flow=f[2].map(([a,b,k,v])=>[a,b,k,v/G[k].v,v/G[k].v]);
+  S.worlds.forEach((w,j)=>{const r=f[1][j];w.hhs={length:r[4]};w.working=r[5];w.hermits=r[10]||0;w.event=r[6]||null});S.flow=f[2].map(([a,b,k,v])=>[a,b,k,v/G[k].v,v/G[k].v]);
   const p=[...D.probs].reverse().find(x=>x[0]<=wk);PROBS=p?p[1]:[];const rp=[...D.reps].reverse().find(x=>x[0]<=wk);reps=rp?rp[1]:[];S.worlds.forEach((w,j)=>w.rep={name:reps[j]?reps[j].name:'—'});
-  lastTick=performance.now();ui();try{if(wk%10===0)localStorage.setItem('jg:wk',wk)}catch(e){}}
+  lastTick=performance.now();ui();drawFrontier();try{if(wk%10===0)localStorage.setItem('jg:wk',wk)}catch(e){}}
 function ui(){const t=S.t;$('#date').textContent=`${when(t)}`;$('#dateSub').textContent=`第 ${wk+1} / ${D.frames.length} 周`;$('#pos').value=wk;
   $('#reps').innerHTML=reps.map((r,j)=>`<div class="rep ${RIDS[j]}"><span class="no">${r.no}</span><span class="rn">${r.name}</span><span class="rw">${r.w}代表${r.votes!=null?` · ${r.votes} 票`:''}</span><span class="rbio">${r.traits}</span></div>`).join('');
   const o=rulesAt(wk),L=D.labels,on=Object.entries(o).filter(([k,v])=>v===true&&L[k]).map(([k])=>L[k]);
@@ -317,8 +320,15 @@ function ui(){const t=S.t;$('#date').textContent=`${when(t)}`;$('#dateSub').text
   $('#verdict').className='verdict '+lv[0];$('#vFace').textContent=lv[1];const pop=D.frames[wk][1].reduce((a,r)=>a+r[0],0);
   $('#vText').textContent=(PROBS.length?`最要紧的是：${PROBS[0].q}。`:'三个地区都吃得饱、有药用、冬天不冷。')+` 现在一共 ${pop} 人。`;
   $('#probs').innerHTML=PROBS.length?PROBS.map(p=>`<div class="prob ${p.cls}"><span class="k">问题</span><span class="q">${p.q}</span><span class="k">瓶颈</span><span class="v">${p.b}</span><span class="k">后果</span><span class="v">${p.c}</span></div>`).join(''):'<div class="prob good"><span class="k">现在</span><span class="q">没有发现问题</span></div>'}
+function drawFrontier(){const c=$('#fr'),g=c.getContext('2d'),r=c.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);if(!r.width||!D)return;c.width=r.width*d;c.height=r.height*d;g.scale(d,d);const W=r.width,H=r.height,se=Math.floor((S.t%52)/13);
+  const gr=g.createLinearGradient(0,0,0,H);gr.addColorStop(0,['#b9cf94','#9cc17a','#c9bb7d','#dfe3e0'][se]);gr.addColorStop(1,['#a3bd80','#86ab64','#b4a56a','#cfd5d3'][se]);g.fillStyle=gr;g.fillRect(0,0,W,H);
+  const claimed=new Map();D.fclaims.forEach(([w,i,q,n])=>{if(w<=wk)claimed.set(i,n)});
+  D.plots.forEach((q,i)=>{const x=(0.04+0.92*hash(i,11))*W,y=(0.08+0.84*hash(i,12))*H,rad=4+q*5;
+    if(claimed.has(i)){g.fillStyle='#fbfcf9';g.strokeStyle='#4a3a2a';g.lineWidth=1.5;g.beginPath();g.arc(x,y,rad+3,0,7);g.fill();g.stroke();house(g,x,y+rad*0.5,rad*1.6,'#eadbc0','#8a4b2c',0)}
+    else{g.strokeStyle='rgba(60,80,40,0.45)';g.lineWidth=1;g.beginPath();g.arc(x,y,rad,0,7);g.stroke();g.fillStyle=`rgba(60,110,40,${0.12+0.25*(q-0.5)})`;g.fill()}});
+  const f=D.frames[wk][3];$('#frT').textContent=`荒地：${f[1]} 户 ${f[0]} 人，已占 ${f[4]} / ${D.plots.length} 块地${f[2]?`，${f[2]} 人吃不饱`:''}`}
 function load(d){const first=!D;D=d;G=d.goods;EVN=d.evn;$('#ttl').textContent=d.title;document.title=d.title;$('#pos').max=d.frames.length-1;
-  if(first){let s=0;try{s=+localStorage.getItem('jg:wk')||0}catch(e){}setFrame(s<d.frames.length?s:0);if(!reduceMotion)setRun(true)}else setFrame(wk)}
+  if(first){addEventListener('resize',()=>drawFrontier());let s=0;try{s=+localStorage.getItem('jg:wk')||0}catch(e){}setFrame(s<d.frames.length?s:0);if(!reduceMotion)setRun(true)}else setFrame(wk)}
 function tick(){if(wk>=D.frames.length-1){setRun(false);return}setFrame(wk+1)}
 function loop(){if(!running)return;tick();timer=setTimeout(loop,tickMs())}
 function setRun(v){running=v;$('#play').textContent=v?'⏸ 暂停':'▶ 播放';clearTimeout(timer);if(v)timer=setTimeout(loop,100)}

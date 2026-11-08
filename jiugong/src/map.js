@@ -104,6 +104,8 @@ function frame(){
     if(w.id==='mountain'&&Math.random()<0.5)fx.smoke.push({x:HALL.mountain[0]*SW+SW*0.07,y:HALL.mountain[1]*SH-SW*0.04,a:0.55,r:SW*0.008});
     if(w.event==='fire')fx.smoke.push({x:(0.05+Math.random()*0.9)*SW,y:(0.15+Math.random()*0.15)*SH,a:0.6,r:SW*0.02,fire:1})})}
   fx.smoke=fx.smoke.filter(p=>p.a>0.02).slice(-200);fx.smoke.forEach(p=>{if(running){p.y-=0.35;p.x+=0.12;p.r*=1.012;p.a*=0.975}cx.fillStyle=p.fire?`rgba(90,60,50,${p.a})`:`rgba(235,235,235,${p.a})`;cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()});
+  // lone houses of the people who moved to a quiet corner of their own country
+  S.worlds.forEach(w=>{const b={mountain:[0.9,0.1],village:[0.9,0.63],coast:[0.9,0.72]}[w.id];for(let k=0;k<(w.hermits||0);k++)house(cx,(b[0]-(k%3)*0.04)*SW,(b[1]+Math.floor(k/3)*0.025)*SH,SW*0.03,'#e9e0d0','#6b4a35',0)});
   // carriers on the roads
   fx.traders=fx.traders.filter(k=>now<k.t0+k.dur);fx.traders.forEach(k=>{const q=(now-k.t0)/k.dur;if(q<0)return;const[px0,py0]=k.at(q),px=px0+(k.j-0.5)*SW*0.015,py=py0;
     drawFigure(px,py,Math.max(3,SW*0.011),'#3a3a3a');cx.fillStyle=k.col;cx.strokeStyle='rgba(0,0,0,0.45)';cx.lineWidth=0.8;const s=Math.max(3,SW*0.011);cx.fillRect(px+s*0.2,py-s*0.95,s*0.95,s*0.8);cx.strokeRect(px+s*0.2,py-s*0.95,s*0.95,s*0.8)});

@@ -8,6 +8,7 @@
       <canvas id="map" aria-label="三个地区的地图：上面是山区，中间是乡村，下面是海边"></canvas>
       <div class="bar"><button class="btn primary" id="play">▶ 播放</button><button class="btn" id="speed">速度 4×</button><button class="btn" id="home">回到开头</button><span class="note" id="note"></span></div>
       <input type="range" id="pos" min="0" max="0" value="0" aria-label="时间">
+      <div class="panel"><h2 id="frT">荒地</h2><canvas id="fr" aria-label="三个国家以外的荒地，圈越大地越好，谁先占就归谁" style="width:100%;height:170px;display:block;border-radius:10px"></canvas><p class="note">三个国家以外还有很多空地，谁先占就归谁。有圈有房子的是已经被占的，空圈是空着的（圈越大地越好）。离开三个国家的人搬到这里，没有代表，也没有公共仓库。</p></div>
     </div>
     <div class="col">
       <div class="panel"><h2>三位代表</h2><div class="reps" id="reps"></div></div>

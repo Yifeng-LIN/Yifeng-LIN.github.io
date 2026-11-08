@@ -51,5 +51,10 @@ function diagnose(){const P=S.P,L=S.hist[S.hist.length-1];if(!L)return[];const o
   if(P.mode==='barter'){const bf=(S.barterFail||0)/Math.max(1,S.barterTry||1);if(bf>0.5)out.push({sev:0.4,cls:'warn',tag:'难换',worlds:[],q:`想换的东西有 ${pct(bf)} 没换成`,b:'你有的东西对方不一定要，一件铁器工具又没法拆开来换',c:'有粮的人家换不出布，没有铁器的人家换不到工具。这就是人们后来发明钱的原因。'})}
   // nature
   [['fish','海里的鱼','coast','打鱼的比鱼长得快'],['game','森林里的猎物','mountain','打猎的比猎物长得快'],['forest','山上的树','mountain','砍树比树长得快']].forEach(([k,n,w,b])=>{if(L[k]<0.45)out.push({sev:0.3+(0.45-L[k]),cls:'warn',tag:'资源少',worlds:[w],q:`${n}只剩 ${pct(L[k])}`,b,c:'能打到、砍到的越来越少，以后会更难。'})});
+  const lf=since('cLeft',26);
+  if(lf>=3){const ad=S.people.filter(p=>p.age>=18&&!p.hh.free),mi=ad.filter(p=>p.vote&&p.vote!==p.hh.world.repNo).length;
+    out.push({sev:0.42+Math.min(0.3,lf*0.02),cls:'warn',tag:'有人离开',worlds:[],q:`最近半年有 ${lf} 个人离开了三个国家的管理（去荒地 ${since('cFront',26)} 人，在国内角落独自住 ${since('cHermit',26)} 人）`,b:`他们当初没投给当选的代表（现在三个国家里还有 ${pct(mi/Math.max(1,ad.length))} 的成年人当初投了别人），在自己的国家过得不开心`,c:'三个国家少了干活的人；离开的人没有公共仓库和代表，只能靠行商高价买盐、药和铁器，坏年景没人救。'})}
+  const F=S.fstat;
+  if(F&&F.pop>0&&(F.hungry>=3||F.noMed>=1))out.push({sev:0.45+Math.min(0.3,F.hungry*0.03),cls:'bad',tag:'荒地',worlds:[],q:`荒地上有 ${F.hungry} 人吃不饱，${F.noMed} 个病人没有药`,b:`那里没有代表和公共仓库，坏年景没人救；好地被先来的人占了，空着的地平均地力只有 ${F.freeQ}（先占先得）`,c:'生病的人更危险，吃不饱的人只能挨饿或再搬走。'});
   return out.sort((a,b)=>b.sev-a.sev).slice(0,6)}
 return diagnose}

@@ -12,13 +12,13 @@ for(let i=0;i<W;i++){
   Sim.step();
   const g={};S.flow.forEach(([a,b,k,q])=>{const o=g[a+'>'+b]||(g[a+'>'+b]={a,b,v:0,top:{}});const v=q*Sim.G[k].v;o.v+=v;o.top[k]=(o.top[k]||0)+v});
   frames.push([S.t,S.worlds.map((w,j)=>{const s=S.wstat[j];let work=0;w.hhs.forEach(h=>h.members.forEach(p=>{if(p.job&&p.job!=='artist'&&!p.sick&&p.age>=16&&!Sim.JOB[p.job].pub)work++}));
-    return[s.pop,s.hungry,s.sick,s.cold,w.hhs.length,work,w.event||'',Math.round(s.kcov*100),Math.round(s.health*100),Math.round(s.happy*100)]}),
-    Object.values(g).map(o=>[o.a,o.b,Object.entries(o.top).sort((x,y)=>y[1]-x[1])[0][0],Math.round(o.v)])]);
+    return[s.pop,s.hungry,s.sick,s.cold,w.hhs.length,work,w.event||'',Math.round(s.kcov*100),Math.round(s.health*100),Math.round(s.happy*100),s.hermits]}),
+    Object.values(g).map(o=>[o.a,o.b,Object.entries(o.top).sort((x,y)=>y[1]-x[1])[0][0],Math.round(o.v)]),[S.fstat.pop,S.fstat.hh,S.fstat.hungry,S.fstat.sick,S.fstat.claimed]]);
   if(i%8===0||i===W-1){const p=JSON.stringify(diagnose());if(p!==lastP){lastP=p;probs.push([i,JSON.parse(p)])}}
   const r=JSON.stringify(repsNow().map(x=>[x.no,x.votes]));if(r!==lastR){lastR=r;repsLog.push([i,repsNow()])}
 }
 const L=S.hist.at(-1),out={v:1,title:rules.title||'我的三地世界',t0:frames[0][0],weeks:W,rules:chg.map(c=>({week:c.week,role:c.role||'parent',title:c.title||'改了规则',set:c.set||{},events:c.events||[],explain:c.explain||''})),start:rules.start||{},
-  goods:Object.fromEntries(Object.entries(Sim.G).map(([k,g])=>[k,{n:g.n,v:g.v}])),evn:Sim.EVN,labels:rules.labels||{},reps:repsLog,probs,frames};
+  goods:Object.fromEntries(Object.entries(Sim.G).map(([k,g])=>[k,{n:g.n,v:g.v}])),evn:Sim.EVN,plots:S.plots.map(p=>p.q),fclaims:S.fclaims.map(c=>[c[0]-frames[0][0],c[1],c[2],c[3]]),labels:rules.labels||{},reps:repsLog,probs,frames};
 const txt=JSON.stringify(out);out.ver=crypto.createHash('md5').update(txt).digest('hex').slice(0,10);fs.writeFileSync(d+'/result.json',JSON.stringify(out));
 console.log(`${W} 周 · 人口 ${L.pop} · 吃饱 ${Math.round(L.kcov*100)}% · ${(fs.statSync(d+'/result.json').size/1024).toFixed(0)}KB`);
 console.log(probs.at(-1)[1].map(p=>'  - '+p.q).join('\n')||'  （没有问题）');
