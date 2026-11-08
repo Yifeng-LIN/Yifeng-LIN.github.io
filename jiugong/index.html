@@ -1,0 +1,657 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="robots" content="noindex"><style>:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font:14px system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body>
+<title>我的九宫世界</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&family=ZCOOL+KuaiLe&display=swap">
+<style>
+/* Layout: board-game table. Map board on the left, control drawer on the right, results ledger underneath. */
+:root{
+  --bg:#e7eef0; --panel:#fbfdfd; --ink:#1b2a33; --muted:#5a6a74; --line:#cbd7dc; --soft:#eef3f5;
+  --hub:#3a4bbf; --kid:#d8731f; --parent:#227887;
+  --good:#2b9457; --warn:#c88a0c; --bad:#cf4337;
+  --t-orchard:#cfe5ae; --t-forest:#93c28c; --t-mine:#cdd0d8; --t-fish:#a7d3e8; --t-pasture:#dcedb9;
+  --t-herb:#ddd0ec; --t-farm:#f1dc97; --t-pottery:#ebcaa9; --t-hub:#dfe3fb; --t-ink:#24323b;
+  --f-display:"ZCOOL KuaiLe","Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;
+  --f-body:"Noto Sans SC","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#0f161b; --panel:#172129; --ink:#e2ebef; --muted:#93a4ae; --line:#2b3a44; --soft:#1d2932;
+  --hub:#8f9cff; --kid:#f0a05a; --parent:#5cc2d1;
+  --good:#52c283; --warn:#e7b443; --bad:#f07266;
+  --t-orchard:#4c6a37; --t-forest:#2f5a35; --t-mine:#4c5260; --t-fish:#2c5a72; --t-pasture:#56703b;
+  --t-herb:#56456e; --t-farm:#7a6629; --t-pottery:#7a5232; --t-hub:#2b3470; --t-ink:#eef3f5;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0f161b; --panel:#172129; --ink:#e2ebef; --muted:#93a4ae; --line:#2b3a44; --soft:#1d2932;
+  --hub:#8f9cff; --kid:#f0a05a; --parent:#5cc2d1;
+  --good:#52c283; --warn:#e7b443; --bad:#f07266;
+  --t-orchard:#4c6a37; --t-forest:#2f5a35; --t-mine:#4c5260; --t-fish:#2c5a72; --t-pasture:#56703b;
+  --t-herb:#56456e; --t-farm:#7a6629; --t-pottery:#7a5232; --t-hub:#2b3470; --t-ink:#eef3f5;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:1240px;margin:0 auto;display:flex;flex-direction:column;gap:20px}
+header{display:flex;flex-wrap:wrap;align-items:flex-end;justify-content:space-between;gap:12px}
+h1{font-family:var(--f-display);font-weight:400;font-size:clamp(30px,5vw,46px);line-height:1.1;margin:0;letter-spacing:1px}
+h1 small{display:block;font-family:var(--f-body);font-size:14px;color:var(--muted);letter-spacing:0;margin-top:6px;font-weight:400;text-wrap:balance}
+h2{font-family:var(--f-display);font-weight:400;font-size:22px;margin:0;letter-spacing:.5px}
+h3{font-size:13px;margin:0;color:var(--muted);font-weight:700;letter-spacing:.08em}
+.clock{font-variant-numeric:tabular-nums;font-family:var(--f-display);font-size:22px;color:var(--hub)}
+.top{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.top{grid-template-columns:minmax(0,1fr)}}
+.board{display:flex;flex-direction:column;gap:12px;min-width:0}
+#map{width:100%;aspect-ratio:1/1;max-width:100%;display:block;border-radius:18px;background:var(--soft);cursor:pointer;touch-action:manipulation}
+.bar{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+button{font:inherit;color:inherit;cursor:pointer}
+.btn{border:1.5px solid var(--line);background:var(--panel);border-radius:10px;padding:7px 14px;font-weight:500}
+.btn:hover{border-color:var(--hub)}
+.btn.primary{background:var(--hub);border-color:var(--hub);color:var(--panel);font-weight:700}
+.btn:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:3px solid var(--hub);outline-offset:2px}
+.seg{display:flex;flex-wrap:wrap;gap:6px}
+.seg button{flex:1 1 120px;border:1.5px solid var(--line);background:var(--panel);border-radius:10px;padding:8px 10px;text-align:left;line-height:1.3}
+.seg button b{display:block;font-size:15px}
+.seg button span{font-size:12px;color:var(--muted)}
+.seg button[aria-pressed="true"]{border-color:var(--hub);background:color-mix(in srgb,var(--hub) 12%,var(--panel))}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+.drawer{display:flex;flex-direction:column;gap:14px;min-width:0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1.5px solid var(--line);background:var(--panel);border-radius:999px;padding:5px 12px;font-size:13.5px;display:inline-flex;gap:6px;align-items:center}
+.chip::before{content:"";width:9px;height:9px;border-radius:50%;border:1.5px solid currentColor;opacity:.6}
+.chip[aria-pressed="true"]::before{background:currentColor;opacity:1}
+.kid .chip[aria-pressed="true"]{border-color:var(--kid);color:var(--kid);background:color-mix(in srgb,var(--kid) 10%,var(--panel))}
+.parent .chip[aria-pressed="true"]{border-color:var(--parent);color:var(--parent);background:color-mix(in srgb,var(--parent) 10%,var(--panel))}
+.grp{display:flex;flex-direction:column;gap:8px}
+.grp h3 .who{display:inline-block;padding:1px 8px;border-radius:6px;color:var(--panel);margin-right:6px;letter-spacing:0}
+.kid h3 .who{background:var(--kid)} .parent h3 .who{background:var(--parent)}
+.slider{display:grid;grid-template-columns:auto minmax(0,1fr) 3.5em;gap:10px;align-items:center;font-size:13.5px}
+.slider input{width:100%;accent-color:var(--hub)}
+.slider output{font-variant-numeric:tabular-nums;text-align:right;font-weight:700}
+.idea{display:flex;flex-direction:column;gap:8px}
+.idea textarea{width:100%;min-height:64px;resize:vertical;font:inherit;border:1.5px solid var(--line);border-radius:10px;padding:8px 10px;background:var(--soft);color:var(--ink)}
+.who-toggle{display:flex;gap:6px}
+.who-toggle button{border:1.5px solid var(--line);background:var(--panel);border-radius:8px;padding:4px 10px;font-size:13px}
+.who-toggle button[data-r="kid"][aria-pressed="true"]{border-color:var(--kid);color:var(--kid)}
+.who-toggle button[data-r="parent"][aria-pressed="true"]{border-color:var(--parent);color:var(--parent)}
+.note{font-size:12.5px;color:var(--muted)}
+.detail{font-size:13.5px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-height:64px}
+.detail b{font-size:15px}
+.kv{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:2px 14px;margin-top:6px;font-variant-numeric:tabular-nums}
+.verdict{display:flex;flex-wrap:wrap;gap:14px;align-items:center;border-radius:16px;padding:14px 18px;border:2px solid var(--line);background:var(--panel)}
+.verdict .face{font-family:var(--f-display);font-size:28px;line-height:1}
+.verdict.good{border-color:var(--good)} .verdict.good .face{color:var(--good)}
+.verdict.warn{border-color:var(--warn)} .verdict.warn .face{color:var(--warn)}
+.verdict.bad{border-color:var(--bad)} .verdict.bad .face{color:var(--bad)}
+.verdict p{margin:0;flex:1 1 300px;min-width:0}
+.stats{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:10px}
+@media (max-width:760px){.stats{grid-template-columns:repeat(3,minmax(0,1fr))}}
+.stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 12px}
+.stat .l{font-size:12px;color:var(--muted)}
+.stat .v{font-size:22px;font-weight:700;font-variant-numeric:tabular-nums;line-height:1.2}
+.charts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@media (max-width:900px){.charts{grid-template-columns:minmax(0,1fr)}}
+.chart{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:6px;min-width:0}
+.chart canvas{width:100%;height:170px;display:block}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:12px;height:3px;border-radius:2px;vertical-align:middle;margin-right:4px}
+.lower{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px;align-items:start}
+@media (max-width:900px){.lower{grid-template-columns:minmax(0,1fr)}}
+.finds{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.finds li{padding:8px 12px;border-radius:10px;background:var(--soft);border-left:4px solid var(--line);font-size:14px}
+.finds li.good{border-left-color:var(--good)} .finds li.warn{border-left-color:var(--warn)} .finds li.bad{border-left-color:var(--bad)}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px;max-height:420px;overflow:auto}
+.log li{font-size:13.5px;padding:8px 10px;border-radius:10px;background:var(--soft)}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:0 7px;border-radius:6px;color:var(--panel);margin-right:6px}
+.tag.kid{background:var(--kid)} .tag.parent{background:var(--parent)} .tag.sys{background:var(--muted)}
+.log .m{color:var(--muted);font-variant-numeric:tabular-nums;font-size:12px}
+.log .ex{display:block;color:var(--muted);margin-top:2px}
+.ai{white-space:pre-wrap;font-size:14px;background:var(--soft);border-radius:10px;padding:10px 12px;min-height:2em}
+.table-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:13px;font-variant-numeric:tabular-nums}
+th,td{padding:6px 8px;text-align:right;border-bottom:1px solid var(--line);white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--muted);font-weight:500}
+.pill{display:inline-block;min-width:44px;padding:0 6px;border-radius:6px;text-align:center}
+.pill.good{background:color-mix(in srgb,var(--good) 18%,transparent)}
+.pill.warn{background:color-mix(in srgb,var(--warn) 22%,transparent)}
+.pill.bad{background:color-mix(in srgb,var(--bad) 22%,transparent)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<div class="wrap">
+  <header>
+    <h1>我的九宫世界<small>八个世界不用钱，自己劳作、打猎、种地；中间的补给中心负责药品和工具。这样的社会能好好运转吗？</small></h1>
+    <div class="clock" id="clock">第 1 年 · 1 月</div>
+  </header>
+
+  <section class="top">
+    <div class="board">
+      <canvas id="map" aria-label="九宫格地图：八个世界和中间的补给中心，小车表示运送物资"></canvas>
+      <div class="bar">
+        <button class="btn primary" id="play">▶ 开始</button>
+        <button class="btn" id="stepBtn">下一个月</button>
+        <button class="btn" id="speed">速度 1×</button>
+        <button class="btn" id="reset">从头再来</button>
+      </div>
+      <div class="detail" id="detail"><b>点地图上的格子</b>，看看那个世界这个月生产了什么、交出去多少、换回来多少。<br><span class="note">每个格子下面的三条，从上到下是：吃饱、健康、开心。绿色好，黄色一般，红色糟糕。橙色小点是送去中心的货，蓝色小点是从中心运回的货。</span></div>
+    </div>
+
+    <div class="drawer">
+      <div class="panel">
+        <h2>怎么交换东西？</h2>
+        <div class="seg" id="modes">
+          <button data-mode="free"><b>不要钱 · 想要就拿</b><span>东西都放到中心，谁需要谁去拿</span></button>
+          <button data-mode="barter"><b>以物易物</b><span>拿自己的东西去换别人的东西</span></button>
+          <button data-mode="money"><b>用钱买卖</b><span>中心印钱，大家用钱买东西</span></button>
+        </div>
+        <div class="slider"><label for="kind">大家有多自觉</label><input type="range" id="kind" min="0" max="100" step="5"><output id="kindOut"></output></div>
+        <div class="slider" id="printRow"><label for="print">每月印多少新钱</label><input type="range" id="print" min="0" max="50" step="1"><output id="printOut"></output></div>
+      </div>
+
+      <div class="panel">
+        <div class="grp kid">
+          <h3><span class="who">小朋友</span>的假设</h3>
+          <div class="chips" id="kidChips"></div>
+        </div>
+        <div class="grp parent">
+          <h3><span class="who">爸爸妈妈</span>的现实制约</h3>
+          <div class="chips" id="parentChips"></div>
+          <div class="slider"><label for="cap">补给中心产能</label><input type="range" id="cap" min="40" max="200" step="10"><output id="capOut"></output></div>
+        </div>
+      </div>
+
+      <div class="panel idea">
+        <h2>说出你的想法</h2>
+        <div class="who-toggle" role="group" aria-label="谁在提想法">
+          <button data-r="kid" aria-pressed="true">我是小朋友</button>
+          <button data-r="parent" aria-pressed="false">我是爸爸妈妈</button>
+        </div>
+        <textarea id="ideaText" placeholder="比如：如果补给中心的叔叔先把药给生病最多的世界呢？&#10;或者：现实里会有人偷懒，还有山火。"></textarea>
+        <div class="bar"><button class="btn primary" id="ideaGo">放进世界里试试</button><span class="note" id="ideaNote"></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></section>
+
+  <section class="stats" id="stats"></section>
+
+  <section class="charts">
+    <div class="chart"><h3>大家开心吗？身体好吗？</h3><canvas id="c1"></canvas><div class="legend"><span><i style="background:var(--kid)"></i>开心</span><span><i style="background:var(--good)"></i>健康</span><span><i style="background:var(--muted)"></i>竖线 = 改了规则</span></div></div>
+    <div class="chart"><h3>补给中心的仓库</h3><canvas id="c2"></canvas><div class="legend"><span><i style="background:var(--bad)"></i>药品</span><span><i style="background:var(--hub)"></i>工具</span><span><i style="background:var(--warn)"></i>食物（÷5）</span></div></div>
+    <div class="chart"><h3 id="c3title">一个苹果多少钱</h3><canvas id="c3"></canvas><div class="legend" id="c3legend"></div></div>
+  </section>
+
+  <section class="lower">
+    <div class="panel">
+      <h2>发生了什么</h2>
+      <ul class="finds" id="finds"></ul>
+      <div class="bar" id="aiBar" hidden><button class="btn" id="aiBtn">请 Claude 讲讲为什么</button><span class="note" id="aiNote"></span></div>
+      <div class="ai" id="aiOut" hidden></div>
+      <h3>八个世界这个月</h3>
+      <div class="table-wrap"><table id="tbl"></table></div>
+    </div>
+    <div class="panel">
+      <h2>实验记录</h2>
+      <p class="note">每次改规则都记在这里，图上的竖线就是这些时刻。</p>
+      <ul class="log" id="log"></ul>
+    </div>
+  </section>
+</div>
+
+<script>
+(()=>{
+// ---------- data ----------
+const WORLDS=[
+ {id:'orchard',name:'苹果园',r:0,c:0,pop:40,prod:{fruit:1.7},desc:'种苹果、摘果子',ev:'drought'},
+ {id:'forest',name:'猎人森林',r:0,c:1,pop:35,prod:{meat:0.9,wood:0.9},desc:'打猎、砍柴',ev:'fire'},
+ {id:'mine',name:'雪山矿场',r:0,c:2,pop:30,prod:{ore:1.25},desc:'挖矿石（做工具要用）',ev:'collapse'},
+ {id:'fish',name:'海边渔港',r:1,c:0,pop:45,prod:{fish:1.6},desc:'出海打鱼',ev:'storm'},
+ {id:'pasture',name:'草原牧场',r:1,c:2,pop:35,prod:{milk:1.75},desc:'放羊、挤奶',ev:'drought'},
+ {id:'herb',name:'草药谷',r:2,c:0,pop:25,prod:{herb:0.95},desc:'采草药（做药要用）',ev:'drought'},
+ {id:'farm',name:'稻田村',r:2,c:1,pop:60,prod:{grain:1.95},desc:'种稻子',ev:'drought'},
+ {id:'pottery',name:'陶土小镇',r:2,c:2,pop:30,prod:{ware:1.1},desc:'做碗、罐子、日用品',ev:'storm'},
+];
+const G={fruit:{n:'苹果',food:1,per:1,b:1},meat:{n:'肉',food:1,per:1,b:1.4},fish:{n:'鱼',food:1,per:1,b:1.1},milk:{n:'奶',food:1,per:1,b:1},grain:{n:'粮食',food:1,per:0,b:0.85},
+ wood:{n:'木头'},ore:{n:'矿石'},herb:{n:'草药'},ware:{n:'陶器'},med:{n:'药品'},tool:{n:'工具'}};
+const FOODS=['fruit','meat','fish','milk','grain'];
+const EVN={drought:'干旱',storm:'风暴',collapse:'塌方',fire:'山火',plague:'瘟疫',bumper:'大丰收'};
+const MODE_N={free:'不要钱 · 想要就拿',barter:'以物易物',money:'用钱买卖'};
+const KID=[
+ ['needFirst','中心先给最需要的人'],['share','邻居之间互相帮忙'],['freedom','想干嘛就干嘛（不想干活可以玩）'],['migrate','可以搬去更喜欢的世界'],
+];
+const PARENT=[
+ ['greed','人性：都想多拿一点'],['freeRide','不要钱就有人偷懒'],['spoil','鱼、肉、奶会坏掉'],['disasters','会有天灾'],['distance','角落的世界路远，路上有损耗'],['growth','人口会增长'],
+];
+const DEFAULT={mode:'free',kindness:0.6,printRate:0.02,hubCap:1,needFirst:false,share:false,freedom:false,migrate:false,greed:false,freeRide:false,spoil:false,disasters:false,distance:false,growth:false};
+let P={...DEFAULT};
+
+// ---------- rng ----------
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+const clamp=(x,a,b)=>Math.max(a,Math.min(b,x));
+const add=(o,k,v)=>{o[k]=(o[k]||0)+v};
+const sumFood=o=>FOODS.reduce((s,g)=>s+(o[g]||0),0);
+const isCorner=w=>w.r!==1&&w.c!==1;
+const adj=w=>S.worlds.filter(o=>Math.abs(o.r-w.r)+Math.abs(o.c-w.c)===1);
+
+// ---------- state ----------
+let S;
+function newState(){
+  const s={month:0,rng:mulberry(20261108),trust:1,M:0,prices:{food:1,med:4,tool:5,ware:1.2},prevIdx:1,infl:0,mIdx:1,q0:0,
+    hub:{stock:{med:30,tool:20,grain:40,fish:10,fruit:10},fed:1},
+    worlds:WORLDS.map(w=>({...w,pop:w.pop,pop0:w.pop,land:1,health:.85,happy:.7,tools:.8,stock:{},money:w.pop*2.2,credit:0,effort:1,event:null,eventLeft:0,
+      last:{foodCov:1,medCov:1,variety:1,wareCov:1,produced:{},gave:{},got:{}}})),
+    hist:[],log:[],cnt:{over:0,spoiled:0,lost:0,deaths:0,moved:0,disasters:0,hoard:0,shortMed:0,kEff:P.kindness},carts:[]};
+  s.worlds.forEach(w=>{for(const g in w.prod){if(G[g].food)w.stock[g]=w.pop*0.6}});
+  s.M=s.worlds.reduce((a,w)=>a+w.money,0);
+  return s;
+}
+function sickRate(w){return w.event==='plague'?0.35:0.08}
+function evMult(w){if(!w.event)return 1;return w.event==='bumper'?1.6:w.event==='plague'?0.75:0.25}
+function trigger(w,type,quiet){w.event=type;w.eventLeft=type==='bumper'?2:2+Math.floor(S.rng()*2);S.cnt.disasters+=type==='bumper'?0:1;
+  if(!quiet)addLog('sys',`${w.name}：${EVN[type]}！`,type==='bumper'?'这几个月收成特别好。':'这几个月很难生产东西。')}
+
+function priceOf(g){const p=S.prices;if(G[g].food)return p.food*G[g].b;if(g==='wood'||g==='ore')return p.tool*0.3;if(g==='herb')return p.med*0.5;if(g==='ware')return p.ware;return p[g]||1}
+
+// ---------- one month ----------
+function step(){
+  const s=S,rnd=s.rng;s.month++;
+  const free=P.mode==='free',barter=P.mode==='barter',money=P.mode==='money';
+  const totalPop=s.worlds.reduce((a,w)=>a+w.pop,0);
+  // bigger society: people know each other less, so kindness erodes a little
+  const kEff=P.growth?P.kindness*Math.pow(Math.min(1,330/totalPop),0.6):P.kindness;
+  s.cnt.kEff=kEff;
+  s.worlds.forEach(w=>{if(w.eventLeft>0){w.eventLeft--;if(!w.eventLeft)w.event=null}});
+  if(P.disasters)s.worlds.forEach(w=>{if(!w.event&&rnd()<0.03)trigger(w,rnd()<0.25?'plague':w.ev)});
+  // 1 produce
+  s.worlds.forEach(w=>{
+    let eff=1;if(free&&P.freeRide)eff*=0.45+0.5*kEff;if(P.freedom)eff*=0.85;w.effort=eff;
+    const land=w.pop>w.pop0*1.2?Math.pow(w.pop0*1.2/w.pop,0.8):1;w.land=land;
+    const m=eff*(0.5+0.5*w.tools)*(0.4+0.6*w.health)*evMult(w)*land;
+    w.last={produced:{},gave:{},got:{},foodCov:0,medCov:0,variety:0,wareCov:0};
+    for(const g in w.prod){const a=w.pop*w.prod[g]*m;add(w.stock,g,a);w.last.produced[g]=a}
+  });
+  // 2 neighbours share food directly
+  if(P.share){s.worlds.forEach(w=>{const f=sumFood(w.stock),sur=f-w.pop*1.15;if(sur<=0)return;
+    const needy=adj(w).filter(o=>sumFood(o.stock)<o.pop);if(!needy.length)return;const give=sur*0.4/needy.length;
+    needy.forEach(o=>FOODS.forEach(g=>{const t=(w.stock[g]||0)/f*give;if(t>0){w.stock[g]-=t;add(o.stock,g,t)}}))})}
+  // 3 deposit surplus at the hub
+  s.worlds.forEach(w=>{
+    const own=FOODS.filter(g=>w.prod[g]).reduce((a,g)=>a+(w.stock[g]||0),0),other=sumFood(w.stock)-own;
+    const greedy=free&&P.greed,keepAmt=greedy?w.pop*(1+0.8*(1-kEff)):Math.max(0,w.pop*1.0-other);
+    const keepFrac=own>0?Math.min(1,keepAmt/own):1;
+    for(const g of Object.keys(w.prod)){if(!w.stock[g])continue;
+      const keep=G[g].food?w.stock[g]*keepFrac:0,avail=w.stock[g]-keep;if(avail<=0.01)continue;
+      let frac=1;if(free)frac=P.greed?0.25+0.7*kEff:0.9+0.1*kEff;if(money)frac*=s.trust;
+      const dep=avail*frac,loss=P.distance?(isCorner(w)?0.12:0.04):0,arr=dep*(1-loss);
+      w.stock[g]-=dep;add(s.hub.stock,g,arr);w.last.gave[g]=dep;s.cnt.lost+=dep*loss;
+      if(barter)w.credit+=arr*priceOf(g)*(P.greed?0.78:0.92);
+      if(money)w.money+=arr*priceOf(g);
+    }
+  });
+  // 4 hub staff eat, hub makes medicine and tools
+  const H=s.hub.stock,staff=20;let hf=sumFood(H),eat=Math.min(hf,staff);
+  FOODS.forEach(g=>{if(H[g])H[g]-=H[g]/hf*eat||0});s.hub.fed=eat/staff;
+  const cap=P.hubCap*(0.3+0.7*s.hub.fed);
+  const mk=Math.min((H.herb||0)*1.5,45*cap);H.herb=(H.herb||0)-mk/1.5;add(H,'med',mk);
+  const tk=Math.min(H.ore||0,H.wood||0,30*cap);H.ore=(H.ore||0)-tk;H.wood=(H.wood||0)-tk;add(H,'tool',tk);
+  s.hub.made={med:mk,tool:tk};
+  // 5 needs and requests
+  const cats=['med','tool','food','ware'];
+  s.worlds.forEach(w=>{
+    const own=sumFood(w.stock),producesFood=FOODS.some(g=>w.prod[g]);
+    const food=producesFood?Math.max(w.pop*0.25,w.pop-own):Math.max(0,w.pop*1.0-own);
+    const med=Math.max(0,w.pop*sickRate(w)-(w.stock.med||0));
+    const tool=Math.max(0,Math.min(w.pop*0.1,(1-w.tools)*w.pop*0.3)-(w.stock.tool||0));
+    const ware=w.prod.ware?0:Math.max(0,w.pop*0.1-(w.stock.ware||0));
+    w.need={med,food,tool,ware};w.req={...w.need};
+    if(free&&P.greed){const k=2.4*(1-kEff),gross={med:w.pop*sickRate(w),food:w.pop*(producesFood?0.4:1),tool:w.pop*0.1,ware:w.prod.ware?0:w.pop*0.1};
+      cats.forEach(c=>w.req[c]+=gross[c]*k)}
+    if(money&&P.greed){const cost=cats.reduce((a,c)=>a+w.need[c]*catPrice(c),0)||1;const aff=w.money/cost;
+      const k=clamp(1+(aff-1.3)*0.6,1,2.6);cats.forEach(c=>w.req[c]*=k)}
+  });
+  // 6 allocate
+  const dem={},sup={};
+  cats.forEach(c=>{
+    const avail=c==='food'?sumFood(H):(H[c]||0);sup[c]=avail;
+    let give=s.worlds.map(()=>0);
+    if(free){
+      if(P.needFirst){const tn=s.worlds.reduce((a,w)=>a+w.need[c],0),f1=tn>0?Math.min(1,avail/tn):0;
+        give=s.worlds.map(w=>w.need[c]*f1)}
+      else{const tr=s.worlds.reduce((a,w)=>a+w.req[c],0),f=tr>0?Math.min(1,avail/tr):0;give=s.worlds.map(w=>w.req[c]*f)}
+      dem[c]=s.worlds.reduce((a,w)=>a+w.req[c],0);
+    }else{
+      const pr=catPrice(c);
+      const want=s.worlds.map(w=>Math.min(w.req[c],(barter?w.credit:w.money)/pr));
+      dem[c]=s.worlds.reduce((a,w)=>a+w.req[c],0);
+      const tw=want.reduce((a,b)=>a+b,0),f=tw>0?Math.min(1,avail/tw):0;give=want.map(x=>x*f);
+      s.worlds.forEach((w,i)=>{if(barter)w.credit-=give[i]*pr;else w.money-=give[i]*pr});
+    }
+    s.worlds.forEach((w,i)=>{const q=give[i];if(q<=0)return;
+      if(c==='food')takeFood(w,q);else{H[c]-=q;add(w.stock,c,q)}
+      w.last.got[c]=q;if(q>w.need[c]*1.05)s.cnt.hoard+=q-w.need[c]});
+  });
+  // 7 consume
+  s.worlds.forEach(w=>{
+    // free things get used up faster when people are greedy: eat more than needed, waste more
+    const over=free&&P.greed?1+(P.needFirst?0.3:0.7)*(1-kEff):1;
+    const f=sumFood(w.stock),eat=Math.min(f,w.pop*over);let variety=0;s.cnt.over+=Math.max(0,eat-w.pop);
+    FOODS.forEach(g=>{const x=w.stock[g]||0;if(!x)return;const t=x/f*eat;w.stock[g]-=t;if(t>eat*0.08)variety++});
+    const foodCov=w.pop?Math.min(1,eat/w.pop):1;
+    const sick=w.pop*sickRate(w),mu=Math.min(w.stock.med||0,sick);w.stock.med=Math.max(0,(w.stock.med||0)-mu*over);const medCov=sick?mu/sick:1;
+    const tu=Math.min(w.stock.tool||0,w.pop*0.1);w.stock.tool=(w.stock.tool||0)-tu;w.tools=clamp(w.tools+tu/(w.pop*0.3)-0.05,0.2,1);
+    let wareCov=1;if(!w.prod.ware){const wu=Math.min(w.stock.ware||0,w.pop*0.1);w.stock.ware-=wu;wareCov=wu/(w.pop*0.1)}
+    const ht=(0.3+0.7*medCov)*(0.25+0.75*foodCov);w.health+=(ht-w.health)*0.35;
+    let joy=0.34*foodCov+0.22*w.health+0.12*Math.min(1,variety/3)+0.1*wareCov+0.08;
+    if(free)joy+=0.06;if(P.freedom)joy+=0.1;if(money&&s.infl>0.08)joy-=Math.min(0.18,s.infl);
+    if(w.event&&w.event!=='bumper')joy-=0.05;
+    w.happy+=(clamp(joy,0,1)-w.happy)*0.4;
+    if(foodCov<0.75||w.health<0.45){const d=w.pop*0.04*(1-Math.min(foodCov,w.health/0.45));w.pop-=d;s.cnt.deaths+=d}
+    else if(P.growth&&foodCov>0.95&&w.health>0.7)w.pop*=1.012;
+    w.pop=Math.max(3,w.pop);
+    Object.assign(w.last,{foodCov,medCov,variety,wareCov});
+  });
+  // 8 spoil
+  const rot=g=>G[g].food?(G[g].per?(P.spoil?0.45:0.04):0.03):0.02;
+  [...s.worlds.map(w=>w.stock),H].forEach(st=>{for(const g in st){if(g==='med'||g==='tool'){st[g]*=0.94;continue}const l=st[g]*rot(g);if(G[g].food)s.cnt.spoiled+=l;st[g]-=l}});
+  // 9 money, prices, trust
+  if(barter)s.worlds.forEach(w=>w.credit*=0.7);
+  if(!free){
+    if(money&&P.printRate>0){const tp=s.worlds.reduce((a,w)=>a+w.pop,0),nm=s.worlds.reduce((a,w)=>a+w.money,0)*P.printRate;s.worlds.forEach(w=>w.money+=nm*w.pop/tp)}
+    const base={food:1,med:4,tool:5,ware:1.2};
+    const q=s.worlds.reduce((a,w)=>a+FOODS.reduce((b,g)=>b+(w.last.produced[g]||0),0),0);if(!s.q0)s.q0=q;
+    if(money)s.mIdx*=1+P.printRate;
+    // more money chasing the same apples: with greed, sellers pass all of it on; without, only part
+    const anchor=money?Math.pow(s.mIdx,P.greed?1:0.35)/clamp(q/s.q0,0.4,1.6):1;
+    cats.forEach(c=>{const r=clamp((dem[c]+0.5)/(sup[c]+0.5),0.6,2.5),tgt=base[c]*anchor*Math.pow(r,0.35);
+      s.prices[c]+= (tgt-s.prices[c])*0.45});
+    const idx=cats.reduce((a,c)=>a+s.prices[c]/base[c],0)/4;s.infl=idx/s.prevIdx-1;s.prevIdx=idx;
+    if(money){if(s.infl>0.1)s.trust=Math.max(0.35,s.trust-0.1*s.infl/0.1);else s.trust=Math.min(1,s.trust+0.03)}
+  }else s.infl=0;
+  // 10 migration
+  if(P.migrate){const so=[...s.worlds].sort((a,b)=>a.happy-b.happy),lo=so[0],hi=so[so.length-1];
+    if(hi.happy-lo.happy>0.12){const mv=lo.pop*0.04;lo.pop-=mv;hi.pop+=mv;s.cnt.moved+=mv}}
+  // 11 history
+  const tp=s.worlds.reduce((a,w)=>a+w.pop,0),avg=k=>s.worlds.reduce((a,w)=>a+w[k]*w.pop,0)/tp;
+  s.hist.push({m:s.month,happy:avg('happy'),health:avg('health'),pop:tp,med:H.med||0,tool:H.tool||0,food:sumFood(H),
+    apple:money?s.prices.food:null,scar:(dem.food+0.5)/(sup.food+0.5),noMed:s.worlds.filter(w=>w.last.medCov<0.6).length,
+    hungry:s.worlds.filter(w=>w.last.foodCov<0.85).length,mode:P.mode,trust:s.trust});
+  if(s.worlds.some(w=>w.last.medCov<0.6))s.cnt.shortMed++;
+  spawnCarts();
+}
+function catPrice(c){return c==='food'?S.prices.food:S.prices[c]}
+function takeFood(w,q){const H=S.hub.stock;const wt={};let sw=0;
+  FOODS.forEach(g=>{const a=H[g]||0;if(a>0){wt[g]=a*(w.prod[g]?0.3:1);sw+=wt[g]}});
+  let left=q;for(const g in wt){const t=Math.min(H[g],q*wt[g]/sw);H[g]-=t;add(w.stock,g,t);left-=t}
+  if(left>1e-6)FOODS.forEach(g=>{const t=Math.min(H[g]||0,left);if(t>0){H[g]-=t;add(w.stock,g,t);left-=t}})}
+
+// ---------- log ----------
+function addLog(role,title,ex,pred){S.log.unshift({m:S.month,role,title,ex:ex||'',pred:pred||''});renderLog()}
+function renderLog(){const el=document.getElementById('log');el.innerHTML='';
+  S.log.forEach(e=>{const li=document.createElement('li');const tg=document.createElement('span');tg.className='tag '+e.role;tg.textContent=e.role==='kid'?'小朋友':e.role==='parent'?'爸爸妈妈':'世界';
+    const m=document.createElement('span');m.className='m';m.textContent=' '+ym(e.m)+' ';const t=document.createElement('b');t.textContent=e.title;li.append(tg,t,m);
+    if(e.ex){const x=document.createElement('span');x.className='ex';x.textContent=e.ex;li.append(x)}
+    if(e.pred){const x=document.createElement('span');x.className='ex';x.textContent='预测：'+e.pred;li.append(x)}
+    el.append(li)})}
+const ym=m=>{const y=Math.floor(m/12)+1,mo=m%12+1;return `第${y}年${mo}月`};
+
+// ---------- map drawing ----------
+const cv=document.getElementById('map'),cx=cv.getContext('2d');
+let col={},colT=0,DPR=1,size=0;
+function readCols(){const cs=getComputedStyle(document.documentElement);
+  ['bg','panel','ink','muted','line','soft','hub','kid','parent','good','warn','bad','t-orchard','t-forest','t-mine','t-fish','t-pasture','t-herb','t-farm','t-pottery','t-hub','t-ink'].forEach(k=>col[k]=cs.getPropertyValue('--'+k).trim())}
+function fit(){const r=cv.getBoundingClientRect();DPR=Math.min(2,window.devicePixelRatio||1);size=r.width;cv.width=Math.round(r.width*DPR);cv.height=Math.round(r.width*DPR)}
+const deco={};
+function makeDeco(){const r=mulberry(7);WORLDS.forEach(w=>{deco[w.id]=Array.from({length:14},()=>[r(),r(),r()])})}
+const folk={};
+function tileRect(r,c){const g=size*0.02,t=(size-g*4)/3;return[g+c*(t+g),g+r*(t+g),t]}
+function rr(x,y,w,h,rad){cx.beginPath();cx.roundRect?cx.roundRect(x,y,w,h,rad):cx.rect(x,y,w,h)}
+function drawDeco(w,x,y,t){const d=deco[w.id],ink=col['t-ink'];cx.save();cx.beginPath();cx.rect(x,y,t,t);cx.clip();
+  const a=(i,lo=0.32,hi=0.86)=>[x+t*(0.08+d[i][0]*0.84),y+t*(lo+d[i][1]*(hi-lo))];
+  cx.globalAlpha=0.55;
+  if(w.id==='orchard'){for(let i=0;i<9;i++){const[px,py]=a(i);cx.fillStyle='#4f8a3a';cx.beginPath();cx.arc(px,py,t*0.055,0,7);cx.fill();cx.fillStyle='#d6423a';cx.beginPath();cx.arc(px+t*0.02,py-t*0.01,t*0.013,0,7);cx.fill()}}
+  if(w.id==='forest'){cx.fillStyle='#1f5a2c';for(let i=0;i<12;i++){const[px,py]=a(i);const h=t*(0.08+d[i][2]*0.05);cx.beginPath();cx.moveTo(px,py-h);cx.lineTo(px-h*0.5,py+h*0.4);cx.lineTo(px+h*0.5,py+h*0.4);cx.fill()}}
+  if(w.id==='mine'){for(let i=0;i<4;i++){const px=x+t*(0.12+i*0.24),py=y+t*0.8,h=t*(0.28+d[i][2]*0.2);cx.fillStyle='#6b7080';cx.beginPath();cx.moveTo(px-t*0.17,py);cx.lineTo(px,py-h);cx.lineTo(px+t*0.17,py);cx.fill();cx.fillStyle='#f4f6f8';cx.beginPath();cx.moveTo(px-t*0.045,py-h+t*0.06);cx.lineTo(px,py-h);cx.lineTo(px+t*0.045,py-h+t*0.06);cx.fill()}}
+  if(w.id==='fish'){cx.strokeStyle='#1f6a8f';cx.lineWidth=Math.max(1,t*0.012);for(let i=0;i<8;i++){const[px,py]=a(i);cx.beginPath();cx.arc(px,py,t*0.04,Math.PI*1.1,Math.PI*1.9);cx.stroke()}
+    cx.fillStyle='#8a5a2b';const bx=x+t*0.55+Math.sin(Date.now()/900)*t*0.06,by=y+t*0.55;cx.beginPath();cx.moveTo(bx-t*0.08,by);cx.lineTo(bx+t*0.08,by);cx.lineTo(bx+t*0.05,by+t*0.04);cx.lineTo(bx-t*0.05,by+t*0.04);cx.fill()}
+  if(w.id==='pasture'){for(let i=0;i<9;i++){const[px,py]=a(i);cx.fillStyle='#ffffff';cx.beginPath();cx.ellipse(px,py,t*0.04,t*0.028,0,0,7);cx.fill();cx.fillStyle='#333';cx.beginPath();cx.arc(px+t*0.04,py-t*0.005,t*0.012,0,7);cx.fill()}}
+  if(w.id==='herb'){for(let i=0;i<13;i++){const[px,py]=a(i);cx.fillStyle=i%2?'#8a5cc2':'#f2f2f2';for(let k=0;k<5;k++){cx.beginPath();cx.arc(px+Math.cos(k*1.26)*t*0.016,py+Math.sin(k*1.26)*t*0.016,t*0.011,0,7);cx.fill()}}}
+  if(w.id==='farm'){cx.strokeStyle='#b08a1e';cx.lineWidth=Math.max(1,t*0.014);for(let i=0;i<7;i++){const py=y+t*(0.36+i*0.075);cx.beginPath();cx.moveTo(x+t*0.08,py);cx.lineTo(x+t*0.92,py);cx.stroke()}}
+  if(w.id==='pottery'){for(let i=0;i<5;i++){const[px,py]=a(i,0.4,0.8);const s=t*0.08;cx.fillStyle='#a8683a';cx.fillRect(px-s/2,py-s/2,s,s*0.8);cx.fillStyle='#7b3f1f';cx.beginPath();cx.moveTo(px-s*0.65,py-s/2);cx.lineTo(px,py-s*1.05);cx.lineTo(px+s*0.65,py-s/2);cx.fill()}}
+  cx.restore()}
+function bars(x,y,t,w){const items=[[w.last.foodCov,'吃饱'],[w.health,'健康'],[w.happy,'开心']];const bw=t*0.84,bh=Math.max(4,t*0.035),gap=t*0.012;
+  items.forEach((it,i)=>{const by=y+t*0.94-(3-i)*(bh+gap)-t*0.03,bx=x+t*0.08,v=clamp(it[0],0,1);
+    cx.fillStyle=col.panel;cx.globalAlpha=0.75;rr(bx,by,bw,bh,bh/2);cx.fill();cx.globalAlpha=1;
+    cx.fillStyle=v>0.72?col.good:v>0.5?col.warn:col.bad;rr(bx,by,Math.max(bh,bw*v),bh,bh/2);cx.fill()})}
+function spawnCarts(){if(reduceMotion)return;const now=performance.now(),dur=tickMs()*0.9;
+  S.worlds.forEach(w=>{const out=Object.values(w.last.gave).reduce((a,b)=>a+b,0),back=Object.values(w.last.got).reduce((a,b)=>a+b,0);
+    const no=Math.min(4,Math.round(out/18)),nb=Math.min(4,Math.round(back/12));
+    for(let i=0;i<no;i++)S.carts.push({w,dir:1,t0:now+i*dur*0.12,dur:dur*0.55});
+    for(let i=0;i<nb;i++)S.carts.push({w,dir:-1,t0:now+dur*0.4+i*dur*0.1,dur:dur*0.55})})}
+function draw(){
+  if(++colT%45===1)readCols();
+  const W=cv.width;cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,W,W);
+  const fs=Math.max(10,size*0.032);
+  S.worlds.forEach(w=>{const[x,y,t]=tileRect(w.r,w.c);
+    cx.fillStyle=col['t-'+w.id];rr(x,y,t,t,t*0.08);cx.fill();
+    if(sel===w.id){cx.strokeStyle=col.hub;cx.lineWidth=3;rr(x+1.5,y+1.5,t-3,t-3,t*0.08);cx.stroke()}
+    drawDeco(w,x,y,t);
+    // villagers
+    const n=Math.max(1,Math.round(w.pop/5));let f=folk[w.id]||(folk[w.id]=[]);
+    while(f.length<n)f.push({x:Math.random(),y:Math.random(),vx:0,vy:0});if(f.length>n)f.length=n;
+    cx.fillStyle=col['t-ink'];cx.globalAlpha=0.8;
+    f.forEach(p=>{if(!reduceMotion&&running){p.vx=clamp(p.vx+(Math.random()-0.5)*0.002,-0.004,0.004);p.vy=clamp(p.vy+(Math.random()-0.5)*0.002,-0.004,0.004);p.x+=p.vx;p.y+=p.vy;
+      if(p.x<0||p.x>1)p.vx*=-1;if(p.y<0||p.y>1)p.vy*=-1;p.x=clamp(p.x,0,1);p.y=clamp(p.y,0,1)}
+      cx.beginPath();cx.arc(x+t*(0.1+p.x*0.8),y+t*(0.3+p.y*0.38),Math.max(1.6,t*0.014),0,7);cx.fill()});
+    cx.globalAlpha=1;
+    cx.fillStyle=col['t-ink'];cx.font=`${fs*1.05}px ${getComputedStyle(document.body).getPropertyValue('--f-display')}`;cx.textBaseline='top';
+    cx.fillText(w.name,x+t*0.07,y+t*0.06);
+    cx.font=`500 ${fs*0.78}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;
+    cx.globalAlpha=0.8;cx.fillText(`${Math.round(w.pop)} 人`,x+t*0.07,y+t*0.06+fs*1.25);cx.globalAlpha=1;
+    if(w.event){const lbl=EVN[w.event]+'！';cx.font=`700 ${fs*0.8}px sans-serif`;const tw=cx.measureText(lbl).width+fs*0.8;
+      cx.fillStyle=w.event==='bumper'?col.good:col.bad;rr(x+t-tw-t*0.05,y+t*0.06,tw,fs*1.3,fs*0.4);cx.fill();cx.fillStyle=col.panel;cx.fillText(lbl,x+t-tw-t*0.05+fs*0.4,y+t*0.06+fs*0.22)}
+    bars(x,y,t,w);
+  });
+  // hub
+  const[hx,hy,ht]=tileRect(1,1);cx.fillStyle=col['t-hub'];rr(hx,hy,ht,ht,ht*0.08);cx.fill();
+  cx.strokeStyle=col.hub;cx.lineWidth=2.5;rr(hx+2,hy+2,ht-4,ht-4,ht*0.08);cx.stroke();
+  const bx=hx+ht*0.5,by=hy+ht*0.5;cx.fillStyle=col.hub;rr(bx-ht*0.22,by-ht*0.1,ht*0.44,ht*0.28,ht*0.03);cx.fill();
+  cx.beginPath();cx.moveTo(bx-ht*0.27,by-ht*0.1);cx.lineTo(bx,by-ht*0.25);cx.lineTo(bx+ht*0.27,by-ht*0.1);cx.fill();
+  cx.fillStyle=col.panel;cx.fillRect(bx-ht*0.025,by-ht*0.05,ht*0.05,ht*0.16);cx.fillRect(bx-ht*0.08,by+ht*0.005,ht*0.16,ht*0.05);
+  cx.fillStyle=col['t-ink'];cx.font=`${fs*1.05}px ${getComputedStyle(document.body).getPropertyValue('--f-display')}`;cx.textBaseline='top';cx.textAlign='center';
+  cx.fillText('补给中心',bx,hy+ht*0.06);
+  const H=S.hub.stock;cx.font=`500 ${fs*0.76}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;
+  cx.fillText(`药 ${Math.round(H.med||0)} · 工具 ${Math.round(H.tool||0)}`,bx,hy+ht*0.74);
+  cx.fillText(`食物 ${Math.round(sumFood(H))}`,bx,hy+ht*0.74+fs*1.05);cx.textAlign='left';
+  // carts
+  const now=performance.now();S.carts=S.carts.filter(k=>now<k.t0+k.dur);
+  S.carts.forEach(k=>{const p=(now-k.t0)/k.dur;if(p<0)return;const[x,y,t]=tileRect(k.w.r,k.w.c);const sx=x+t/2,sy=y+t/2;
+    const a=k.dir>0?p:1-p,px=sx+(bx-sx)*a*0.78+(k.dir>0?0:0),py=sy+(by-sy)*a*0.78;
+    cx.fillStyle=k.dir>0?col.kid:col.hub;cx.beginPath();cx.arc(px,py,Math.max(3,size*0.009),0,7);cx.fill()});
+  requestAnimationFrame(draw);
+}
+let sel=null;
+cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
+  for(let rr2=0;rr2<3;rr2++)for(let c=0;c<3;c++){const[tx,ty,t]=tileRect(rr2,c);if(x>=tx&&x<=tx+t&&y>=ty&&y<=ty+t){
+    if(rr2===1&&c===1)sel='hub';else sel=S.worlds.find(w=>w.r===rr2&&w.c===c).id;renderDetail();return}}});
+const fmt=o=>Object.entries(o).filter(([,v])=>v>0.5).map(([g,v])=>`${G[g]?G[g].n:g==='food'?'食物':g} ${Math.round(v)}`).join('、')||'没有';
+function renderDetail(){const el=document.getElementById('detail');if(!sel)return;
+  if(sel==='hub'){const H=S.hub.stock,m=S.hub.made||{med:0,tool:0};
+    el.innerHTML=`<b>补给中心</b> · 20 位工作人员，用草药做药、用矿石和木头做工具<div class="kv"><span>这个月做了药 ${Math.round(m.med)}</span><span>做了工具 ${Math.round(m.tool)}</span><span>仓库草药 ${Math.round(H.herb||0)}</span><span>仓库矿石 ${Math.round(H.ore||0)}</span><span>仓库木头 ${Math.round(H.wood||0)}</span><span>工作人员吃饱 ${Math.round(S.hub.fed*100)}%</span></div>`;return}
+  const w=S.worlds.find(x=>x.id===sel),L=w.last;
+  const extra=P.mode==='money'?`<span>手里的钱 ${Math.round(w.money)} 元</span>`:P.mode==='barter'?`<span>还能换 ${w.credit.toFixed(1)} 份</span>`:'';
+  el.innerHTML=`<b>${w.name}</b> · ${w.desc}${w.event?` · <span style="color:var(--bad)">${EVN[w.event]}</span>`:''}<div class="kv">
+  <span>人口 ${Math.round(w.pop)}</span><span>干活劲头 ${Math.round(w.effort*100)}%</span><span>工具好坏 ${Math.round(w.tools*100)}%</span>
+  <span>吃饱 ${Math.round(L.foodCov*100)}%</span><span>病人有药 ${Math.round(L.medCov*100)}%</span><span>开心 ${Math.round(w.happy*100)}</span>${extra}</div>
+  <div class="kv" style="grid-template-columns:1fr"><span>生产：${fmt(L.produced)}</span><span>交给中心：${fmt(L.gave)}</span><span>从中心拿回：${fmt(L.got)}</span></div>`}
+
+// ---------- charts ----------
+function chart(id,series,opt){const c=document.getElementById(id),r=c.getBoundingClientRect(),d=Math.min(2,devicePixelRatio||1);
+  c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);
+  const W=r.width,Hh=r.height,L=34,R=8,T=8,B=20;g.clearRect(0,0,W,Hh);
+  const hist=S.hist,n=Math.max(12,hist.length);let mx=opt.max;if(mx==null){mx=0;series.forEach(s=>s.data.forEach(v=>{if(v!=null)mx=Math.max(mx,v)}));mx=niceMax(mx||1)}
+  const X=i=>L+(W-L-R)*(i/(n-1||1)),Y=v=>T+(Hh-T-B)*(1-v/mx);
+  g.font='11px '+getComputedStyle(document.body).getPropertyValue('--f-body');g.fillStyle=col.muted;g.strokeStyle=col.line;g.lineWidth=1;
+  const lead=mx/Math.pow(10,Math.floor(Math.log10(mx))),dv=[2.5,5,10].includes(+lead.toFixed(1))?5:4;
+  for(let k=0;k<=dv;k++){const v=mx*k/dv,y=Y(v);g.globalAlpha=0.6;g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.globalAlpha=1;g.textAlign='right';g.textBaseline='middle';g.fillText(opt.fmt?opt.fmt(v):Math.round(v),L-5,y)}
+  g.textAlign='center';g.textBaseline='top';const yrs=Math.ceil(n/12);for(let y=0;y<=yrs;y++){const i=y*12-1;if(i<0||i>=n)continue;g.fillText(`第${y}年末`,clamp(X(i),L+20,W-R-20),Hh-B+5)}
+  // rule markers
+  g.setLineDash([3,3]);g.strokeStyle=col.muted;S.log.forEach(e=>{if(e.role==='sys'||e.m<1)return;const i=e.m-0.5;if(i>=n)return;const x=X(i);g.beginPath();g.moveTo(x,T);g.lineTo(x,Hh-B);g.stroke()});g.setLineDash([]);
+  series.forEach(s=>{g.strokeStyle=s.color;g.lineWidth=2;g.beginPath();let on=false,lx=0,ly=0;
+    s.data.forEach((v,i)=>{if(v==null){on=false;return}const x=X(i),y=Y(Math.min(v,mx));if(!on){g.moveTo(x,y);on=true}else g.lineTo(x,y);lx=x;ly=y});g.stroke();
+    if(s.data.length&&s.data[s.data.length-1]!=null){g.fillStyle=s.color;g.beginPath();g.arc(lx,ly,3.2,0,7);g.fill()}});
+}
+function niceMax(v){const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
+
+// ---------- results ----------
+function render(){
+  document.getElementById('clock').textContent=`第 ${Math.floor(S.month/12)+1} 年 · ${S.month%12+1} 月`;
+  const h=S.hist,last=h[h.length-1];if(!last)return;
+  const tp=last.pop,first=h[0];
+  const st=[['月份',`${S.month}`],['总人口',`${Math.round(tp)}`],['平均开心',`${Math.round(last.happy*100)}`],['平均健康',`${Math.round(last.health*100)}`],
+    ['缺药的世界',`${last.noMed} / 8`],[P.mode==='money'?'一个苹果':'吃不饱的世界',P.mode==='money'?`${S.prices.food.toFixed(2)} 元`:`${last.hungry} / 8`]];
+  document.getElementById('stats').innerHTML=st.map(([l,v])=>`<div class="stat"><div class="l">${l}</div><div class="v">${v}</div></div>`).join('');
+  chart('c1',[{data:h.map(x=>x.happy*100),color:col.kid},{data:h.map(x=>x.health*100),color:col.good}],{max:100});
+  chart('c2',[{data:h.map(x=>x.med),color:col.bad},{data:h.map(x=>x.tool),color:col.hub},{data:h.map(x=>x.food/5),color:col.warn}],{});
+  const hasMoney=h.some(x=>x.apple!=null);
+  document.getElementById('c3title').textContent=hasMoney?'一个苹果多少钱（元）':'食物抢手程度（想要的 ÷ 仓库有的）';
+  document.getElementById('c3legend').innerHTML=hasMoney?'<span><i style="background:var(--bad)"></i>苹果价格（只在“用钱”时有）</span><span><i style="background:var(--parent)"></i>大家还信不信钱（满分 5）</span>':'<span><i style="background:var(--warn)"></i>大于 1 就是不够分</span>';
+  if(hasMoney)chart('c3',[{data:h.map(x=>x.apple),color:col.bad},{data:h.map(x=>x.apple!=null?x.trust*5:null),color:col.parent}],{fmt:v=>v.toFixed(v<10?1:0)});
+  else chart('c3',[{data:h.map(x=>x.scar),color:col.warn}],{fmt:v=>v.toFixed(1)});
+  // verdict
+  const r=h.slice(-6),av=k=>r.reduce((a,x)=>a+x[k],0)/r.length,popTrend=r.length>1?r[r.length-1].pop/r[0].pop:1;
+  const score=0.4*av('happy')+0.4*av('health')+0.2*clamp((popTrend-0.9)/0.1,0,1)-0.05*av('hungry')-0.05*av('noMed');
+  const v=document.getElementById('verdict');v.className='verdict '+(score>=0.72?'good':score>=0.56?'warn':'bad');
+  document.getElementById('vFace').textContent=score>=0.72?'运转得很好':score>=0.56?'勉强能运转':'快撑不下去了';
+  document.getElementById('vText').textContent=`现在的规则：${MODE_N[P.mode]}，自觉程度 ${Math.round(P.kindness*100)}%`+(P.mode==='money'?`，每月印钱 ${Math.round(P.printRate*100)}%`:'')+
+    `。最近半年平均开心 ${Math.round(av('happy')*100)}、健康 ${Math.round(av('health')*100)}，人口${popTrend>1.01?'在增加':popTrend<0.99?'在减少':'差不多'}`+(last.hungry||last.noMed?`；现在有 ${last.hungry} 个世界吃不饱、${last.noMed} 个世界缺药。`:'，每个世界都吃得饱、有药用。');
+  renderFinds();renderTable();if(sel)renderDetail();
+}
+function renderFinds(){const out=[],h=S.hist,last=h[h.length-1],c=S.cnt,H=S.hub.stock;
+  const worst=[...S.worlds].sort((a,b)=>a.happy-b.happy)[0],best=[...S.worlds].sort((a,b)=>b.happy-a.happy)[0];
+  if(last.noMed>0){const hw=S.worlds.find(w=>w.id==='herb');
+    out.push(['bad',`有 ${last.noMed} 个世界的病人拿不到药。`+(hw.last.foodCov<0.85?`草药谷吃不饱，采的草药少了，补给中心就做不出足够的药，所有世界都跟着受影响。`:(H.med||0)<5?'补给中心的药已经发完了。':'药被先拿走的世界拿光了。')])}
+  if(P.mode==='free'&&P.greed){out.push([P.kindness>=0.85?'warn':'bad',`“都想多拿一点”：东西不要钱，大家交给中心的少了，拿走的多了，平均每月多吃多用掉约 ${Math.round(c.over/Math.max(1,S.month))} 份食物。${P.spoil?'拿回家的鱼和肉很多放坏了。':''}不种粮食的矿场、草药谷、陶土小镇最先吃不饱。`+(P.needFirst?'中心只按需要分，好了一些。':P.kindness<0.85?'把“自觉程度”调高，或者让中心“先给最需要的人”试试。':'因为大家很自觉，还撑得住。')])}
+  if(P.mode==='free'&&P.freeRide){const e=S.worlds[0].effort;out.push([e<0.8?'bad':'warn',`不要钱时有人偷懒：大家干活劲头只有 ${Math.round(e*100)}%，生产的东西少了。`])}
+  if(h.some(x=>x.apple!=null)){const ap=h.filter(x=>x.apple!=null),a0=ap[0].apple,a1=ap[ap.length-1].apple;
+    if(a1>a0*1.3)out.push(['bad',`通货膨胀：苹果从 ${a0.toFixed(2)} 元涨到了 ${a1.toFixed(2)} 元。`+(P.greed?'钱变多了，可苹果没有变多，大家都想用多出来的钱多买点，卖苹果的人就卖给出价高的人。':'东西不够分，价格就往上涨。')+(S.trust<0.8?' 大家开始不相信钱了，不愿意把东西卖给中心。':'')]);
+    else if(P.mode==='money'&&P.printRate>0.1&&!P.greed)out.push(['good',`印了很多钱，但现在设定“大家只买需要的”，所以苹果价格没怎么涨。打开“人性：都想多拿一点”看看会怎样。`]);
+    else if(P.mode==='money')out.push(['good',`苹果价格比较稳定，现在 ${a1.toFixed(2)} 元。钱多出来的速度和东西差不多。`])}
+  if(P.mode==='barter'){const poor=S.worlds.filter(w=>w.last.medCov<0.7||w.last.foodCov<0.85);out.push([poor.length?'warn':'good',poor.length?`以物易物：${poor.map(w=>w.name).join('、')} 拿不出足够的东西去换，就换不到药或食物。东西多的世界过得好，东西少的世界过得难。`:'以物易物运转正常，不过每次都要找到“正好想要你东西的人”，有一部分东西在讨价还价里浪费了。'])}
+  if(c.spoiled>50&&P.spoil)out.push(['warn',`到现在一共坏掉了 ${Math.round(c.spoiled)} 份食物。鱼、肉、奶放不久，拿太多就浪费。`]);
+  if(c.lost>20)out.push(['warn',`路上一共损耗了 ${Math.round(c.lost)} 份东西，角落里的四个世界离中心最远。`]);
+  if(c.deaths>3)out.push(['bad',`因为吃不饱或生病没药，一共少了大约 ${Math.round(c.deaths)} 个人。`]);
+  if(c.moved>3)out.push(['good',`大约 ${Math.round(c.moved)} 人搬去了更开心的世界。`]);
+  if(P.growth&&c.kEff<P.kindness-0.03)out.push(['warn',`人越来越多（现在 ${Math.round(last.pop)} 人），大家不再互相认识，自觉程度从 ${Math.round(P.kindness*100)}% 降到了 ${Math.round(c.kEff*100)}%。`]);
+  if(P.freedom)out.push(['good','“想干嘛就干嘛”让大家更开心，但干活的人少了，东西少生产了 15%。']);
+  if(!out.length||(last.noMed===0&&last.hungry===0))out.push(['good',`现在每个世界都吃得饱、有药用。最开心的是${best.name}，最需要关心的是${worst.name}（开心 ${Math.round(worst.happy*100)}）。`]);
+  document.getElementById('finds').innerHTML='';out.slice(0,6).forEach(([t,x])=>{const li=document.createElement('li');li.className=t;li.textContent=x;document.getElementById('finds').append(li)})}
+function renderTable(){const cls=v=>v>=0.85?'good':v>=0.6?'warn':'bad';
+  const rows=S.worlds.map(w=>`<tr><td>${w.name}${w.event?` <span style="color:var(--bad)">${EVN[w.event]}</span>`:''}</td><td>${Math.round(w.pop)}</td><td><span class="pill ${cls(w.last.foodCov)}">${Math.round(w.last.foodCov*100)}%</span></td><td><span class="pill ${cls(w.last.medCov)}">${Math.round(w.last.medCov*100)}%</span></td><td>${Math.round(w.tools*100)}%</td><td><span class="pill ${cls(w.happy+0.15)}">${Math.round(w.happy*100)}</span></td>${P.mode==='money'?`<td>${Math.round(w.money)}</td>`:''}</tr>`).join('');
+  document.getElementById('tbl').innerHTML=`<thead><tr><th>世界</th><th>人口</th><th>吃饱</th><th>有药</th><th>工具</th><th>开心</th>${P.mode==='money'?'<th>钱（元）</th>':''}</tr></thead><tbody>${rows}</tbody>`}
+
+// ---------- controls ----------
+let running=false,speed=1,timer=null;const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
+const tickMs=()=>1400/speed;
+function loop(){if(!running)return;step();render();timer=setTimeout(loop,tickMs())}
+const playBtn=document.getElementById('play');
+function setRun(v){running=v;playBtn.textContent=v?'⏸ 暂停':'▶ 开始';clearTimeout(timer);if(v)timer=setTimeout(loop,200)}
+playBtn.onclick=()=>setRun(!running);
+document.getElementById('stepBtn').onclick=()=>{step();render()};
+document.getElementById('speed').onclick=e=>{speed=speed===1?2:speed===2?4:1;e.target.textContent=`速度 ${speed}×`};
+document.getElementById('reset').onclick=()=>{S=newState();addLog('sys','从头开始','用现在的规则重新开始。');warmup(0);render()};
+function syncUI(){
+  document.querySelectorAll('#modes button').forEach(b=>b.setAttribute('aria-pressed',b.dataset.mode===P.mode));
+  document.getElementById('kind').value=Math.round(P.kindness*100);document.getElementById('kindOut').textContent=Math.round(P.kindness*100)+'%';
+  document.getElementById('print').value=Math.round(P.printRate*100);document.getElementById('printOut').textContent=Math.round(P.printRate*100)+'%';
+  document.getElementById('printRow').hidden=P.mode!=='money';
+  document.getElementById('cap').value=Math.round(P.hubCap*100);document.getElementById('capOut').textContent=Math.round(P.hubCap*100)+'%';
+  document.querySelectorAll('.chip').forEach(b=>b.setAttribute('aria-pressed',!!P[b.dataset.k]))}
+function mkChips(id,list,role){const el=document.getElementById(id);list.forEach(([k,n])=>{const b=document.createElement('button');b.className='chip';b.dataset.k=k;b.textContent=n;
+  b.onclick=()=>{P[k]=!P[k];syncUI();addLog(role,(P[k]?'打开：':'关掉：')+n);render()};el.append(b)})}
+mkChips('kidChips',KID,'kid');mkChips('parentChips',PARENT,'parent');
+document.querySelectorAll('#modes button').forEach(b=>b.onclick=()=>{if(P.mode===b.dataset.mode)return;P.mode=b.dataset.mode;syncUI();
+  addLog(b.dataset.mode==='free'?'kid':'parent','交换方式改成：'+MODE_N[P.mode]);render()});
+const sl=(id,k,div,role,label)=>{const el=document.getElementById(id);el.oninput=()=>{P[k]=el.value/div;syncUI()};el.onchange=()=>addLog(role,`${label}：${el.value}%`)};
+sl('kind','kindness',100,'kid','自觉程度');sl('print','printRate',100,'parent','每月印钱');sl('cap','hubCap',100,'parent','补给中心产能');
+
+// ---------- ideas: Claude or keywords ----------
+let role='kid';
+document.querySelectorAll('.who-toggle button').forEach(b=>b.onclick=()=>{role=b.dataset.r;document.querySelectorAll('.who-toggle button').forEach(x=>x.setAttribute('aria-pressed',x===b))});
+const KEYS={mode:'"free"|"barter"|"money"',kindness:'0到1，大家有多自觉',printRate:'0到0.5，用钱模式下每月新印钱的比例',hubCap:'0.4到2，补给中心产能倍数',
+  needFirst:'布尔，中心先给最需要的人',share:'布尔，邻居互相帮忙',freedom:'布尔，想干嘛就干嘛，生产少15%但更开心',migrate:'布尔，可以搬家',
+  greed:'布尔，人性：都想多拿一点（不要钱时多拿少交，用钱时钱多就抢购）',freeRide:'布尔，不要钱就有人偷懒',spoil:'布尔，鱼肉奶会坏',disasters:'布尔，随机天灾',distance:'布尔，路远有损耗',growth:'布尔，人口增长'};
+function applyIdea(o,r){const ch=o.changes||{},done=[];
+  for(const k in ch){if(!(k in KEYS))continue;let v=ch[k];
+    if(k==='mode'){if(['free','barter','money'].includes(v)){P.mode=v;done.push('交换方式→'+MODE_N[v])}}
+    else if(typeof DEFAULT[k]==='boolean'){P[k]=!!v;done.push(((PARENT.concat(KID)).find(x=>x[0]===k)||[,k])[1]+(v?' 开':' 关'))}
+    else{v=Number(v);if(isFinite(v)){if(v>2&&k!=='hubCap')v/=100;const lim={kindness:[0,1],printRate:[0,0.5],hubCap:[0.4,2]}[k];P[k]=clamp(v,lim[0],lim[1]);done.push(`${{kindness:'自觉程度',printRate:'印钱',hubCap:'中心产能'}[k]}→${Math.round(P[k]*100)}%`)}}}
+  const ev=o.event;if(ev&&EVN[ev.type]){const ws=ev.world==='all'?S.worlds:S.worlds.filter(w=>w.id===ev.world);(ws.length?ws:[S.worlds[Math.floor(S.rng()*8)]]).forEach(w=>trigger(w,ev.type,true));done.push(`${ev.world==='all'?'所有世界':(ws[0]||{}).name||'某个世界'}：${EVN[ev.type]}`)}
+  syncUI();addLog(r,o.title||'新的想法',(o.explain||'')+(done.length?`（改动：${done.join('，')}）`:'（没有找到能改的规则）'),o.predict||'');render()}
+function keywordIdea(t){const ch={};let ev=null;const has=(...a)=>a.some(x=>t.includes(x));
+  const wid=WORLDS.find(w=>t.includes(w.name)||t.includes(w.name.slice(-2)));
+  if(has('印钱','印钞','印很多'))Object.assign(ch,{mode:'money',printRate:has('很多','大量','好多')?0.3:0.12});
+  else if(has('以物易物','交换','换东西'))ch.mode='barter';
+  else if(has('用钱','货币','买卖'))ch.mode='money';
+  else if(has('不要钱','免费','想要就拿','随便拿'))ch.mode='free';
+  if(has('善良','自觉','好心','只拿需要'))ch.kindness=0.9;
+  if(has('自私','多拿','贪','抢'))ch.greed=true;
+  if(has('偷懒','不干活','懒'))ch.freeRide=true;
+  if(has('坏掉','腐烂','变质','保存'))ch.spoil=true;
+  if(has('邻居','互相帮','分享','帮忙'))ch.share=true;
+  if(has('搬家','迁徙','搬去','移民'))ch.migrate=true;
+  if(has('想干嘛','自由','玩'))ch.freedom=true;
+  if(has('最需要','按需','先给'))ch.needFirst=true;
+  if(has('人口','生孩子','人越来越多'))ch.growth=true;
+  if(has('路远','运输','距离'))ch.distance=true;
+  if(has('产能','工厂','中心多做','中心扩大'))ch.hubCap=1.6;
+  const evs=[['干旱','drought'],['旱','drought'],['山火','fire'],['火灾','fire'],['风暴','storm'],['台风','storm'],['塌方','collapse'],['瘟疫','plague'],['生病','plague'],['传染','plague'],['丰收','bumper']];
+  for(const[k,v]of evs)if(t.includes(k)){ev={type:v,world:wid?wid.id:'all'};break}
+  if(has('天灾')&&!ev)ch.disasters=true;
+  return{title:t.slice(0,14),changes:ch,event:ev,explain:'按关键词理解了你的想法。',predict:''}}
+let sample=null;
+(async()=>{try{if(window.claude&&window.claude.use){sample=await window.claude.use('sample')}}catch(e){sample=null}
+  document.getElementById('aiBar').hidden=!sample;document.getElementById('ideaNote').textContent=sample?'Claude 会把你的想法变成世界里的规则':'按关键词理解（在 Claude 里打开时，Claude 会帮你理解任何想法）'})();
+document.getElementById('ideaGo').onclick=async()=>{const ta=document.getElementById('ideaText'),t=ta.value.trim(),note=document.getElementById('ideaNote'),btn=document.getElementById('ideaGo');if(!t){note.textContent='先写下一个想法。';return}
+  if(!sample){applyIdea(keywordIdea(t),role);ta.value='';return}
+  btn.disabled=true;note.textContent='Claude 正在想…';
+  const prompt=`你在帮忙运行一个给小朋友的经济模拟游戏“我的九宫世界”：3x3 九个格子，中间是补给中心（用草药做药、用矿石+木头做工具），周围八个世界：${WORLDS.map(w=>`${w.id}=${w.name}(${w.desc})`).join('；')}。
+小朋友提出理想的假设，爸爸妈妈提出现实世界的制约。现在提想法的人是：${role==='kid'?'小朋友':'爸爸妈妈'}。
+当前参数：${JSON.stringify(P)}
+可以改的参数：${JSON.stringify(KEYS)}
+可以触发的事件 type：drought 干旱 / storm 风暴 / collapse 塌方 / fire 山火 / plague 瘟疫 / bumper 大丰收；world 为上面的 id 或 "all"。
+想法：“${t}”
+把这个想法翻译成参数改动。只改和想法有关的参数。只回复一个 JSON 对象，格式：
+{"title":"不超过12个字的短标题","changes":{"参数名":新值},"event":null,"explain":"用小朋友听得懂的话，1到2句说明你怎么理解这个想法、改了什么","predict":"1句话预测接下来可能会发生什么"}
+如果现有参数表达不了，就选最接近的，并在 explain 里说明哪些部分游戏里还做不到。`;
+  try{const o=await sample.json(prompt,{modelTier:'quick'});applyIdea(o&&typeof o==='object'?o:keywordIdea(t),role);ta.value='';note.textContent='已经放进世界里了。'}
+  catch(e){if(e&&e.code==='not_granted'||e&&e.code==='sampling_disabled'){sample=null;document.getElementById('aiBar').hidden=true}
+    applyIdea(keywordIdea(t),role);ta.value='';note.textContent=e&&e.code==='rate_limited'?'Claude 有点忙，先按关键词理解了。':'先按关键词理解了。'}
+  finally{btn.disabled=false}};
+document.getElementById('aiBtn').onclick=async()=>{if(!sample)return;const out=document.getElementById('aiOut'),btn=document.getElementById('aiBtn');out.hidden=false;out.textContent='Claude 正在看这个世界…';btn.disabled=true;
+  const h=S.hist.filter((x,i)=>i%3===2||i===S.hist.length-1).map(x=>({月:x.m,模式:x.mode,开心:Math.round(x.happy*100),健康:Math.round(x.health*100),人口:Math.round(x.pop),中心药:Math.round(x.med),缺药世界:x.noMed,吃不饱世界:x.hungry,苹果价:x.apple&&+x.apple.toFixed(2)}));
+  const ws=S.worlds.map(w=>({名:w.name,人口:Math.round(w.pop),吃饱:Math.round(w.last.foodCov*100),有药:Math.round(w.last.medCov*100),开心:Math.round(w.happy*100)}));
+  const lg=S.log.slice(0,12).reverse().map(e=>`${ym(e.m)} ${e.role==='kid'?'小朋友':e.role==='parent'?'家长':'世界'}：${e.title}`);
+  try{await sample(`你在给一个小朋友和家长解读经济模拟游戏“我的九宫世界”的结果。八个世界不用现代社会的钱，自给自足，中间补给中心提供药品和工具。
+当前规则：${JSON.stringify(P)}
+规则变化记录：${lg.join('；')}
+每三个月的数据：${JSON.stringify(h)}
+现在各世界：${JSON.stringify(ws)}
+请用小朋友能听懂的中文，写 4 到 6 句话：发生了什么、为什么会这样（指出是哪条规则造成的），现实世界里有没有类似的事。最后提一个让小朋友想一想的问题。不要用标题和列表符号。`,{onText:({text})=>{out.textContent=text},cache:false})}
+  catch(e){out.textContent=e&&e.code==='not_granted'?'没有允许 Claude 使用，所以讲不了。':'这次没讲成，过一会儿再试。'}finally{btn.disabled=false}};
+
+// ---------- boot ----------
+function warmup(n){for(let i=0;i<n;i++)step()}
+S=newState();readCols();fit();makeDeco();syncUI();
+addLog('sys','世界开始了','小朋友的理想：不要钱，东西都放到补给中心，谁需要谁去拿。');
+warmup(6);render();requestAnimationFrame(draw);
+addEventListener('resize',()=>{fit();render()});
+matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{readCols();render()});
+new MutationObserver(()=>{readCols();render()}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+if(!reduceMotion)setRun(true);
+})();
+</script>
+
+</body></html>
