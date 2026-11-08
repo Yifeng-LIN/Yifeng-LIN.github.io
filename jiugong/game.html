@@ -117,6 +117,17 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
 .rtag.kid{background:var(--kid)} .rtag.parent{background:var(--parent)} .rtag.sys{background:var(--muted)}
 .log .ex{display:block;color:var(--muted);margin-top:2px}
 .ai{white-space:pre-wrap;font-size:13.5px;background:var(--soft);border-radius:9px;padding:9px 11px}
+.diag{display:flex;flex-direction:column;gap:12px}
+.probs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.prob{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:3.2em minmax(0,1fr);gap:6px 10px;align-items:baseline}
+.prob.bad{border-left-color:var(--bad)} .prob.good{border-left-color:var(--good)}
+.prob .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em}
+.prob .q{font-family:var(--f-display);font-weight:600;font-size:17px;line-height:1.35}
+.prob .v{font-size:14px}
+.prob .trend{grid-column:2;font-size:12px;color:var(--muted)}
+.logbox summary{cursor:pointer;font-weight:600}
+.close{margin-left:auto;border:0;background:none;color:var(--muted);padding:6px 4px;order:9}
+.tabs{align-items:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -139,8 +150,8 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
         <button class="btn" id="reset">从头再来</button>
         <span class="note" id="tickNote"></span>
       </div>
-      <div class="panel" id="detailPanel">
-        <div class="tabs" role="tablist">
+      <div class="panel" id="detailPanel" hidden>
+        <div class="tabs" role="tablist"><button class="close" id="closeDetail" aria-label="关上">关上</button>
           <button role="tab" id="tabWorld" aria-selected="true">这个世界</button>
           <button role="tab" id="tabPeople" aria-selected="false">住在这里的人</button>
           <button role="tab" id="tabPerson" aria-selected="false" hidden>人物</button>
@@ -179,26 +190,12 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
     </div>
   </section>
 
-  <section class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></section>
-  <section class="stats" id="stats"></section>
-  <section class="charts" id="charts"></section>
-
-  <section class="lower">
-    <div class="panel">
-      <h2>发生了什么，为什么</h2>
-      <ul class="list finds" id="finds"></ul>
-      <div class="bar" id="aiBar" hidden><button class="btn" id="aiBtn">请 Claude 讲讲为什么</button></div>
-      <div class="ai" id="aiOut" hidden></div>
-    </div>
-    <div class="panel">
-      <h2>九宫新闻</h2>
-      <ul class="list news" id="news"></ul>
-    </div>
-    <div class="panel">
-      <h2>实验记录</h2>
-      <p class="note">每次改规则都记在这里，图上的竖线就是这些时刻。</p>
-      <ul class="list log" id="log"></ul>
-    </div>
+  <section class="diag">
+    <div class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></div>
+    <div class="probs" id="probs"></div>
+    <div class="bar" id="aiBar" hidden><button class="btn" id="aiBtn">请 Claude 讲讲为什么</button></div>
+    <div class="ai" id="aiOut" hidden></div>
+    <details class="panel logbox"><summary>实验记录（改过哪些规则）</summary><ul class="list log" id="log"></ul></details>
   </section>
 </div>
 
@@ -739,7 +736,12 @@ function record(){
     apple:P.mode==='money'?S.prices.apple/5:null,rice:P.mode==='money'?S.prices.rice:null,trust:S.trust,mode:P.mode,M:S.M,
     medWk:(H.med||0)/medNeedWk,toolWk:(H.tool||0)/Math.max(1,ps.filter(p=>p.job&&p.job!=='artist').length*0.02),foodWk:kcalOf(H)/staffK,
     unmet,barterFail:S.wk.barterTry?S.wk.barterFail/S.wk.barterTry:null,queue:S.wk.queue,fish:S.res.fish,game:S.res.game,forest:S.res.forest,
-    births:S.yr.births,deaths:S.yr.deaths};
+    births:S.yr.births,deaths:S.yr.deaths,
+    // running totals, so the page can tell what happened in the last few months
+    cStarve:S.cnt.by['饥饿']||0,cNoMed:Object.keys(S.cnt.by).filter(k=>k.includes('没有药')).reduce((a,k)=>a+S.cnt.by[k],0),cCold:S.cnt.by['寒冷']||0,cFled:S.cnt.fled||0,cOver:S.cnt.overK,cBirths:S.cnt.births,
+    effort:(()=>{const w=ps.filter(p=>p.effort>0);return w.length?w.reduce((a,p)=>a+p.effort,0)/w.length:1})(),
+    tool:(()=>{const hs=S.hhs.filter(h=>h.world.id!=='hub');const ws=hs.reduce((a,h)=>a+workers(h).length,0);return ws?Math.min(1,hs.reduce((a,h)=>a+Math.min(h.toolDur,workers(h).length),0)/ws):1})(),
+    cold:ps.filter(p=>p.warm<0.6).length,plague:ps.filter(p=>p.sick&&p.sick.type==='plague').length,hubFoodK:kcalOf(H),hubWood:H.wood||0,hubHerb:H.herb||0,hubOre:H.ore||0,hubCloth:H.cloth||0};
   S.hist.push(row);
 }
 
@@ -781,9 +783,9 @@ const ALLN=Object.fromEntries([...KID,...PARENT]);
 const PACK={rice:'#e2c25a',apple:'#d94a3a',fish:'#7fb5d6',sfish:'#9a8f7a',meat:'#a8443a',smeat:'#8a3b2e',milk:'#f4f1e6',cheese:'#efc65a',salt:'#f6f6f6',wood:'#8a5a35',ore:'#6f6f78',wool:'#ece6d6',herb:'#7a5aa8',pot:'#b56a3c',cloth:'#4a74b8',med:'#e8e8ff',tool:'#4a4a52',forage:'#6a8f3a'};
 const fmt=(v,d=0)=>v==null||!isFinite(v)?'—':v>=10000?Math.round(v/1000)+'千':(+v).toFixed(d);
 const pct=v=>Math.round(v*100)+'%';
-let S=null,running=false,speed=1,timer=null,sel='farm',tab='world',selPerson=null;
+let S=null,running=false,speed=1,timer=null,sel=null,tab='world',selPerson=null;
 const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches;
-const tickMs=()=>900/speed;
+const tickMs=()=>1300/speed;let lastTick=performance.now();
 
 // ================= map =================
 const cv=$('#map'),cx=cv.getContext('2d');let DPR=1,SZ=0;const cache=new Map();
@@ -882,9 +884,12 @@ function spawnTraders(){if(reduceMotion||speed>=4)return;const now=performance.n
 function drawFigure(x,y,s,col){cx.fillStyle=col;cx.fillRect(x-s*0.35,y-s*0.2,s*0.7,s*1.1);cx.fillStyle='#f1d3b3';cx.beginPath();cx.arc(x,y-s*0.55,s*0.38,0,7);cx.fill()}
 function frame(){
   if(!S){requestAnimationFrame(frame);return}
-  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,SZ,SZ);const se=season(S.t),{t}=geo(),now=performance.now();
-  cx.fillStyle=se===3?'#c9d0cf':'#4f5e45';cx.fillRect(0,0,SZ,SZ);
-  S.worlds.forEach(w=>{const[x,y]=rectOf(w.r,w.c);cx.drawImage(tileImage(w,se),x,y,t,t);
+  cx.setTransform(DPR,0,0,DPR,0,0);cx.clearRect(0,0,SZ,SZ);const {t}=geo(),now=performance.now();
+  // seasons drift slowly: each season fades into the next during its second half
+  const tp=running&&!reduceMotion?clamp((now-lastTick)/tickMs(),0,1):0,f=((S.t%52)+tp)/13,s0=Math.floor(f)%4,s1=(s0+1)%4,fa=f-Math.floor(f),k0=clamp((fa-0.4)/0.6,0,1),wn=k0*k0*(3-2*k0);
+  const se=wn>0.5?s1:s0,winterW=(s0===3?1-wn:0)+(s1===3?wn:0);
+  cx.fillStyle=winterW>0.5?'#c9d0cf':'#4f5e45';cx.fillRect(0,0,SZ,SZ);
+  S.worlds.forEach(w=>{const[x,y]=rectOf(w.r,w.c);cx.drawImage(tileImage(w,s0),x,y,t,t);if(wn>0.01){cx.globalAlpha=wn;cx.drawImage(tileImage(w,s1),x,y,t,t);cx.globalAlpha=1}
     if(w.event){const col={drought:'rgba(230,160,40,0.22)',fire:'rgba(220,80,20,0.25)',plague:'rgba(120,40,140,0.22)',storm:'rgba(40,60,90,0.3)',locust:'rgba(80,70,20,0.25)',collapse:'rgba(60,50,40,0.25)',bumper:'rgba(255,230,120,0.18)'}[w.event];if(col){cx.fillStyle=col;cx.fillRect(x,y,t,t)}}});
   // roads
   const[hx,hy]=hubC();cx.lineCap='round';
@@ -901,7 +906,7 @@ function frame(){
   });
   // chimney smoke in winter, kilns all year, fire smoke
   if(!reduceMotion&&running&&Math.random()<0.6){S.worlds.forEach(w=>{if(w.id==='hub')return;const[x,y]=rectOf(w.r,w.c);
-    if(se===3&&w.hhs.length){const i=(Math.random()*Math.min(24,w.hhs.length))|0,[hx2,hy2]=housePos(w.id,i,t);fx.smoke.push({x:x+hx2,y:y+hy2-t*0.06,a:0.5,r:t*0.012})}
+    if(Math.random()<winterW&&w.hhs.length){const i=(Math.random()*Math.min(24,w.hhs.length))|0,[hx2,hy2]=housePos(w.id,i,t);fx.smoke.push({x:x+hx2,y:y+hy2-t*0.06,a:0.5,r:t*0.012})}
     if(w.id==='craft'&&Math.random()<0.5)fx.smoke.push({x:x+t*(Math.random()<0.5?0.25:0.75),y:y+t*0.84,a:0.55,r:t*0.014});
     if(w.event==='fire')fx.smoke.push({x:x+Math.random()*t,y:y+Math.random()*t*0.6,a:0.6,r:t*0.03,fire:1})});
     const[sx,sy]=hubC();if(Math.random()<0.4)fx.smoke.push({x:sx+t*0.32,y:sy+t*0.06,a:0.5,r:t*0.012})}
@@ -911,24 +916,26 @@ function frame(){
     const ox=(k.j-0.5)*t*0.03,px=rx+ox,py=ry+ox*0.4;drawFigure(px,py,Math.max(3,t*0.024),'#3a3a3a');cx.fillStyle=there?k.go:k.back;cx.strokeStyle='rgba(0,0,0,0.4)';cx.lineWidth=0.8;
     const s=Math.max(3,t*0.022);cx.fillRect(px+s*0.2,py-s*0.9,s*0.9,s*0.8);cx.strokeRect(px+s*0.2,py-s*0.9,s*0.9,s*0.8)});
   // weather
-  if(!reduceMotion&&(se===3||S.worlds.some(w=>w.event==='storm'))){if(fx.snow.length<(se===3?180:0))fx.snow.push({x:Math.random()*SZ,y:-5,v:0.4+Math.random()*0.8,r:1+Math.random()*1.6});
+  if(!reduceMotion&&(winterW>0.02||fx.snow.length||S.worlds.some(w=>w.event==='storm'))){const want=Math.round(180*winterW);if(fx.snow.length<want&&Math.random()<0.5)fx.snow.push({x:Math.random()*SZ,y:-5,v:0.3+Math.random()*0.6,r:1+Math.random()*1.6});
+    fx.snow=fx.snow.filter(p=>!(p.y>SZ&&fx.snow.length>want));
     fx.snow.forEach(p=>{if(running){p.y+=p.v;p.x+=Math.sin(p.y/30)*0.3}if(p.y>SZ){p.y=-5;p.x=Math.random()*SZ}cx.fillStyle='rgba(255,255,255,0.85)';cx.beginPath();cx.arc(p.x,p.y,p.r,0,7);cx.fill()});
     S.worlds.filter(w=>w.event==='storm').forEach(w=>{const[x,y]=rectOf(w.r,w.c);cx.strokeStyle='rgba(200,220,240,0.55)';cx.lineWidth=1;for(let i=0;i<40;i++){const rx=x+Math.random()*t,ry=y+Math.random()*t;cx.beginPath();cx.moveTo(rx,ry);cx.lineTo(rx-3,ry+9);cx.stroke()}})}
   else fx.snow.length=0;
   // labels
   const fs=Math.max(10.5,SZ*0.024);
   S.worlds.forEach(w=>{const[x,y]=rectOf(w.r,w.c);const st=S.wstat&&S.wstat.find(o=>o.id===w.id)||{pop:0,sick:0,hungry:0};
-    cx.font=`700 ${fs}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;const name=w.name,line2=`${st.pop}人`+(st.sick?` · 病${st.sick}`:'')+(st.hungry?` · 饿${st.hungry}`:'');
-    const w1=cx.measureText(name).width;cx.font=`500 ${fs*0.78}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;const w2=cx.measureText(line2).width;const bw=Math.max(w1,w2)+fs*0.9,bh=fs*2.35;
+    cx.font=`700 ${fs}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;const tags=[...new Set(PROBS.filter(p=>p.worlds.includes(w.id)).map(p=>p.tag))].slice(0,3),name=w.name,line2=tags.join(' · ');
+    const w1=cx.measureText(name).width;cx.font=`500 ${fs*0.78}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;const w2=cx.measureText(line2).width;const bw=Math.max(w1,w2)+fs*0.9,bh=line2?fs*2.35:fs*1.45;
     cx.fillStyle='rgba(250,250,246,0.9)';cx.beginPath();cx.roundRect?cx.roundRect(x+6,y+6,bw,bh,6):cx.rect(x+6,y+6,bw,bh);cx.fill();
     cx.fillStyle='#1d2621';cx.textBaseline='top';cx.font=`700 ${fs}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;cx.fillText(name,x+6+fs*0.45,y+6+fs*0.25);
-    cx.font=`500 ${fs*0.78}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;cx.fillStyle=st.hungry||st.sick>2?'#b03a2a':'#4a554e';cx.fillText(line2,x+6+fs*0.45,y+6+fs*1.35);
+    cx.font=`500 ${fs*0.78}px ${getComputedStyle(document.body).getPropertyValue('--f-body')}`;cx.fillStyle='#b03a2a';if(line2)cx.fillText(line2,x+6+fs*0.45,y+6+fs*1.35);
     if(w.event){const lbl=EVN[w.event]||w.event;cx.font=`700 ${fs*0.8}px sans-serif`;const tw=cx.measureText(lbl).width+fs*0.8;cx.fillStyle=w.event==='bumper'?'#2e8a4e':'#c2412f';
       cx.beginPath();cx.roundRect?cx.roundRect(x+t-tw-6,y+6,tw,fs*1.35,5):cx.rect(x+t-tw-6,y+6,tw,fs*1.35);cx.fill();cx.fillStyle='#fff';cx.fillText(lbl,x+t-tw-6+fs*0.4,y+6+fs*0.25)}
     if(sel===w.id){cx.strokeStyle='#f6d34a';cx.lineWidth=3;cx.strokeRect(x+1.5,y+1.5,t-3,t-3)}});
   requestAnimationFrame(frame)}
 cv.addEventListener('click',e=>{const r=cv.getBoundingClientRect(),x=e.clientX-r.left,y=e.clientY-r.top;
-  for(const w of S.worlds){const[tx,ty,t]=rectOf(w.r,w.c);if(x>=tx&&x<=tx+t&&y>=ty&&y<=ty+t){sel=w.id;selPerson=null;setTab('world');return}}});
+  for(const w of S.worlds){const[tx,ty,t]=rectOf(w.r,w.c);if(x>=tx&&x<=tx+t&&y>=ty&&y<=ty+t){sel=w.id;selPerson=null;$('#detailPanel').hidden=false;setTab('world');return}}});
+$('#closeDetail').onclick=()=>{$('#detailPanel').hidden=true;sel=null};
 
 // ================= detail panel =================
 const units=(o,max=8)=>Object.entries(o||{}).filter(([g,v])=>G[g]&&v>=0.05).sort((a,b)=>b[1]*G[b[0]].v-a[1]*G[a[0]].v).slice(0,max).map(([g,v])=>`${G[g].n} ${v<10?v.toFixed(1):Math.round(v)}${G[g].u}`).join('、')||'没有';
@@ -961,90 +968,80 @@ function renderDetail(){const el=$('#detail');const w=S.worlds.find(o=>o.id===se
    <p class="note" style="margin:0 0 6px">家人：${fam}<br>家里有：${units(p.hh.inv,6)}${S.P.mode==='money'?`；钱 ${fmt(p.hh.money)} 块`:''}${S.P.mode==='labor'?`；积分 ${fmt(p.hh.credits)}`:''}</p>
    <h3>经历</h3><ul>${p.log.map(x=>`<li>${x}</li>`).join('')||'<li>平平静静地过日子。</li>'}</ul></div>`}
 
-// ================= charts =================
-const CH=[
- {id:'cPop',t:'人口',s:[{k:'pop',c:'--accent',n:'总人口'}]},
- {id:'cWell',t:'吃饱、健康、开心（%）',max:100,s:[{k:'kcov',c:'--warn',n:'吃饱',m:100},{k:'health',c:'--good',n:'健康',m:100},{k:'happy',c:'--kid',n:'开心',m:100}]},
- {id:'cPrice',t:'',s:[]},
- {id:'cFair',t:'贫富差距和最不开心的世界',max:100,s:[{k:'gini',c:'--bad',n:'贫富差距（基尼系数×100）',m:100},{k:'minHappy',c:'--parent',n:'最不开心的世界的开心度',m:100}]},
- {id:'cHub',t:'补给中心的库存够用几周',s:[{k:'medWk',c:'--bad',n:'药品'},{k:'toolWk',c:'--hubc',n:'铁器工具'},{k:'foodWk',c:'--warn',n:'粮食（全体）'}],cap:40},
- {id:'cNat',t:'大自然还剩多少（%）',max:100,s:[{k:'fish',c:'--parent',n:'海里的鱼',m:100},{k:'game',c:'--kid',n:'森林里的猎物',m:100},{k:'forest',c:'--good',n:'树木',m:100}]},
-];
-function buildCharts(){$('#charts').innerHTML=CH.map(c=>`<div class="chart"><h3 id="${c.id}T">${c.t}</h3><canvas id="${c.id}"></canvas><div class="legend" id="${c.id}L"></div></div>`).join('')}
-const tok=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
-function niceMax(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v))),f=v/p;return(f<=1?1:f<=2?2:f<=2.5?2.5:f<=5?5:10)*p}
-function drawChart(spec){const c=document.getElementById(spec.id);if(!c)return;const r=c.getBoundingClientRect();if(!r.width)return;const d=Math.min(2,devicePixelRatio||1);c.width=Math.round(r.width*d);c.height=Math.round(r.height*d);
-  const g=c.getContext('2d');g.setTransform(d,0,0,d,0,0);const W=r.width,H=r.height,L=36,R=8,T=8,B=18;g.clearRect(0,0,W,H);
-  const hist=S.hist,step=Math.max(1,Math.ceil(hist.length/300)),pts=hist.filter((x,i)=>i%step===0||i===hist.length-1);
-  const n=Math.max(52,hist.length);const val=(x,s)=>{let v=x[s.k];if(v==null)return null;v*=s.m||1;if(spec.cap)v=Math.min(v,spec.cap);return v};
-  let mx=spec.max;if(mx==null){mx=0;spec.s.forEach(s=>pts.forEach(x=>{const v=val(x,s);if(v!=null)mx=Math.max(mx,v)}));mx=niceMax(mx*1.05||1)}
-  const X=tt=>L+(W-L-R)*(tt/(n||1)),Y=v=>T+(H-T-B)*(1-v/mx);
-  g.font='11px '+tok('--f-body');g.strokeStyle=tok('--line');g.fillStyle=tok('--muted');g.lineWidth=1;
-  for(let k=0;k<=4;k++){const v=mx*k/4,y=Y(v);g.beginPath();g.moveTo(L,y);g.lineTo(W-R,y);g.stroke();g.textAlign='right';g.textBaseline='middle';g.fillText(v>=1000?Math.round(v/100)/10+'千':v<10&&mx<=10?v.toFixed(1):Math.round(v),L-5,y)}
-  g.textAlign='center';g.textBaseline='top';const yrs=Math.floor(n/52);for(let y=1;y<=yrs;y++){const x=X(y*52);if(x<W-R-6)g.fillText(`${y}年`,x,H-B+4)}
-  // seasons: shade winters
-  g.fillStyle=tok('--soft');for(let y=0;y<=yrs;y++){const a=X(y*52+39),b=X(Math.min(n,y*52+52));if(a<W-R){g.globalAlpha=0.6;g.fillRect(a,T,Math.min(b,W-R)-a,H-T-B);g.globalAlpha=1}}
-  g.setLineDash([3,3]);g.strokeStyle=tok('--muted');(S.log||[]).forEach(e=>{if(e.role==='sys'||e.t<1)return;const x=X(e.t);g.beginPath();g.moveTo(x,T);g.lineTo(x,H-B);g.stroke()});g.setLineDash([]);
-  spec.s.forEach(s=>{g.strokeStyle=tok(s.c);g.lineWidth=2;g.beginPath();let on=false,lx=0,ly=0;pts.forEach(x=>{const v=val(x,s);if(v==null){on=false;return}const px=X(x.t),py=Y(Math.min(v,mx));if(!on){g.moveTo(px,py);on=true}else g.lineTo(px,py);lx=px;ly=py});g.stroke();
-    if(on){g.fillStyle=tok(s.c);g.beginPath();g.arc(lx,ly,3,0,7);g.fill()}});
-  $('#'+spec.id+'L').innerHTML=spec.s.map(s=>`<span><i style="background:var(${s.c})"></i>${s.n}</span>`).join('')+((S.log||[]).some(e=>e.role!=='sys')?'<span>竖线：改了规则</span>':'')+'<span>浅色：冬天</span>'}
-function priceSpec(){const pr=CH[2];const money=S.hist.some(x=>x.apple!=null),barter=S.hist.some(x=>x.barterFail!=null);
-  if(money){pr.t='价格：一个苹果、一公斤米（块）';pr.s=[{k:'apple',c:'--bad',n:'一个苹果'},{k:'rice',c:'--warn',n:'一公斤米'}];pr.max=null}
-  else{pr.t='需要的东西有多少没拿到（%）';pr.s=[{k:'unmet',c:'--bad',n:'没拿到的比例',m:100}];if(barter)pr.s.push({k:'barterFail',c:'--parent',n:'以物易物失败的比例',m:100});pr.max=100}
-  $('#cPriceT').textContent=pr.t}
-
-// ================= results =================
-function avgLast(k,n=13){const h=S.hist.slice(-n);return h.length?h.reduce((a,x)=>a+(x[k]||0),0)/h.length:0}
+// ================= problems, bottlenecks, consequences =================
+const ago=(n)=>S.hist[Math.max(0,S.hist.length-1-n)]||{};
+const since=(k,n=13)=>{const L=S.hist[S.hist.length-1]||{},A=ago(n);return Math.max(0,(L[k]||0)-(A[k]||0))};
+const WN=id=>(S.worlds.find(w=>w.id===id)||{}).name||id;
+const PRODN={orchard:'苹果',forest:'木柴和肉',mine:'铁矿石',fish:'鱼和盐',pasture:'羊奶和羊毛',herb:'草药',farm:'稻米',craft:'布和陶器'};
+const listN=a=>a.length>3?a.slice(0,3).join('、')+'等':a.join('、');
+function diagnose(){const P=S.P,L=S.hist[S.hist.length-1];if(!L)return[];const out=[],ws=S.wstat.filter(w=>w.id!=='hub'&&w.pop),se=season(S.t),pop=L.pop||1;
+  const ev=S.worlds.filter(w=>w.event&&w.event!=='bumper');
+  const trend=(k,n=8,inv)=>{const a=ago(n)[k],b=L[k];if(a==null||b==null)return'';const d=(b-a)*(inv?-1:1);return d>0.03?'在变好':d<-0.03?'在变坏':''};
+  // 1 hunger
+  const hungry=ws.filter(w=>w.kcov<0.85),starve=since('cStarve'),fled=since('cFled');
+  if(hungry.length||starve){const names=listN(hungry.map(w=>WN(w.id))),bn=[];
+    const foodEv=ev.filter(w=>['drought','locust','storm','fire'].includes(w.event));if(foodEv.length)bn.push(`${listN(foodEv.map(w=>WN(w.id)))}正在闹${listN(foodEv.map(w=>EVN[w.event]))}，粮食减产`);
+    if(P.mode==='free'||P.mode==='labor'){if(L.foodWk<0.6){if(P.greed&&P.mode==='free')bn.push('补给中心的粮仓空了：东西不要钱，种粮的人家先把自己家装满，交到中心的少，拿走的人又多吃多用');else if(se<2)bn.push('补给中心的粮仓空了：稻子一年只收一次，春夏正是青黄不接');else bn.push('补给中心的粮仓空了')}
+      if(P.freeRide&&L.effort<0.85)bn.push(`有人偷懒，干活劲头只有 ${pct(L.effort)}，种出来的少了`);
+      if(P.mode==='labor'&&L.foodWk>=0.6)bn.push('积分不够：积分按小时记，价格不跟着变，缺的东西先来的人就换光了')}
+    if(P.mode==='barter'){const nb=hungry.filter(w=>['mine','herb','craft','forest','orchard'].includes(w.id));if(nb.length)bn.push(`${listN(nb.map(w=>WN(w.id)))}手里的${listN(nb.map(w=>PRODN[w.id]))}没人要，换不到粮食`);else bn.push('想换的人找不到正好想要自己东西的人')}
+    if(P.mode==='money'){const poor=hungry.filter(w=>{const W=S.worlds.find(o=>o.id===w.id),m=W.hhs.flatMap(h=>h.members).length||1;return W.hhs.reduce((a,h)=>a+h.money,0)/m<60*S.moneyFactor});
+      if(poor.length)bn.push(`${listN(poor.map(w=>WN(w.id)))}的人家没钱买粮，${listN(poor.map(w=>PRODN[w.id]))}卖不上价`);if(P.priceCap)bn.push('价格被规定死了，粮食一上架就被抢光');if(L.foodWk<0.6)bn.push('补给中心粮仓里没粮可卖')}
+    if(P.distance&&hungry.some(w=>{const W=S.worlds.find(o=>o.id===w.id);return W.r!==1&&W.c!==1}))bn.push('角落的世界离中心远，赶到时东西已经被拿完');
+    const farm=S.worlds.find(w=>w.id==='farm'),farmers=farm.hhs.reduce((a,h)=>a+h.members.filter(p=>p.job==='farmer').length,0);if(farmers>48)bn.push(`稻田就那么大，种田的人多了（${farmers} 人）也种不出更多`);
+    if(!bn.length)bn.push('粮食不够分');
+    const cons=[];if(starve)cons.push(`最近三个月饿死 ${starve} 人`);if(fled)cons.push(`${fled} 人逃荒去了别的世界`);if(!cons.length)cons.push('身体变差、生病的人变多；再这样下去会有人饿死');
+    out.push({sev:0.5+Math.min(0.5,starve*0.05+hungry.length*0.08),cls:'bad',tag:'缺粮',worlds:hungry.map(w=>w.id),q:`${names||'有人'}吃不饱（${L.hungry} 人）`,b:bn.slice(0,2).join('；'),c:cons.join('，')+'。',tr:trend('kcov')})}
+  // 2 medicine
+  const nomed=since('cNoMed'),sickNo=S.people.filter(p=>p.sick&&!p.sick.treated&&ILL[p.sick.type].dose>1).length;
+  if(L.medWk<0.5||nomed||sickNo>3){const bn=[];const herbW=S.worlds.find(w=>w.id==='herb'),hp=herbW.hhs.reduce((a,h)=>a+h.members.length,0);
+    if(L.medWk<0.5&&(L.hubHerb||0)<4)bn.push(`药房没有草药：草药谷只有 ${hp} 人，采的不够做药`);else if(L.medWk<0.5)bn.push(`药剂师太少：补给中心只有 ${P.hubStaff} 人`);
+    if(P.mode==='money')bn.push('药价贵，穷人家买不起');if(P.mode==='free'&&P.greed)bn.push('药被先到、多拿的人家拿走了');if(P.mode==='barter')bn.push('换药要拿补给中心正好需要的东西去换');if(P.corruption)bn.push('补给中心的人把一部分药留给了自己');
+    if(!bn.length)bn.push('药发不到病人手里');
+    out.push({sev:0.45+Math.min(0.5,nomed*0.08),cls:'bad',tag:'缺药',worlds:['herb'],q:`${sickNo} 个病人拿不到药`,b:bn.slice(0,2).join('；'),c:(nomed?`最近三个月有 ${nomed} 人生病没药去世`:'病好得慢，生病的人干不了活')+'。',tr:''})}
+  // 3 plague
+  if(L.plague>0){const pw=S.worlds.filter(w=>w.hhs.some(h=>h.members.some(p=>p.sick&&p.sick.type==='plague')));
+    out.push({sev:0.55,cls:'bad',tag:'瘟疫',worlds:pw.map(w=>w.id),q:`${listN(pw.map(w=>w.name))}在闹瘟疫（${L.plague} 人）`,b:P.contagion?'集市上人挤人，病被带到了别的世界':L.medWk<1?'没有足够的药':'瘟疫传得快',c:'染病的人干不了活，老人和孩子最危险。',tr:''})}
+  // 4 tools
+  if(L.tool<0.6){const bn=[];const mineN=S.worlds.find(w=>w.id==='mine').hhs.reduce((a,h)=>a+h.members.length,0);
+    if(mineN<8)bn.push(`雪山矿场只剩 ${mineN} 人，挖不出打铁用的矿石`);else if((L.hubOre||0)<10)bn.push('铁匠铺缺矿石');else if((L.hubWood||0)<15)bn.push('铁匠铺缺木柴，炉子烧不起来');
+    if(P.mode==='money')bn.push('铁器工具太贵，买不起');if(P.mode==='barter')bn.push('一件工具值几十公斤东西，没法拆开来换');if(!bn.length)bn.push('铁匠打工具的速度赶不上坏的速度');
+    out.push({sev:0.35+(0.6-L.tool),cls:'warn',tag:'缺工具',worlds:['mine'],q:`铁器工具坏了没得换（只剩 ${pct(L.tool)}）`,b:bn.slice(0,2).join('；'),c:`没有好工具，大家干活效率降了大约 ${pct((1-L.tool)*0.45)}，种出来的、打来的都少了。`,tr:trend('tool')})}
+  // 5 cold
+  if(L.cold>pop*0.05){const bn=[];if((L.hubWood||0)<200)bn.push('木柴不够：猎人森林砍的柴不够大家烧');if((L.hubCloth||0)<5)bn.push('布不够：羊毛只在春天剪一次，衣服穿旧了换不上');if(S.harsh)bn.push('今年冬天特别冷');if(!bn.length)bn.push('柴和衣服没分到需要的人家');
+    out.push({sev:0.3+Math.min(0.4,L.cold/pop),cls:'warn',tag:'冷',worlds:S.wstat.filter(w=>w.cold>3).map(w=>w.id),q:`${L.cold} 个人冬天挨冻`,b:bn.slice(0,2).join('；'),c:(since('cCold')?`最近三个月冻死 ${since('cCold')} 人；`:'')+'挨冻的人容易感冒、身体变差。',tr:''})}
+  // 6 laziness
+  if(P.freeRide&&(P.mode==='free'||P.mode==='labor')&&L.effort<0.88)out.push({sev:0.3+(0.88-L.effort),cls:'warn',tag:'偷懒',worlds:[],q:`有人偷懒（干活劲头 ${pct(L.effort)}）`,b:P.mode==='free'?'东西不要钱，干多干少拿的一样':'积分按小时记，不看做出来多少，混时间也拿一样多',c:'生产的东西变少，勤快的人也不高兴。'+(P.reputation?'“大家都看得见”已经让偷懒少了一些。':''),tr:trend('effort')});
+  // 7 inflation
+  if(P.mode==='money'){const ap=S.hist.filter(x=>x.apple!=null);if(ap.length>8){const a0=ap[Math.max(0,ap.length-53)].apple,a1=L.apple,r=a1/a0;
+    if(r>1.3){const bn=[];if(P.printRate>0.015)bn.push(`每月新印 ${pct(P.printRate)} 的钱，东西却没变多`);if(S.deficitPrint)bn.push('补给中心发工资的钱不够，自己又印了钱');if(P.greed)bn.push('人人都想用多出来的钱多买一点，卖东西的人就卖给出价高的');if(!bn.length)bn.push('东西变少了');
+      out.push({sev:0.3+Math.min(0.5,(r-1)*0.15),cls:r>2?'bad':'warn',tag:'涨价',worlds:[],q:`物价在涨：一个苹果 ${a0.toFixed(2)} → ${a1.toFixed(2)} 块`,b:bn.slice(0,2).join('；'),c:S.trust<0.8?'大家不再相信钱，不愿意把东西卖出来，市场上东西更少，干活的心思也没了。':'攒下的钱越来越不值钱，大家急着花掉。',tr:''})}}}
+  // 8 inequality
+  if(L.gini>0.45&&P.mode!=='free'){const low=[...ws].sort((a,b)=>a.happy-b.happy)[0];out.push({sev:0.25+(L.gini-0.45),cls:'warn',tag:'穷',worlds:low?[low.id]:[],q:'贫富差距很大',b:P.mode==='money'?'有钱的人家越攒越多，没钱的人家欠着账':P.mode==='barter'?'东西有人要的世界越过越好，东西没人要的越过越差':'分到的多少差得太远',c:`${low?WN(low.id):'最穷的世界'}最不开心，最先吃不饱、看不起病。`,tr:''})}
+  // 9 nature
+  [['fish','海里的鱼','fish','打鱼的比鱼长得快'],['game','森林里的猎物','forest','打猎的比猎物长得快'],['forest','树木','forest','砍树比树长得快']].forEach(([k,n,w,b])=>{if(L[k]<0.45)out.push({sev:0.3+(0.45-L[k]),cls:'warn',tag:'资源少',worlds:[w],q:`${n}只剩 ${pct(L[k])}`,b,c:'能打到、砍到的越来越少，以后会更难。',tr:trend(k)})});
+  // 10 hub queue
+  const q4=S.hist.slice(-4).reduce((a,x)=>a+(x.queue||0),0)/4;if(q4>2)out.push({sev:0.3,cls:'warn',tag:'排队',worlds:['hub'],q:`每周有 ${Math.round(q4)} 户人家在补给中心排不上队`,b:`补给中心现在只有 ${S.hubW.hhs.reduce((a,h)=>a+h.members.filter(p=>p.job==='clerk'&&!p.sick).length,0)} 个管仓库的人，忙不过来`,c:'没轮到的人家这周什么也拿不到。',tr:''});
+  // 11 disasters still going (that aren't already explained)
+  ev.filter(w=>w.event==='collapse').forEach(w=>out.push({sev:0.25,cls:'warn',tag:EVN[w.event],worlds:[w.id],q:`${w.name}${EVN[w.event]}`,b:'矿井要修好几周',c:'受伤的矿工需要药，铁矿石会少一阵。',tr:''}));
+  return out.sort((a,b)=>b.sev-a.sev).slice(0,6)}
+let PROBS=[];
 function render(){
   const se=season(S.t),yr=Math.floor(S.t/52)+1,wk=S.t%52;$('#date').textContent=`第 ${yr} 年 · ${SEASON[se]}`;$('#dateSub').textContent=`第 ${wk%13+1} 周 · ${MODE_N[S.P.mode]}`;
-  const L=S.hist[S.hist.length-1];if(!L)return;const ps=S.people;
-  // verdict
-  const yrAgo=S.hist[Math.max(0,S.hist.length-53)],trend=L.pop/Math.max(1,yrAgo.pop);
-  const starvedYr=(S.cnt.by['饥饿']||0)-(S.byYrAgo||0);const ap=S.hist.filter(x=>x.apple!=null),infl=ap.length>13?ap[ap.length-1].apple/ap[Math.max(0,ap.length-53)].apple:1;
-  let score=0.3*avgLast('kcov')+0.3*avgLast('health')+0.25*avgLast('happy')+0.15*clamp((trend-0.85)/0.15,0,1);score-=Math.min(0.12,starvedYr*0.012);if(infl>1.5)score-=Math.min(0.12,(infl-1.5)*0.03);
-  const v=$('#verdict');const lv=score>0.86?['good','运转得很好']:score>0.76?['warn','勉强能运转']:score>0.62?['bad','遇到大麻烦了']:['bad','快撑不下去了'];v.className='verdict '+lv[0];$('#vFace').textContent=lv[1];
-  $('#vText').textContent=`规则：${MODE_N[S.P.mode]}，自觉程度 ${Math.round(S.P.kindness*100)}%${S.P.mode==='money'?`，每月印钱 ${Math.round(S.P.printRate*100)}%`:''}。最近三个月：吃饱 ${pct(avgLast('kcov'))}，健康 ${pct(avgLast('health'))}，开心 ${Math.round(avgLast('happy')*100)}；一年里人口${trend>1.02?'在增加':trend<0.98?'在减少':'差不多'}（${yrAgo.pop} → ${L.pop}）`+(starvedYr>0?`，最近一年有 ${starvedYr} 人饿死`:'')+(infl>1.5?`，一年里物价涨了 ${infl.toFixed(1)} 倍`:'')+'。';
-  // tiles
-  const worst=[...S.wstat].filter(w=>w.id!=='hub'&&w.pop).sort((a,b)=>a.happy-b.happy)[0];const wn=id=>S.worlds.find(w=>w.id===id).name;
-  const mode=S.P.mode,apYr=S.hist.find(x=>x.t===Math.max(1,S.t-52));
-  const t6=mode==='money'?['一个苹果',`${fmt(L.apple,2)} 块`,apYr&&apYr.apple?`一年前 ${fmt(apYr.apple,2)} 块`:'刚开始用钱']:mode==='barter'?['以物易物失败',pct(avgLast('barterFail')),'想换的东西没换到']:['需要没拿到',pct(avgLast('unmet',4)),'最近一个月'];
-  const tiles=[['人口',L.pop,`今年出生 ${S.yr.births} · 去世 ${S.yr.deaths}`],['吃得饱',pct(ps.filter(p=>p.kcov>=0.9).length/Math.max(1,ps.length)),`吃不饱 ${L.hungry} 人`],['平均健康',pct(L.health),`正在生病 ${L.sick} 人`],
-    ['平均开心',Math.round(L.happy*100),worst?`最不开心：${wn(worst.id)}`:''],['贫富差距',L.gini.toFixed(2),'0 是一样多，越大越不平均'],t6,
-    ['补给中心的药',`够 ${fmt(Math.min(L.medWk,99))} 周`,`铁器工具够 ${fmt(Math.min(L.toolWk,99))} 周`],['大自然',`鱼 ${pct(L.fish)}`,`猎物 ${pct(L.game)} · 树木 ${pct(L.forest)}`]];
-  $('#stats').innerHTML=tiles.map(([l,v,d])=>`<div class="stat"><div class="l">${l}</div><div class="v">${v}</div><div class="d">${d}</div></div>`).join('');
-  priceSpec();CH.forEach(drawChart);
-  renderFinds();renderNews();renderLog();renderDetail();
-}
-function renderFinds(){const out=[],h=S.hist,L=h[h.length-1],c=S.cnt,P=S.P,yr=h.slice(-52),wn=id=>S.worlds.find(w=>w.id===id).name;
-  const by=c.by,starve=by['饥饿']||0,nomed=Object.entries(by).filter(([k])=>k.includes('没有药')).reduce((a,[,v])=>a+v,0);
-  const hungryW=S.wstat.filter(w=>w.id!=='hub'&&w.pop&&w.kcov<0.85).map(w=>wn(w.id));
-  if(hungryW.length)out.push(['bad',`现在${hungryW.join('、')}吃不饱。`+(P.mode==='free'&&P.greed?'东西不要钱时，大家交得少、拿得多，种粮食的世界先把自己家的粮仓装满，不种粮食的世界就分不到。':P.mode==='barter'?'以物易物时，他们手里的东西别人不一定要，就换不到吃的。':P.mode==='money'?'用钱时，没钱的人家买不起粮食。':'补给中心的粮仓不够分。')]);
-  if(starve>0)out.push(['bad',`到现在一共有 ${starve} 个人饿死，${nomed} 个人生病时没有药。`+(c.fled?` ${c.fled} 个人逃荒搬去了有吃的地方。`:'')]);
-  if(P.mode==='free'&&P.greed&&c.overK>15400*20)out.push(['warn',`“都想多拿一点”：东西不要钱，大家多吃多用，平均每周多用掉大约 ${Math.round(c.overK/15400/Math.max(1,S.t))} 个人一周的口粮。${P.needFirst?'中心按需要分，好了一些。':'把“自觉程度”调高，或者让中心“先给最需要的人”试试。'}`]);
-  if(P.freeRide&&(P.mode==='free'||P.mode==='labor')){const ws=S.people.filter(p=>p.effort>0),e=ws.reduce((a,p)=>a+p.effort,0)/Math.max(1,ws.length);
-    out.push([e<0.8?'bad':'warn',`拿不到好处，有人就偷懒：大家干活的劲头平均只有 ${pct(e)}。${P.mode==='labor'?'劳动积分按小时算，不按做出来多少算，混时间的人也拿一样的分。':''}${P.reputation?'“大家都看得见”让偷懒的人少了一些。':'试试“谁干了多少活大家都看得见”。'}`])}
-  if(P.mode==='barter')out.push(['warn',`以物易物：最近三个月 ${pct(avgLast('barterFail'))} 的交换没成功。矿工的矿石、采药人的草药，除了补给中心没人要；一件铁器工具值好几十公斤鱼，没法切开来换。这就是人们后来发明钱的原因。`]);
-  if(P.mode==='labor')out.push(['warn',`劳动积分：价格是按“做它要花几个小时”定的，东西少了也不涨价，所以缺的东西总是被先来的人换光，后来的人排不到。`]);
-  if(P.mode==='money'){const ap=h.filter(x=>x.apple!=null);if(ap.length>4){const a0=ap[0].apple,a1=L.apple;const r=a1/a0;
-    if(r>1.6)out.push(['bad',`通货膨胀：一个苹果从 ${a0.toFixed(2)} 块涨到了 ${a1.toFixed(2)} 块。苹果并没有变多，可是大家手里的钱变多了${P.greed?'，人人都想用多出来的钱多买一点，卖苹果的人就卖给出价高的人':''}。${S.trust<0.7?'物价涨得太快，大家开始不相信钱，不愿意把东西卖给中心。':''}`]);
-    else out.push(['good',`苹果价格比较稳定：${a0.toFixed(2)} → ${a1.toFixed(2)} 块。`]);
-    if(S.deficitPrint>0)out.push(['warn',`补给中心的钱不够发工资和收购东西，自己又印了 ${fmt(S.deficitPrint)} 块钱。这些新钱也会让东西变贵。`]);
-    if(L.gini>0.42)out.push(['warn',`用钱以后，有的人家钱越攒越多，有的人家欠着账。贫富差距是 ${L.gini.toFixed(2)}。`])}
-    if(P.priceCap)out.push(['warn','规定价格不许涨：东西便宜了，可是太便宜就没人愿意多卖，货架很快被先来的人买空，后来的人有钱也买不到。'])}
-  if(L.fish<0.45)out.push(['bad',`海里的鱼只剩 ${pct(L.fish)} 了：人多了、打得多了，鱼来不及长大。`]);if(L.game<0.45)out.push(['bad',`森林里的猎物只剩 ${pct(L.game)}。`]);
-  if(P.distance)out.push(['warn','角落里的四个世界离中心远，赶集要走半天，排队也排在后面，东西常常被先到的人拿完。']);
-  if(P.corruption&&c.leak>0)out.push(['warn',`补给中心的人有私心：一共大约有价值 ${fmt(c.leak)} 块的药品、工具和好吃的被他们偷偷留下了。`]);
-  if(c.moved)out.push(['good',`有 ${c.moved} 个人因为不开心搬去了别的世界。`]);
-  if(P.freedom)out.push(['good','“想干嘛就干嘛”：有些人去画画、玩，大家更开心，可干活的人少了，东西也少了。']);
-  if(!out.length)out.push(['good',`每个世界都吃得饱、有药用。最近一年出生 ${S.yr.births} 人，去世 ${S.yr.deaths} 人（大多是年纪大了）。`]);
-  $('#finds').innerHTML='';out.slice(0,7).forEach(([t,x])=>{const li=document.createElement('li');li.className=t;li.textContent=x;$('#finds').append(li)})}
-function renderNews(){$('#news').innerHTML=S.news.slice(0,60).map(n=>`<li class="${n.type}"><span class="t">${Sim.when(n.t)}</span>${n.txt}</li>`).join('')||'<li>还没有新闻。</li>'}
+  const L=S.hist[S.hist.length-1];if(!L)return;PROBS=diagnose();
+  const bad=PROBS.filter(p=>p.cls==='bad').length,lv=!PROBS.length?['good','运转得很好']:bad>=2||PROBS[0].sev>0.85?['bad','遇到大麻烦了']:bad?['bad','有严重的问题']:['warn','有些小问题'];
+  $('#verdict').className='verdict '+lv[0];$('#vFace').textContent=lv[1];
+  const yrAgo=ago(52),dPop=L.pop-(yrAgo.pop||L.pop);
+  $('#vText').textContent=(PROBS.length?`最要紧的是：${PROBS[0].q}。`:'每个世界都吃得饱、有药用、冬天不冷。')+(Math.abs(dPop)>=5?` 一年里人口${dPop>0?'多了':'少了'} ${Math.abs(dPop)} 人。`:'');
+  $('#probs').innerHTML=PROBS.length?PROBS.map(p=>`<div class="prob ${p.cls}"><span class="k">问题</span><span class="q">${p.q}</span><span class="k">瓶颈</span><span class="v">${p.b}</span><span class="k">后果</span><span class="v">${p.c}</span>${p.tr?`<span class="trend">最近两个月${p.tr}</span>`:''}</div>`).join('')
+    :`<div class="prob good"><span class="k">现在</span><span class="q">没有发现问题</span><span class="k">留意</span><span class="v">${se===2?'冬天快到了：柴、衣服和过冬的粮要备好。':se===0?'春天青黄不接：去年的粮要撑到秋收。':'试着打开右边一条现实制约，看看会出什么问题。'}</span></div>`;
+  renderLog();if(!$('#detailPanel').hidden)renderDetail()}
 function addLog(role,title,ex,pred){S.log.unshift({t:S.t,role,title,ex:ex||'',pred:pred||''});renderLog()}
 function renderLog(){const el=$('#log');el.innerHTML='';S.log.forEach(e=>{const li=document.createElement('li');li.innerHTML=`<span class="rtag ${e.role}">${e.role==='kid'?'小朋友':e.role==='parent'?'爸爸妈妈':'世界'}</span><span class="t">${Sim.when(e.t)}</span>`;
   const b=document.createElement('b');b.textContent=e.title;li.append(b);if(e.ex){const x=document.createElement('span');x.className='ex';x.textContent=e.ex;li.append(x)}if(e.pred){const x=document.createElement('span');x.className='ex';x.textContent='预测：'+e.pred;li.append(x)}el.append(li)})}
 
 // ================= controls =================
-function tick(){Sim.step();if(S.t%52===0)S.byYrAgo=S.cnt.by['饥饿']||0;spawnTraders();render()}
+function tick(){Sim.step();lastTick=performance.now();if(S.t%52===0)S.byYrAgo=S.cnt.by['饥饿']||0;spawnTraders();render()}
 function loop(){if(!running)return;tick();timer=setTimeout(loop,tickMs())}
 function setRun(v){running=v;$('#play').textContent=v?'⏸ 暂停':'▶ 开始';clearTimeout(timer);if(v)timer=setTimeout(loop,150)}
 $('#play').onclick=()=>setRun(!running);$('#stepBtn').onclick=()=>tick();
@@ -1119,7 +1116,7 @@ $('#aiBtn').onclick=async()=>{if(!sample)return;const out=$('#aiOut'),btn=$('#ai
   catch(e){out.textContent=e&&e.code==='not_granted'?'没有允许 Claude 使用，所以讲不了。':'这次没讲成，过一会儿再试。'}finally{btn.disabled=false}};
 
 // ================= live updates from GitHub =================
-const BUILD=4,LIVE={"build": 4, "params": {}, "commands": [], "rules": 1, "simHash": "6ff837ddee15", "uiHash": "835baaa70dd4"};let RULES=LIVE.rules||1;
+const BUILD=6,LIVE={"build": 6, "params": {}, "commands": [], "rules": 2, "simHash": "fb52f75b6765", "uiHash": "1795c5e94a13"};let RULES=LIVE.rules||1;
 const REPO='Yifeng-LIN/Yifeng-LIN.github.io',BRANCH='claude/ecstatic-faraday-e7tjvq';
 const liveNote=t=>{$('#tickNote').textContent=t};
 function applyLive(L){if(!L)return 0;S.liveSeen=S.liveSeen||[];let n=0;
@@ -1153,7 +1150,7 @@ async function poll(){clearTimeout(pollTimer);
 // ================= boot =================
 function start(p){Sim.newGame(p||{},Math.floor(Math.random()*1e9));S=Sim.S;for(const k in folk)delete folk[k];fx.traders.length=0;cache.clear();for(let i=0;i<4;i++)Sim.step();syncUI()}
 const ss=k=>{try{return sessionStorage.getItem(k)}catch(e){return null}},ssDel=k=>{try{sessionStorage.removeItem(k)}catch(e){}};
-function boot(d){d=d||{};buildCharts();fit();let restored=false,wasRunning=null;
+function boot(d){d=d||{};fit();let restored=false,wasRunning=null;
   try{const st=d.state||ss('jiugong:state');if(st){Sim.load(st);S=Sim.S;restored=true;wasRunning=d.state?d.running:ss('jiugong:run')!=='0'}}catch(e){restored=false}
   ssDel('jiugong:state');ssDel('jiugong:run');
   if(restored){syncUI();addLog('sys',`换上了第 ${BUILD} 版`,'代码更新了，世界接着跑，没有重来。')}
@@ -1163,7 +1160,7 @@ function boot(d){d=d||{};buildCharts();fit();let restored=false,wasRunning=null;
   applyLive(LIVE);render();requestAnimationFrame(frame);
   let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{fit();render()},120)});
   const rethemes=()=>render();matchMedia('(prefers-color-scheme: dark)').addEventListener('change',rethemes);new MutationObserver(rethemes).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
-  try{const ui=JSON.parse(ss('jiugong:ui')||'null');ssDel('jiugong:ui');if(ui&&restored){speed=ui.speed||1;$('#speed').textContent=`速度 ${speed}×`;sel=ui.sel||sel;selPerson=ui.selPerson||null;role=ui.role||role;
+  try{const ui=JSON.parse(ss('jiugong:ui')||'null');ssDel('jiugong:ui');if(ui&&restored){speed=ui.speed||1;$('#speed').textContent=`速度 ${speed}×`;sel=ui.sel||null;selPerson=ui.selPerson||null;if(sel)$('#detailPanel').hidden=false;role=ui.role||role;
     document.querySelectorAll('.who-toggle button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.r===role)));if(ui.idea)$('#ideaText').value=ui.idea;setTab(ui.tab||'world');requestAnimationFrame(()=>scrollTo(0,ui.y||0))}}catch(e){}
   if(wasRunning!=null?wasRunning:!reduceMotion)setRun(true);
   // outside Claude the page watches GitHub; inside Claude the artifact is updated directly

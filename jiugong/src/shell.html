@@ -117,6 +117,17 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
 .rtag.kid{background:var(--kid)} .rtag.parent{background:var(--parent)} .rtag.sys{background:var(--muted)}
 .log .ex{display:block;color:var(--muted);margin-top:2px}
 .ai{white-space:pre-wrap;font-size:13.5px;background:var(--soft);border-radius:9px;padding:9px 11px}
+.diag{display:flex;flex-direction:column;gap:12px}
+.probs{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px}
+.prob{background:var(--panel);border:1px solid var(--line);border-left:5px solid var(--warn);border-radius:12px;padding:12px 14px;display:grid;grid-template-columns:3.2em minmax(0,1fr);gap:6px 10px;align-items:baseline}
+.prob.bad{border-left-color:var(--bad)} .prob.good{border-left-color:var(--good)}
+.prob .k{font-size:12px;font-weight:700;color:var(--muted);letter-spacing:.06em}
+.prob .q{font-family:var(--f-display);font-weight:600;font-size:17px;line-height:1.35}
+.prob .v{font-size:14px}
+.prob .trend{grid-column:2;font-size:12px;color:var(--muted)}
+.logbox summary{cursor:pointer;font-weight:600}
+.close{margin-left:auto;border:0;background:none;color:var(--muted);padding:6px 4px;order:9}
+.tabs{align-items:center}
 @media (prefers-reduced-motion:reduce){*{transition:none!important}}
 </style>
 
@@ -139,8 +150,8 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
         <button class="btn" id="reset">从头再来</button>
         <span class="note" id="tickNote"></span>
       </div>
-      <div class="panel" id="detailPanel">
-        <div class="tabs" role="tablist">
+      <div class="panel" id="detailPanel" hidden>
+        <div class="tabs" role="tablist"><button class="close" id="closeDetail" aria-label="关上">关上</button>
           <button role="tab" id="tabWorld" aria-selected="true">这个世界</button>
           <button role="tab" id="tabPeople" aria-selected="false">住在这里的人</button>
           <button role="tab" id="tabPerson" aria-selected="false" hidden>人物</button>
@@ -179,25 +190,11 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
     </div>
   </section>
 
-  <section class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></section>
-  <section class="stats" id="stats"></section>
-  <section class="charts" id="charts"></section>
-
-  <section class="lower">
-    <div class="panel">
-      <h2>发生了什么，为什么</h2>
-      <ul class="list finds" id="finds"></ul>
-      <div class="bar" id="aiBar" hidden><button class="btn" id="aiBtn">请 Claude 讲讲为什么</button></div>
-      <div class="ai" id="aiOut" hidden></div>
-    </div>
-    <div class="panel">
-      <h2>九宫新闻</h2>
-      <ul class="list news" id="news"></ul>
-    </div>
-    <div class="panel">
-      <h2>实验记录</h2>
-      <p class="note">每次改规则都记在这里，图上的竖线就是这些时刻。</p>
-      <ul class="list log" id="log"></ul>
-    </div>
+  <section class="diag">
+    <div class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></div>
+    <div class="probs" id="probs"></div>
+    <div class="bar" id="aiBar" hidden><button class="btn" id="aiBtn">请 Claude 讲讲为什么</button></div>
+    <div class="ai" id="aiOut" hidden></div>
+    <details class="panel logbox"><summary>实验记录（改过哪些规则）</summary><ul class="list log" id="log"></ul></details>
   </section>
 </div>

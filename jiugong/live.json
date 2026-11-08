@@ -1,8 +1,8 @@
 {
-  "build": 4,
+  "build": 6,
   "params": {},
   "commands": [],
-  "rules": 1,
-  "simHash": "6ff837ddee15",
-  "uiHash": "835baaa70dd4"
+  "rules": 2,
+  "simHash": "fb52f75b6765",
+  "uiHash": "1795c5e94a13"
 }

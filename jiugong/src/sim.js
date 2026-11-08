@@ -534,7 +534,12 @@ function record(){
     apple:P.mode==='money'?S.prices.apple/5:null,rice:P.mode==='money'?S.prices.rice:null,trust:S.trust,mode:P.mode,M:S.M,
     medWk:(H.med||0)/medNeedWk,toolWk:(H.tool||0)/Math.max(1,ps.filter(p=>p.job&&p.job!=='artist').length*0.02),foodWk:kcalOf(H)/staffK,
     unmet,barterFail:S.wk.barterTry?S.wk.barterFail/S.wk.barterTry:null,queue:S.wk.queue,fish:S.res.fish,game:S.res.game,forest:S.res.forest,
-    births:S.yr.births,deaths:S.yr.deaths};
+    births:S.yr.births,deaths:S.yr.deaths,
+    // running totals, so the page can tell what happened in the last few months
+    cStarve:S.cnt.by['饥饿']||0,cNoMed:Object.keys(S.cnt.by).filter(k=>k.includes('没有药')).reduce((a,k)=>a+S.cnt.by[k],0),cCold:S.cnt.by['寒冷']||0,cFled:S.cnt.fled||0,cOver:S.cnt.overK,cBirths:S.cnt.births,
+    effort:(()=>{const w=ps.filter(p=>p.effort>0);return w.length?w.reduce((a,p)=>a+p.effort,0)/w.length:1})(),
+    tool:(()=>{const hs=S.hhs.filter(h=>h.world.id!=='hub');const ws=hs.reduce((a,h)=>a+workers(h).length,0);return ws?Math.min(1,hs.reduce((a,h)=>a+Math.min(h.toolDur,workers(h).length),0)/ws):1})(),
+    cold:ps.filter(p=>p.warm<0.6).length,plague:ps.filter(p=>p.sick&&p.sick.type==='plague').length,hubFoodK:kcalOf(H),hubWood:H.wood||0,hubHerb:H.herb||0,hubOre:H.ore||0,hubCloth:H.cloth||0};
   S.hist.push(row);
 }
 
