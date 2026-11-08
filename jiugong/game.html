@@ -204,7 +204,7 @@ tbody tr{cursor:pointer} tbody tr:hover{background:var(--soft)}
 
 <script>
 /*SIM-START*/
-const Sim=(()=>{
+var Sim=(()=>{
 const clamp=(x,a,b)=>x<a?a:x>b?b:x;
 function mkRng(seed){let a=seed>>>0;return()=>{a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
 
@@ -772,7 +772,8 @@ function resizeHub(){const w=S.hubW,n=w.hhs.reduce((a,h)=>a+h.members.length,0);
 (()=>{
 const $=s=>document.querySelector(s);
 const clamp=(x,a,b)=>x<a?a:x>b?b:x;
-const {G,JOB,EVN,ILL,SEASON,season,DEF}=Sim;
+// the rules (the simulation) can be swapped while the page keeps running, so read them through Sim every time it changes
+let G,JOB,EVN,ILL,SEASON,season,DEF;function bindSim(){({G,JOB,EVN,ILL,SEASON,season,DEF}=Sim)}bindSim();
 const MODE_N={free:'不要钱 · 想要就拿',barter:'以物易物',labor:'劳动积分',money:'用钱买卖'};
 const KID=[['needFirst','中心先给最需要的人'],['share','邻居和隔壁世界互相帮忙'],['freedom','想干嘛就干嘛（有人去画画、玩）'],['migrate','不开心可以搬家'],['reputation','谁干了多少活大家都看得见'],['priceCap','规定价格不许涨']];
 const PARENT=[['greed','人性：都想多拿一点'],['freeRide','拿不到好处就有人偷懒'],['disasters','天灾：干旱、风暴、山火、塌方、蝗灾、寒冬'],['contagion','传染病会在集市上传开'],['distance','角落的世界离中心远，赶集要走半天'],['corruption','补给中心的人也有私心']];
@@ -1118,7 +1119,7 @@ $('#aiBtn').onclick=async()=>{if(!sample)return;const out=$('#aiOut'),btn=$('#ai
   catch(e){out.textContent=e&&e.code==='not_granted'?'没有允许 Claude 使用，所以讲不了。':'这次没讲成，过一会儿再试。'}finally{btn.disabled=false}};
 
 // ================= live updates from GitHub =================
-const BUILD=3,LIVE={"build": 3, "params": {}, "commands": []};
+const BUILD=4,LIVE={"build": 4, "params": {}, "commands": [], "rules": 1, "simHash": "6ff837ddee15", "uiHash": "835baaa70dd4"};let RULES=LIVE.rules||1;
 const REPO='Yifeng-LIN/Yifeng-LIN.github.io',BRANCH='claude/ecstatic-faraday-e7tjvq';
 const liveNote=t=>{$('#tickNote').textContent=t};
 function applyLive(L){if(!L)return 0;S.liveSeen=S.liveSeen||[];let n=0;
@@ -1127,18 +1128,26 @@ function applyLive(L){if(!L)return 0;S.liveSeen=S.liveSeen||[];let n=0;
     else applyIdea(c,c.role||'parent',true)});
   if(n)render();return n}
 let lastSha=null,fails=0,pollTimer=null;
+// swap only the rules: load the new simulation code, move the running world into it, keep everything else on screen as it is
+async function swapRules(sha,v){let code;try{code=await (await fetch(`https://raw.githubusercontent.com/${REPO}/${sha}/jiugong/sim.js`)).text()}catch(e){liveNote('新规则下载失败，下次再试');lastSha=null;return}
+  let NS;try{NS=new Function(code+'\n;return Sim')()}catch(e){liveNote('新规则的代码有错，先不换');return}
+  try{NS.load(Sim.save())}catch(e){liveNote('新规则和现在的世界对不上，先不换（点“从头再来”可以用新规则）');return}
+  Sim=NS;bindSim();S=Sim.S;fx.traders.length=0;RULES=v;
+  addLog('sys',`换上了第 ${v} 版规则`,'只换了规则：世界、播放速度、正在看的地方都没变。');render()}
 async function poll(){clearTimeout(pollTimer);
   try{const r=await fetch(`https://api.github.com/repos/${REPO}/commits/${BRANCH}`,{cache:'no-cache'});
     if(r.status===403||r.status===429){liveNote('GitHub 暂时不让查了，1 分钟后再试');pollTimer=setTimeout(poll,60000);return}
     if(!r.ok)throw new Error(r.status);const j=await r.json(),sha=j.sha;fails=0;
     if(sha&&sha!==lastSha){const L=await (await fetch(`https://raw.githubusercontent.com/${REPO}/${sha}/jiugong/live.json`)).json();lastSha=sha;
-      if(L.build>BUILD){liveNote('GitHub 上有新版本，正在换上（世界接着跑）…');
+      if(L.build>BUILD){liveNote('界面有新版本，正在换上（世界接着跑）…');
         try{const html=await (await fetch(`https://raw.githubusercontent.com/${REPO}/${sha}/jiugong/game.html`)).text();
-          sessionStorage.setItem('jiugong:code',JSON.stringify({build:L.build,html}));sessionStorage.setItem('jiugong:state',Sim.save());sessionStorage.setItem('jiugong:run',running?'1':'0');location.reload();return}
-        catch(e){liveNote('GitHub 上有新版本，请手动刷新页面')}}
+          sessionStorage.setItem('jiugong:code',JSON.stringify({build:L.build,html}));sessionStorage.setItem('jiugong:state',Sim.save());sessionStorage.setItem('jiugong:run',running?'1':'0');
+          sessionStorage.setItem('jiugong:ui',JSON.stringify({speed,sel,tab,selPerson,y:scrollY,idea:$('#ideaText').value,role}));location.reload();return}
+        catch(e){liveNote('界面有新版本，请手动刷新页面')}}
+      else if((L.rules||1)>RULES)await swapRules(sha,L.rules);
       const n=applyLive(L);if(n)addLog('sys',`从 GitHub 收到 ${n} 个新想法`,(j.commit&&j.commit.message||'').split('\n')[0])}
     const tm=new Date().toLocaleTimeString('zh-CN',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
-    liveNote(`已连接 GitHub，每 10 秒检查一次 · 第 ${BUILD} 版 · ${tm}`);pollTimer=setTimeout(poll,10000)}
+    liveNote(`已连接 GitHub，每 10 秒检查一次 · 界面第 ${BUILD} 版 · 规则第 ${RULES} 版 · ${tm}`);pollTimer=setTimeout(poll,10000)}
   catch(e){fails++;liveNote(fails>2?'连不上 GitHub，1 分钟后再试':'正在连接 GitHub…');pollTimer=setTimeout(poll,fails>2?60000:10000)}}
 
 // ================= boot =================
@@ -1154,9 +1163,11 @@ function boot(d){d=d||{};buildCharts();fit();let restored=false,wasRunning=null;
   applyLive(LIVE);render();requestAnimationFrame(frame);
   let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{fit();render()},120)});
   const rethemes=()=>render();matchMedia('(prefers-color-scheme: dark)').addEventListener('change',rethemes);new MutationObserver(rethemes).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+  try{const ui=JSON.parse(ss('jiugong:ui')||'null');ssDel('jiugong:ui');if(ui&&restored){speed=ui.speed||1;$('#speed').textContent=`速度 ${speed}×`;sel=ui.sel||sel;selPerson=ui.selPerson||null;role=ui.role||role;
+    document.querySelectorAll('.who-toggle button').forEach(x=>x.setAttribute('aria-pressed',String(x.dataset.r===role)));if(ui.idea)$('#ideaText').value=ui.idea;setTab(ui.tab||'world');requestAnimationFrame(()=>scrollTo(0,ui.y||0))}}catch(e){}
   if(wasRunning!=null?wasRunning:!reduceMotion)setRun(true);
   // outside Claude the page watches GitHub; inside Claude the artifact is updated directly
-  if(!window.claude)poll();else liveNote(`第 ${BUILD} 版`)}
+  if(!window.claude)poll();else liveNote(`界面第 ${BUILD} 版 · 规则第 ${RULES} 版`)}
 const hot=window.claude&&window.claude.hot;
 try{if(hot&&hot.snapshot)hot.snapshot(()=>({state:Sim.save(),running}))}catch(e){}
 if(hot&&hot.ready)hot.ready(boot);else boot(hot&&hot.data||{});

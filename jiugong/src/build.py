@@ -4,6 +4,16 @@ import json, os, sys
 src = os.path.dirname(os.path.abspath(__file__)); root = os.path.dirname(src)
 rd = lambda p: open(p, encoding='utf8').read()
 live = json.load(open(os.path.join(root, 'live.json'), encoding='utf8'))
+# version numbers follow the files: rules = sim.js, build = page and interface
+import hashlib
+hs = lambda t: hashlib.sha1(t.encode('utf8')).hexdigest()[:12]
+h_sim = hs(rd(os.path.join(src, 'sim.js'))); h_ui = hs(rd(os.path.join(src, 'shell.html')) + rd(os.path.join(src, 'ui.js')))
+if live.get('simHash') != h_sim:
+    live['rules'] = live.get('rules', 1) + (1 if 'simHash' in live else 0); live['simHash'] = h_sim
+if live.get('uiHash') != h_ui:
+    live['build'] = live['build'] + (1 if 'uiHash' in live else 0); live['uiHash'] = h_ui
+json.dump(live, open(os.path.join(root, 'live.json'), 'w', encoding='utf8'), ensure_ascii=False, indent=2)
+open(os.path.join(root, 'sim.js'), 'w', encoding='utf8').write(rd(os.path.join(src, 'sim.js')))
 ui = rd(os.path.join(src, 'ui.js')).replace('__BUILD__', str(int(live['build']))).replace('__LIVE__', json.dumps(live, ensure_ascii=False))
 frag = rd(os.path.join(src, 'shell.html')) + '\n<script>\n' + rd(os.path.join(src, 'sim.js')) + '\n' + ui + '\n</script>\n'
 open(os.path.join(root, 'game.html'), 'w', encoding='utf8').write(frag)
@@ -28,4 +38,4 @@ const EMBED=''' + embed + ''';
 </body></html>
 '''
 open(os.path.join(root, 'index.html'), 'w', encoding='utf8').write(loader)
-print('build', live['build'], 'frag', len(frag), 'commands', len(live['commands']))
+print('build', live['build'], 'rules', live['rules'], 'frag', len(frag), 'commands', len(live['commands']))

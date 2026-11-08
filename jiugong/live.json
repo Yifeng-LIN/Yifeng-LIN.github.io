@@ -1,5 +1,8 @@
 {
-  "build": 3,
+  "build": 4,
   "params": {},
-  "commands": []
+  "commands": [],
+  "rules": 1,
+  "simHash": "6ff837ddee15",
+  "uiHash": "835baaa70dd4"
 }
