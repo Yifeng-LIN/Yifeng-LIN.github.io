@@ -1,0 +1,38 @@
+(()=>{
+const $=s=>document.querySelector(s),clamp=(x,a,b)=>x<a?a:x>b?b:x,pct=v=>Math.round(v*100)+'%';
+const RIDS=['mountain','village','coast'],RC={mountain:'#6b7280',village:'#4c8a3c',coast:'#2a79a8'};
+const PACK={rice:'#e2c25a',veg:'#6aa84f',tuber:'#a07a40',egg:'#f1e7c8',fish:'#7fb5d6',dfish:'#9a8f7a',meat:'#a8443a',smeat:'#8a3b2e',salt:'#f6f6f6',wood:'#8a5a35',ore:'#6f6f78',cloth:'#4a74b8',pot:'#b56a3c',med:'#e8e8ff',tool:'#4a4a52',shell:'#f3d9c7'};
+const SEASON=['春','夏','秋','冬'],MODES=['free','barter','money'];
+let D=null,wk=0,running=false,speed=4,timer=null,PROBS=[],sel=null,reps=[],G={},EVN={},JOB={};
+const reduceMotion=matchMedia('(prefers-reduced-motion: reduce)').matches,Sim={candOf:w=>w.rep},tickMs=()=>1300/speed;let lastTick=performance.now();
+const S={t:0,flow:[],worlds:[['mountain','山区',6],['village','乡村',7],['coast','海边',9]].map(([id,name,no],i)=>({id,name,no,i,hhs:{length:0},working:0,event:null,rep:{name:'—'}}))};
+/*MAP*/
+const when=t=>`第${Math.floor(t/52)+1}年${SEASON[Math.floor((t%52)/13)]}`;
+function rulesAt(w){const o={...D.start};D.rules.forEach(r=>{if(r.week<=w)Object.assign(o,r.set)});return o}
+function setFrame(i){if(!D)return;wk=clamp(Math.round(i),0,D.frames.length-1);const f=D.frames[wk];S.t=f[0];
+  S.worlds.forEach((w,j)=>{const r=f[1][j];w.hhs={length:r[4]};w.working=r[5];w.event=r[6]||null});S.flow=f[2].map(([a,b,k,v])=>[a,b,k,v/G[k].v,v/G[k].v]);
+  const p=[...D.probs].reverse().find(x=>x[0]<=wk);PROBS=p?p[1]:[];const rp=[...D.reps].reverse().find(x=>x[0]<=wk);reps=rp?rp[1]:[];S.worlds.forEach((w,j)=>w.rep={name:reps[j]?reps[j].name:'—'});
+  lastTick=performance.now();ui();try{if(wk%10===0)localStorage.setItem('jg:wk',wk)}catch(e){}}
+function ui(){const t=S.t;$('#date').textContent=`${when(t)}`;$('#dateSub').textContent=`第 ${wk+1} / ${D.frames.length} 周`;$('#pos').value=wk;
+  $('#reps').innerHTML=reps.map((r,j)=>`<div class="rep ${RIDS[j]}"><span class="no">${r.no}</span><span class="rn">${r.name}</span><span class="rw">${r.w}代表${r.votes!=null?` · ${r.votes} 票`:''}</span><span class="rbio">${r.traits}</span></div>`).join('');
+  const o=rulesAt(wk),L=D.labels,on=Object.entries(o).filter(([k,v])=>v===true&&L[k]).map(([k])=>L[k]);
+  $('#now').innerHTML=[`<span class="chip" aria-pressed="true">${L[o.mode||'free']||o.mode}</span>`,...on.map(x=>`<span class="chip" aria-pressed="true">${x}</span>`)].join('');
+  $('#rl').innerHTML=D.rules.length?D.rules.map(r=>`<li data-w="${r.week}" style="cursor:pointer${r.week<=wk?'':';opacity:.5'}"><span class="rtag ${r.role}">${r.role==='kid'?'小朋友':'爸爸妈妈'}</span><span class="t">${when(D.t0+r.week)}</span><b>${r.title}</b>${r.explain?`<span class="ex">${r.explain}</span>`:''}</li>`).join(''):'<li>还没有改过规则。</li>';
+  document.querySelectorAll('#rl li[data-w]').forEach(li=>li.onclick=()=>setFrame(+li.dataset.w));
+  const bad=PROBS.filter(p=>p.cls==='bad').length,lv=!PROBS.length?['good','运转得很好']:bad>=2||PROBS[0].sev>0.85?['bad','遇到大麻烦了']:bad?['bad','有严重的问题']:['warn','有些小问题'];
+  $('#verdict').className='verdict '+lv[0];$('#vFace').textContent=lv[1];const pop=D.frames[wk][1].reduce((a,r)=>a+r[0],0);
+  $('#vText').textContent=(PROBS.length?`最要紧的是：${PROBS[0].q}。`:'三个地区都吃得饱、有药用、冬天不冷。')+` 现在一共 ${pop} 人。`;
+  $('#probs').innerHTML=PROBS.length?PROBS.map(p=>`<div class="prob ${p.cls}"><span class="k">问题</span><span class="q">${p.q}</span><span class="k">瓶颈</span><span class="v">${p.b}</span><span class="k">后果</span><span class="v">${p.c}</span></div>`).join(''):'<div class="prob good"><span class="k">现在</span><span class="q">没有发现问题</span></div>'}
+function load(d){const first=!D;D=d;G=d.goods;EVN=d.evn;$('#ttl').textContent=d.title;document.title=d.title;$('#pos').max=d.frames.length-1;
+  if(first){let s=0;try{s=+localStorage.getItem('jg:wk')||0}catch(e){}setFrame(s<d.frames.length?s:0);if(!reduceMotion)setRun(true)}else setFrame(wk)}
+function tick(){if(wk>=D.frames.length-1){setRun(false);return}setFrame(wk+1)}
+function loop(){if(!running)return;tick();timer=setTimeout(loop,tickMs())}
+function setRun(v){running=v;$('#play').textContent=v?'⏸ 暂停':'▶ 播放';clearTimeout(timer);if(v)timer=setTimeout(loop,100)}
+$('#play').onclick=()=>{if(!running&&wk>=D.frames.length-1)setFrame(0);setRun(!running)};$('#home').onclick=()=>setFrame(0);
+$('#speed').onclick=e=>{speed=speed===1?2:speed===2?4:speed===4?8:speed===8?16:1;e.target.textContent=`速度 ${speed}×`};
+$('#pos').oninput=e=>setFrame(+e.target.value);
+async function get(){const r=await fetch('result.json?'+Date.now(),{cache:'no-store'});if(!r.ok)throw new Error(r.status);return r.json()}
+async function poll(){try{const d=await get();if(!D){load(d);$('#note').textContent=''}else if(d.ver!==D.ver){load(d);$('#note').textContent='结果更新了'}}catch(e){if(!D)$('#note').textContent='还没有结果文件 result.json'}setTimeout(poll,10000)}
+fit();requestAnimationFrame(frame);let rz;addEventListener('resize',()=>{clearTimeout(rz);rz=setTimeout(()=>{fit();if(D)ui()},120)});
+poll();
+})();

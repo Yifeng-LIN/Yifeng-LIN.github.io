@@ -1,0 +1,10 @@
+{
+  "title": "我的三地世界",
+  "seed": 20261108,
+  "years": 12,
+  "start": {},
+  "labels": {"needFirst":"代表先分给最需要的人","honest":"三位代表都清廉慷慨勤快","share":"地区之间多互相送","elections":"每四年重新选一次","reputation":"谁干了多少活大家都看得见","freedom":"想干嘛就干嘛","migrate":"不开心可以搬家","priceCap":"规定价格不许涨","greed":"人性：都想多拿一点","freeRide":"有人偷懒","corruption":"代表有私心","rivalry":"地区先顾自己","disasters":"天灾","contagion":"传染病随商队传开","distance":"路远","mode":"交换方式","free":"不要钱 · 各取所需","barter":"以物易物","money":"用贝壳当钱","kindness":"大家有多自觉","shellShare":"海边拾贝的人"},
+  "changes": [
+    {"week": 104, "role": "parent", "title": "现实：人都想多拿一点", "set": {"greed": true}, "explain": "两年后，大家开始想多拿一点。"}
+  ]
+}

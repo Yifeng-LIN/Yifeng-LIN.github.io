@@ -1,0 +1,19 @@
+<div class="wrap">
+  <header>
+    <div><h1 id="ttl">我的三地世界</h1><p class="sub">山区有矿，乡村有稻田，海边有鱼和贝壳。三个地区各选一位代表来管事。这里只显示模拟的结果：出了什么问题、卡在哪里、会造成什么后果。</p></div>
+    <div class="date"><b id="date">—</b><span id="dateSub"></span></div>
+  </header>
+  <section class="top">
+    <div class="col">
+      <canvas id="map" aria-label="三个地区的地图：上面是山区，中间是乡村，下面是海边"></canvas>
+      <div class="bar"><button class="btn primary" id="play">▶ 播放</button><button class="btn" id="speed">速度 4×</button><button class="btn" id="home">回到开头</button><span class="note" id="note"></span></div>
+      <input type="range" id="pos" min="0" max="0" value="0" aria-label="时间">
+    </div>
+    <div class="col">
+      <div class="panel"><h2>三位代表</h2><div class="reps" id="reps"></div></div>
+      <div class="panel"><h2>现在的规则</h2><div class="chips" id="now"></div></div>
+      <div class="panel"><h2>改过的规则</h2><ul class="list log" id="rl"></ul></div>
+    </div>
+  </section>
+  <section class="diag"><div class="verdict" id="verdict"><div class="face" id="vFace">—</div><p id="vText"></p></div><div class="probs" id="probs"></div></section>
+</div>
